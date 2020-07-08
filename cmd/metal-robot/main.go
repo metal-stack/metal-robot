@@ -78,6 +78,8 @@ func initOpts() (*Opts, error) {
 		Port:                   viper.GetInt("port"),
 		GithubWebhookServePath: viper.GetString("github-webhook-serve-path"),
 		GithubWebhookSecret:    viper.GetString("github-webhook-secret"),
+		GitlabWebhookServePath: viper.GetString("gitlab-webhook-secret"),
+		GitlabWebhookSecret:    viper.GetString("gitlab-webhook-secret"),
 	}
 
 	validate := validator.New()
