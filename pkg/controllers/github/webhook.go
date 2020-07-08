@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	githubEvents = []github.Event{github.ReleaseEvent, github.PullRequestEvent}
+	githubEvents = []github.Event{github.ReleaseEvent, github.PushEvent, github.PullRequestEvent}
 )
 
 // Controller that retrieves and handles github webhook events
