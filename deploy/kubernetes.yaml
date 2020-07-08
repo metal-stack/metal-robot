@@ -1,0 +1,79 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metal-robot
+  labels:
+    name: metal-robot
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: metal-robot
+    namespace: metal-robot
+    labels:
+        app: metal-robot
+spec:
+    selector:
+    matchLabels:
+        app: metal-robot
+    template:
+    metadata:
+        labels:
+            app: metal-robot
+    spec:
+        enableServiceLinks: False
+        containers:
+        - name: metal-robot
+          image: metalstack/metal-robot:latest
+          imagePullPolicy: Always
+          env:
+          - name: METAL_ROBOT_BIND_ADDR
+            value: "0.0.0.0"
+          - name: METAL_ROBOT_GITHUB_WEBHOOK_SECRET
+            value: "something"
+          - name: METAL_ROBOT_GITLAB_WEBHOOK_SECRET
+            value: "something"
+          ports:
+          - containerPort: 3000
+            protocol: TCP
+        restartPolicy: Always
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: metal-robot
+    namespace: metal-robot
+    labels:
+        app: metal-robot
+spec:
+    selector:
+        app: metal-robot
+    ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+    annotations:
+        certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+        kubernetes.io/ingress.class: nginx
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    name: metal-robot
+    labels:
+        app: metal-robot
+spec:
+    rules:
+    - host: bot.metal-pod.dev
+    http:
+        paths:
+        - backend:
+            serviceName: metal-robot
+            servicePort: 3000
+    tls:
+    - hosts:
+      - bot.metal-pod.dev
+    secretName: metal-robot-ingress-tls
