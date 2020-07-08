@@ -9,18 +9,18 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-    name: metal-robot
-    namespace: metal-robot
-    labels:
-        app: metal-robot
+  name: metal-robot
+  namespace: metal-robot
+  labels:
+    app: metal-robot
 spec:
-    selector:
+  selector:
     matchLabels:
-        app: metal-robot
-    template:
+      app: metal-robot
+  template:
     metadata:
-        labels:
-            app: metal-robot
+      labels:
+        app: metal-robot
     spec:
         enableServiceLinks: False
         containers:
@@ -38,7 +38,6 @@ spec:
           - containerPort: 3000
             protocol: TCP
         restartPolicy: Always
-
 ---
 apiVersion: v1
 kind: Service
@@ -46,10 +45,10 @@ metadata:
     name: metal-robot
     namespace: metal-robot
     labels:
-        app: metal-robot
+      app: metal-robot
 spec:
     selector:
-        app: metal-robot
+      app: metal-robot
     ports:
     - port: 3000
       targetPort: 3000
@@ -57,18 +56,18 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-    annotations:
-        certmanager.k8s.io/cluster-issuer: letsencrypt-prod
-        kubernetes.io/ingress.class: nginx
-        nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    name: metal-robot
-    labels:
-        app: metal-robot
+  annotations:
+      certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  name: metal-robot
+  labels:
+    app: metal-robot
 spec:
     rules:
     - host: bot.metal-pod.dev
-    http:
+      http:
         paths:
         - backend:
             serviceName: metal-robot
@@ -76,4 +75,4 @@ spec:
     tls:
     - hosts:
       - bot.metal-pod.dev
-    secretName: metal-robot-ingress-tls
+      secretName: metal-robot-ingress-tls
