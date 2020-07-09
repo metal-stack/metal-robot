@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"go.uber.org/zap"
@@ -32,27 +31,41 @@ var (
 // this is because MarkFlagRequired from cobra does not work well with viper, see:
 // https://github.com/spf13/viper/issues/397
 type Opts struct {
-	BindAddr               string
-	Port                   int
-	GithubWebhookServePath string
-	GithubWebhookSecret    string `validate:"required"`
+	BindAddr string
+	Port     int
+
+	GithubWebhookServePath  string
+	GithubWebhookSecret     string `validate:"required"`
+	GithubAppPrivateKeyPath string
+	GithubAppID             int64 `validate:"required"`
+
 	GitlabWebhookServePath string
 	GitlabWebhookSecret    string `validate:"required"`
 }
 
 var cmd = &cobra.Command{
-	Use:     moduleName,
-	Short:   "a bot helping with automating tasks on github and gitlab",
-	Version: v.V.String(),
+	Use:          moduleName,
+	Short:        "a bot helping with automating tasks on github and gitlab",
+	Version:      v.V.String(),
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		err := initConfig()
+		if err != nil {
+			return err
+		}
 		initLogging()
-		initConfig()
 		opts, err := initOpts()
 		if err != nil {
 			return fmt.Errorf("unable to init options: %v", err)
 		}
 		return run(opts)
 	},
+}
+
+func main() {
+	if err := cmd.Execute(); err != nil {
+		logger.Fatalw("an error occurred", "error", err)
+	}
 }
 
 func init() {
@@ -63,6 +76,9 @@ func init() {
 	cmd.Flags().IntP("port", "", 3000, "the port to serve on")
 	cmd.Flags().StringP("github-webhook-serve-path", "", "/github/webhooks", "the path on which the server serves github webhook requests")
 	cmd.Flags().StringP("github-webhook-secret", "", "", "the github webhook secret")
+	cmd.Flags().StringP("github-app-private-key-path", "", "/etc/metal-robot/key.pem", "the github app secret auth key certificate file path")
+	cmd.Flags().Int64("github-app-id", 0, "the github app id")
+
 	cmd.Flags().StringP("gitlab-webhook-serve-path", "", "/gitlab/webhooks", "the path on which the server serves gitlab webhook requests")
 	cmd.Flags().StringP("gitlab-webhook-secret", "", "", "the gitlab webhook secret")
 
@@ -70,14 +86,22 @@ func init() {
 	if err != nil {
 		log.Fatalf("unable to construct root command: %v", err)
 	}
+	err = viper.BindPFlags(cmd.PersistentFlags())
+	if err != nil {
+		log.Fatalf("unable to construct root command: %v", err)
+	}
 }
 
 func initOpts() (*Opts, error) {
 	opts := &Opts{
-		BindAddr:               viper.GetString("bind-addr"),
-		Port:                   viper.GetInt("port"),
-		GithubWebhookServePath: viper.GetString("github-webhook-serve-path"),
-		GithubWebhookSecret:    viper.GetString("github-webhook-secret"),
+		BindAddr: viper.GetString("bind-addr"),
+		Port:     viper.GetInt("port"),
+
+		GithubWebhookServePath:  viper.GetString("github-webhook-serve-path"),
+		GithubWebhookSecret:     viper.GetString("github-webhook-secret"),
+		GithubAppPrivateKeyPath: viper.GetString("github-app-private-key-path"),
+		GithubAppID:             viper.GetInt64("github-app-id"),
+
 		GitlabWebhookServePath: viper.GetString("gitlab-webhook-secret"),
 		GitlabWebhookSecret:    viper.GetString("gitlab-webhook-secret"),
 	}
@@ -91,13 +115,7 @@ func initOpts() (*Opts, error) {
 	return opts, nil
 }
 
-func main() {
-	if err := cmd.Execute(); err != nil {
-		logger.Fatalw("failed executing root command", "error", err)
-	}
-}
-
-func initConfig() {
+func initConfig() error {
 	viper.SetEnvPrefix("METAL_ROBOT")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
@@ -107,8 +125,7 @@ func initConfig() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 		if err := viper.ReadInConfig(); err != nil {
-			logger.Errorw("Config file path set explicitly, but unreadable", "error", err)
-			os.Exit(1)
+			return fmt.Errorf("Config file path set explicitly, but unreadable: %v", err)
 		}
 	} else {
 		viper.SetConfigName("config")
@@ -118,15 +135,12 @@ func initConfig() {
 		if err := viper.ReadInConfig(); err != nil {
 			usedCfg := viper.ConfigFileUsed()
 			if usedCfg != "" {
-				logger.Fatalw("Config file unreadable", "config-file", usedCfg, "error", err)
+				return fmt.Errorf("Config file unreadable: %v", err)
 			}
 		}
 	}
 
-	usedCfg := viper.ConfigFileUsed()
-	if usedCfg != "" {
-		logger.Infow("Read config file", "config-file", usedCfg)
-	}
+	return nil
 }
 
 func initLogging() {
@@ -151,7 +165,12 @@ func initLogging() {
 }
 
 func run(opts *Opts) error {
-	githubController, err := githubcontroller.NewController(logger.Named("github-webhook-controller"), opts.GithubWebhookSecret)
+	githubAuth, err := githubcontroller.NewAuth(logger.Named("github-auth"), opts.GithubAppID, opts.GithubAppPrivateKeyPath)
+	if err != nil {
+		return err
+	}
+
+	githubController, err := githubcontroller.NewController(logger.Named("github-webhook-controller"), githubAuth, opts.GithubWebhookSecret)
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,6 @@
 package gitlab
 
 import (
-	"fmt"
 	"net/http"
 
 	"go.uber.org/zap"
@@ -48,7 +47,7 @@ func (c *Controller) Webhook(response http.ResponseWriter, request *http.Request
 
 	switch payload := payload.(type) {
 	case gitlab.PushEventPayload:
-		fmt.Printf("%+v", payload)
+		c.logger.Debugw("received push event")
 	default:
 		c.logger.Warnw("missing handler", "payload", payload)
 	}
