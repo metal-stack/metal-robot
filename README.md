@@ -4,7 +4,7 @@ A bot helping to automate some tasks on Github and Gitlab.
 
 ## Task Descriptions
 
-TBD
+- Automatically add releases of certain repositories to the [releases](https://github.com/metal-stack/releases) repository (`develop` branch)
 
 ## Development
 

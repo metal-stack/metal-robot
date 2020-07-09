@@ -45,3 +45,11 @@ func GetYAML(data []byte, path string) (string, error) {
 
 	return res.String(), nil
 }
+
+func StringPtr(s string) *string {
+	return &s
+}
+
+func BoolPtr(b bool) *bool {
+	return &b
+}
