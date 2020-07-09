@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/blang/semver"
 	v3 "github.com/google/go-github/v32/github"
@@ -14,12 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/storage/memory"
 	"gopkg.in/go-playground/webhooks.v5/github"
 )
 
@@ -177,6 +171,7 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 	payload := p.Payload
 	updates, ok := releaseVectorRepos[payload.Repository.Name]
 	if !ok {
+		p.Logger.Debugw("skip adding release to release vector because not a release vector repo", "repo", payload.Repository.Name, "release", payload.Release.TagName, "action", payload.Action)
 		return nil
 	}
 	if payload.Action != "released" {
@@ -188,12 +183,14 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 		p.Logger.Debugw("skip adding release to release vector because not starting with v", "repo", payload.Repository.Name, "release", payload.Release.TagName, "action", payload.Action)
 		return nil
 	}
+
 	version, err := semver.Make(tag[1:])
 	if err != nil {
-		return err
+		return errors.Wrap(err, "not a valid semver release tag")
 	}
 
 	p.Logger.Infow("adding release to release vector", "repo", payload.Repository.Name, "release", tag)
+
 	t, _, err := p.AppClient.Apps.CreateInstallationToken(context.Background(), p.InstallID, &v3.InstallationTokenOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error creating installation token")
@@ -203,14 +200,11 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 	if err != nil {
 		return err
 	}
-
 	repoURL.User = url.UserPassword("x-access-token", t.GetToken())
-	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
-		URL:   repoURL.String(),
-		Depth: 1,
-	})
+
+	r, err := utils.ShallowClone(repoURL.String(), releasePRBranch, 1)
 	if err != nil {
-		return errors.Wrap(err, "error cloning git repo")
+		return err
 	}
 
 	w, err := r.Worktree()
@@ -218,63 +212,20 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 		return errors.Wrap(err, "error retrieving git worktree")
 	}
 
-	err = w.Checkout(&git.CheckoutOptions{
-		Branch: "refs/remotes/origin/" + releasePRBranch,
-		Force:  true,
-	})
-	if err != nil {
-		switch err {
-		case git.ErrBranchNotFound:
-			err2 := w.Checkout(&git.CheckoutOptions{
-				Branch: "refs/heads/" + releasePRBranch,
-				Force:  true,
-				Create: true,
-			})
-			if err2 != nil {
-				return errors.Wrap(err2, "error during git checkout")
-			}
-		default:
-			return errors.Wrap(err, "error during git checkout")
-		}
-	}
-
 	f, err := w.Filesystem.Open(releaseFile)
 	if err != nil {
 		return errors.Wrap(err, "error opening release file")
 	}
+	defer f.Close()
 
 	content, err := ioutil.ReadAll(f)
 	if err != nil {
 		return errors.Wrap(err, "error reading release file")
 	}
 
-	new := content
-	for _, update := range updates {
-		old, err := utils.GetYAML(new, update.YAMLPath)
-		if err != nil {
-			return errors.Wrap(err, "error retrieving path from release file")
-		}
-
-		newValue := payload.Release.TagName
-
-		if update.Template == "" {
-			oldVersion, err := semver.Make(old[1:])
-			if err != nil {
-				return err
-			}
-
-			if !version.GT(oldVersion) {
-				p.Logger.Debugw("skip adding release to release vector because not newer than current version", "repo", payload.Repository.Name, "release", payload.Release.TagName, "current", oldVersion.String(), "new", version.String())
-				continue
-			}
-		} else {
-			newValue = fmt.Sprintf(update.Template, payload.Release.TagName)
-		}
-
-		new, err = utils.SetYAML(new, update.YAMLPath, newValue)
-		if err != nil {
-			return err
-		}
+	new, err := applyReleaseUpdates(content, updates, version)
+	if err != nil {
+		return errors.Wrap(err, "error applying release updates")
 	}
 
 	if string(new) == string(content) {
@@ -287,35 +238,20 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 		return errors.Wrap(err, "error writing release file")
 	}
 
-	hash, err := w.Commit(fmt.Sprintf(commitMessage, payload.Repository.Name, payload.Release.TagName), &git.CommitOptions{
-		Author: &object.Signature{
-			Name:  "metal-robot",
-			Email: "info@metal-stack.io",
-			When:  time.Now(),
-		},
-		All: true,
-	})
+	commitMessage := fmt.Sprintf(commitMessage, payload.Repository.Name, payload.Release.TagName)
+	hash, err := utils.CommitAndPush(r, commitMessage)
 	if err != nil {
-		return errors.Wrap(err, "error during git commit")
+		return err
 	}
 
-	err = r.Push(&git.PushOptions{
-		RefSpecs: []config.RefSpec{
-			"refs/heads/" + releasePRBranch + ":" + "refs/heads/" + releasePRBranch,
-		},
-	})
-	if err != nil {
-		return errors.Wrap(err, "error pushing to repo")
-	}
-
-	p.Logger.Infow("pushed to release repo", "repo", releaseRepoURL, "branch", releasePRBranch, "hash", hash.String())
+	p.Logger.Infow("pushed to release repo", "repo", releaseRepoURL, "branch", releasePRBranch, "hash", hash)
 
 	pr, _, err := p.Client.PullRequests.Create(context.Background(), owner, releaseRepoName, &v3.NewPullRequest{
-		Title:               utils.StringPtr("Next release"),
-		Head:                utils.StringPtr(releasePRBranch),
-		Base:                utils.StringPtr("master"),
-		Body:                utils.StringPtr("Next release of metal-stack"),
-		MaintainerCanModify: utils.BoolPtr(true),
+		Title:               v3.String("Next release"),
+		Head:                v3.String(releasePRBranch),
+		Base:                v3.String("master"),
+		Body:                v3.String("Next release of metal-stack"),
+		MaintainerCanModify: v3.Bool(true),
 	})
 	if err != nil {
 		return errors.Wrap(err, "error creating pull request")
@@ -324,4 +260,35 @@ func addToRelaseVector(p *ReleaseProcessor) error {
 	p.Logger.Infow("created pull request", "url", pr.GetURL())
 
 	return nil
+}
+
+func applyReleaseUpdates(content []byte, updates releaseUpdates, version semver.Version) ([]byte, error) {
+	new := content
+	for _, update := range updates {
+		old, err := utils.GetYAML(new, update.YAMLPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "error retrieving path from release file")
+		}
+
+		value := "v" + version.String()
+
+		if update.Template == "" {
+			oldVersion, err := semver.Make(old[1:])
+			if err != nil {
+				return nil, err
+			}
+
+			if !version.GT(oldVersion) {
+				continue
+			}
+		} else {
+			value = fmt.Sprintf(update.Template, value)
+		}
+
+		new, err = utils.SetYAML(new, update.YAMLPath, value)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return new, nil
 }
