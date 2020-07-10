@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultRemoteRef  = "refs/remotes/origin"
 	defaultLocalRef   = "refs/heads"
 	defaultAuthor     = "metal-stack"
 	defaultAuthorMail = "info@metal-stack.io"
