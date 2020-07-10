@@ -5,13 +5,10 @@ import (
 	"net/http"
 
 	"github.com/bradleyfalzon/ghinstallation"
+	"github.com/metal-stack/metal-robot/pkg/controllers"
 	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v32/github"
-)
-
-const (
-	organisation = "metal-stack"
 )
 
 type Auth struct {
@@ -44,7 +41,7 @@ func (a *Auth) initInstallToken() error {
 		return err
 	}
 
-	installation, _, err := v3.NewClient(&http.Client{Transport: atr}).Apps.FindOrganizationInstallation(context.TODO(), organisation)
+	installation, _, err := v3.NewClient(&http.Client{Transport: atr}).Apps.FindOrganizationInstallation(context.TODO(), controllers.GithubOrganisation)
 	if err != nil {
 		return err
 	}

@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
-	githubcontroller "github.com/metal-stack/metal-robot/pkg/controllers/github"
-	gitlabcontroller "github.com/metal-stack/metal-robot/pkg/controllers/gitlab"
+	"github.com/metal-stack/metal-robot/pkg/controllers/webhooks"
+	"github.com/metal-stack/metal-robot/pkg/controllers/webhooks/github"
 	"github.com/metal-stack/v"
 
 	"github.com/spf13/cobra"
@@ -165,22 +165,18 @@ func initLogging() {
 }
 
 func run(opts *Opts) error {
-	githubAuth, err := githubcontroller.NewAuth(logger.Named("github-auth"), opts.GithubAppID, opts.GithubAppPrivateKeyPath)
+	githubAuth, err := github.NewAuth(logger.Named("github-auth"), opts.GithubAppID, opts.GithubAppPrivateKeyPath)
 	if err != nil {
 		return err
 	}
 
-	githubController, err := githubcontroller.NewController(logger.Named("github-webhook-controller"), githubAuth, opts.GithubWebhookSecret)
-	if err != nil {
-		return err
-	}
-	gitlabController, err := gitlabcontroller.NewController(logger.Named("gitlab-webhook-controller"), opts.GitlabWebhookSecret)
+	webhookController, err := webhooks.NewController(logger.Named("webhook-controller"), githubAuth, opts.GithubWebhookSecret)
 	if err != nil {
 		return err
 	}
 
-	http.HandleFunc(opts.GithubWebhookServePath, githubController.Webhook)
-	http.HandleFunc(opts.GitlabWebhookServePath, gitlabController.Webhook)
+	http.HandleFunc(opts.GithubWebhookServePath, webhookController.GithubWebhooks)
+	http.HandleFunc(opts.GitlabWebhookServePath, webhookController.GitlabWebhooks)
 
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
 	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)

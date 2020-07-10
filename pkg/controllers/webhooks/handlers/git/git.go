@@ -1,9 +1,11 @@
-package utils
+package git
 
 import (
+	"io/ioutil"
 	"time"
 
 	"github.com/go-git/go-billy/v5/memfs"
+	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -33,8 +35,15 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 		return nil, errors.Wrap(err, "error retrieving git worktree")
 	}
 
+	err = r.Fetch(&git.FetchOptions{
+		RefSpecs: []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "error fetching repository refs")
+	}
+
 	err = w.Checkout(&git.CheckoutOptions{
-		Branch: plumbing.ReferenceName(defaultRemoteRef + "/" + branch),
+		Branch: plumbing.ReferenceName(defaultLocalRef + "/" + branch),
 		Force:  true,
 	})
 	if err != nil {
@@ -91,13 +100,13 @@ func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	return hash.String(), nil
 }
 
-func GetCurrentBranchFromRepository(repository *git.Repository) (string, error) {
-	branchRefs, err := repository.Branches()
+func GetCurrentBranchFromRepository(r *git.Repository) (string, error) {
+	branchRefs, err := r.Branches()
 	if err != nil {
 		return "", err
 	}
 
-	headRef, err := repository.Head()
+	headRef, err := r.Head()
 	if err != nil {
 		return "", err
 	}
@@ -117,4 +126,44 @@ func GetCurrentBranchFromRepository(repository *git.Repository) (string, error) 
 	}
 
 	return currentBranchName, nil
+}
+
+func ReadRepoFile(r *git.Repository, path string) ([]byte, error) {
+	w, err := r.Worktree()
+	if err != nil {
+		return nil, errors.Wrap(err, "error retrieving git worktree")
+	}
+
+	f, err := w.Filesystem.Open(path)
+	if err != nil {
+		return nil, errors.Wrap(err, "error opening repository file")
+	}
+	defer f.Close()
+
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading repository file")
+	}
+
+	return data, nil
+}
+
+func WriteRepoFile(r *git.Repository, path string, data []byte) error {
+	w, err := r.Worktree()
+	if err != nil {
+		return errors.Wrap(err, "error retrieving git worktree")
+	}
+
+	f, err := w.Filesystem.Open(path)
+	if err != nil {
+		return errors.Wrap(err, "error opening repository file")
+	}
+	defer f.Close()
+
+	err = util.WriteFile(w.Filesystem, path, data, 0755)
+	if err != nil {
+		return errors.Wrap(err, "error writing release file")
+	}
+
+	return nil
 }
