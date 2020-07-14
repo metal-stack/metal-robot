@@ -1,4 +1,4 @@
----
+VERSION = 'v0.7.0'
 apiVersion: v1
 kind: Namespace
 metadata:
