@@ -27,8 +27,8 @@ start: all
 	  --github-app-private-key-path $(GITHUB_APP_PRIVATE_KEY_PEM) \
 	  --gitlab-webhook-secret $(GITLAB_WEBHOOK_SECRET)
 
-.PHONY: local
-local:
+.PHONY: swap
+swap:
 	docker build -f Dockerfile.telepresence -t telepresence-container .
 	docker run \
 	  --privileged --rm -it \

@@ -17,18 +17,11 @@ If you have any better ideas, please open a PR or an issue.
 Here is how to do it:
 
 ```
-# build the binary
-make
-
-# start the robot
-bin/metal-robot \
-  --bind-addr 0.0.0.0 \
-  --github-webhook-secret <something> \
-  --gitlab-webhook-secret <something>
+# build and start the robot locally
+make start
 
 # in another terminal window run
-make local
-
+make swap
 # this requires:
 # - Ubuntu & Docker
 # - KUBECONFIG env var points to the cluster where the robot is deployed

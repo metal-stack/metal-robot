@@ -78,7 +78,7 @@ func (c *Controller) processReleaseEvent(payload *ghwebhooks.ReleasePayload) err
 func (c *Controller) processPushEvent(payload *ghwebhooks.PushPayload) error {
 	if payload.Created && strings.HasPrefix(payload.Ref, "refs/tags/v") {
 		tag := strings.Replace(payload.Ref, "refs/tags/", "", 1)
-		p := &handlers.ReleaseVectorParams{
+		releaseParams := &handlers.ReleaseVectorParams{
 			Logger:         c.logger.Named("releases-webhook"),
 			RepositoryName: payload.Repository.Name,
 			TagName:        tag,
@@ -86,15 +86,27 @@ func (c *Controller) processPushEvent(payload *ghwebhooks.PushPayload) error {
 			AppClient:      c.gh.auth.GetV3AppClient(),
 			InstallID:      c.gh.installID,
 		}
-		err := handlers.AddToRelaseVector(p)
-		if err != nil {
-			c.logger.Errorw("error adding new tag to release vector", "repo", p.RepositoryName, "tag", p.TagName, "error", err)
-		}
-	}
+		go func() {
+			err := handlers.AddToRelaseVector(releaseParams)
+			if err != nil {
+				c.logger.Errorw("error adding new tag to release vector", "repo", releaseParams.RepositoryName, "tag", releaseParams.TagName, "error", err)
+			}
+		}()
 
-	err := handlers.GenerateSwaggerClients()
-	if err != nil {
-		return err
+		swaggerParams := &handlers.GenerateSwaggerParams{
+			Logger:         c.logger.Named("releases-webhook"),
+			RepositoryName: payload.Repository.Name,
+			TagName:        tag,
+			AppClient:      c.gh.auth.GetV3AppClient(),
+			Client:         c.gh.auth.GetV3Client(),
+			InstallID:      c.gh.installID,
+		}
+		go func() {
+			err := handlers.GenerateSwaggerClients(swaggerParams)
+			if err != nil {
+				c.logger.Errorw("error creating branches for swagger client repositories", "repo", releaseParams.RepositoryName, "tag", releaseParams.TagName, "error", err)
+			}
+		}()
 	}
 
 	return nil
