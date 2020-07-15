@@ -12,6 +12,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/controllers/webhooks/handlers/git"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type GenerateSwaggerParams struct {
@@ -57,7 +58,7 @@ var (
 
 // GenerateSwaggerClients is triggered by repositories that release a swagger spec.
 // It will create a PR for the client repositories of this repository.
-func GenerateSwaggerClients(p *GenerateSwaggerParams) error {
+func GenerateSwaggerClients(ctx context.Context, p *GenerateSwaggerParams) error {
 	clientRepos, ok := swaggerRepos[p.RepositoryName]
 	if !ok {
 		p.Logger.Debugw("skip creating swagger client update branches because not a swagger repo", "repo", p.RepositoryName, "release", p.TagName)
@@ -70,64 +71,70 @@ func GenerateSwaggerClients(p *GenerateSwaggerParams) error {
 		return nil
 	}
 
+	g, ctx := errgroup.WithContext(ctx)
+
+	t, _, err := p.AppClient.Apps.CreateInstallationToken(ctx, p.InstallID, &v3.InstallationTokenOptions{})
+	if err != nil {
+		return errors.Wrap(err, "error creating installation token")
+	}
+
 	for _, clientRepo := range clientRepos {
-		t, _, err := p.AppClient.Apps.CreateInstallationToken(context.Background(), p.InstallID, &v3.InstallationTokenOptions{})
-		if err != nil {
-			return errors.Wrap(err, "error creating installation token")
-		}
-
-		repoURL, err := url.Parse(clientRepo.URL)
-		if err != nil {
-			return err
-		}
-		repoURL.User = url.UserPassword("x-access-token", t.GetToken())
-
-		prBranch := fmt.Sprintf(swaggerPRBranch, tag)
-
-		r, err := git.ShallowClone(repoURL.String(), prBranch, 1)
-		if err != nil {
-			return err
-		}
-
-		reader := func(file string) ([]byte, error) {
-			return git.ReadRepoFile(r, file)
-		}
-
-		writer := func(file string, content []byte) error {
-			return git.WriteRepoFile(r, file, content)
-		}
-
-		err = clientRepo.Patches.Apply(reader, writer, tag)
-		if err != nil {
-			return errors.Wrap(err, "error applying repo updates")
-		}
-
-		commitMessage := fmt.Sprintf(swaggerCommitMessage, p.RepositoryName, tag)
-		hash, err := git.CommitAndPush(r, commitMessage)
-		if err != nil {
-			if err == git.NoChangesError {
-				p.Logger.Debugw("skip creating swagger client update branch because nothing changed", "repo", p.RepositoryName, "release", tag)
-				return nil
-			}
-			return errors.Wrap(err, "error pushing release file")
-		}
-
-		p.Logger.Infow("pushed to swagger client repo", "repo", p.RepositoryName, "release", tag, "branch", prBranch, "hash", hash)
-
-		pr, _, err := p.Client.PullRequests.Create(context.Background(), controllers.GithubOrganisation, clientRepo.Name, &v3.NewPullRequest{
-			Title:               v3.String(commitMessage),
-			Head:                v3.String(prBranch),
-			Base:                v3.String("master"),
-			Body:                v3.String("Updating swagger client"),
-			MaintainerCanModify: v3.Bool(true),
-		})
-		if err != nil {
-			if !strings.Contains(err.Error(), "A pull request already exists") {
+		g.Go(func() error {
+			repoURL, err := url.Parse(clientRepo.URL)
+			if err != nil {
 				return err
 			}
-		} else {
-			p.Logger.Infow("created pull request", "url", pr.GetURL())
-		}
+			repoURL.User = url.UserPassword("x-access-token", t.GetToken())
+
+			prBranch := fmt.Sprintf(swaggerPRBranch, tag)
+
+			r, err := git.ShallowClone(repoURL.String(), prBranch, 1)
+			if err != nil {
+				return err
+			}
+
+			reader := func(file string) ([]byte, error) {
+				return git.ReadRepoFile(r, file)
+			}
+
+			writer := func(file string, content []byte) error {
+				return git.WriteRepoFile(r, file, content)
+			}
+
+			err = clientRepo.Patches.Apply(reader, writer, tag)
+			if err != nil {
+				return errors.Wrap(err, "error applying repo updates")
+			}
+
+			commitMessage := fmt.Sprintf(swaggerCommitMessage, p.RepositoryName, tag)
+			hash, err := git.CommitAndPush(r, commitMessage)
+			if err != nil {
+				if err == git.NoChangesError {
+					p.Logger.Debugw("skip creating swagger client update branch because nothing changed", "repo", p.RepositoryName, "release", tag)
+					return nil
+				}
+				return errors.Wrap(err, "error pushing release file")
+			}
+
+			p.Logger.Infow("pushed to swagger client repo", "repo", p.RepositoryName, "release", tag, "branch", prBranch, "hash", hash)
+
+			pr, _, err := p.Client.PullRequests.Create(ctx, controllers.GithubOrganisation, clientRepo.Name, &v3.NewPullRequest{
+				Title:               v3.String(commitMessage),
+				Head:                v3.String(prBranch),
+				Base:                v3.String("master"),
+				Body:                v3.String("Updating swagger client"),
+				MaintainerCanModify: v3.Bool(true),
+			})
+			if err != nil {
+				if !strings.Contains(err.Error(), "A pull request already exists") {
+					return err
+				}
+			} else {
+				p.Logger.Infow("created pull request", "url", pr.GetURL())
+			}
+
+			return nil
+		})
 	}
 
 	return nil

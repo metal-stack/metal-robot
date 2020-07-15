@@ -35,9 +35,9 @@ type ReleaseRepo struct {
 }
 
 var (
-	releasePRBranch      = "develop"
-	releaseCommitMessage = "Bump %s to version %s"
-	releaseVectorRepos   = map[string]ReleaseRepo{
+	releasePRBranch              = "develop"
+	releaseCommitMessageTemplate = "Bump %s to version %s"
+	releaseVectorRepos           = map[string]ReleaseRepo{
 		"metal-api": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
@@ -170,7 +170,7 @@ var (
 )
 
 // AddToRelaseVector adds a release to the release vector in a release repository
-func AddToRelaseVector(p *ReleaseVectorParams) error {
+func AddToRelaseVector(ctx context.Context, p *ReleaseVectorParams) error {
 	releaseRepo, ok := releaseVectorRepos[p.RepositoryName]
 	if !ok {
 		p.Logger.Debugw("skip adding new version to release vector because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
@@ -187,7 +187,7 @@ func AddToRelaseVector(p *ReleaseVectorParams) error {
 		return errors.Wrap(err, "not a valid semver release tag")
 	}
 
-	t, _, err := p.AppClient.Apps.CreateInstallationToken(context.Background(), p.InstallID, &v3.InstallationTokenOptions{})
+	t, _, err := p.AppClient.Apps.CreateInstallationToken(ctx, p.InstallID, &v3.InstallationTokenOptions{})
 	if err != nil {
 		return errors.Wrap(err, "error creating installation token")
 	}
@@ -216,7 +216,7 @@ func AddToRelaseVector(p *ReleaseVectorParams) error {
 		return errors.Wrap(err, "error applying release updates")
 	}
 
-	commitMessage := fmt.Sprintf(releaseCommitMessage, p.RepositoryName, tag)
+	commitMessage := fmt.Sprintf(releaseCommitMessageTemplate, p.RepositoryName, tag)
 	hash, err := git.CommitAndPush(r, commitMessage)
 	if err != nil {
 		if err == git.NoChangesError {
@@ -228,7 +228,7 @@ func AddToRelaseVector(p *ReleaseVectorParams) error {
 
 	p.Logger.Infow("pushed to release repo", "repo", releaseRepo.Name, "release", tag, "branch", releasePRBranch, "hash", hash)
 
-	pr, _, err := p.Client.PullRequests.Create(context.Background(), controllers.GithubOrganisation, releaseRepo.Name, &v3.NewPullRequest{
+	pr, _, err := p.Client.PullRequests.Create(ctx, controllers.GithubOrganisation, releaseRepo.Name, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),
 		Head:                v3.String(releasePRBranch),
 		Base:                v3.String("master"),
