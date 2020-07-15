@@ -11,10 +11,10 @@ func (c *Controller) GitlabWebhooks(response http.ResponseWriter, request *http.
 	payload, err := c.gl.hook.Parse(request, c.gl.events...)
 	if err != nil {
 		if err == glwebhooks.ErrEventNotFound {
-			c.logger.Warnw("received unexpected gitlab event", "error", err)
+			c.logger.Warnw("received unregistered gitlab event", "error", err)
 			response.WriteHeader(http.StatusOK)
 		} else {
-			c.logger.Errorw("unable to handle gitlab event", "error", err)
+			c.logger.Errorw("received malformed gitlab event", "error", err)
 			response.WriteHeader(http.StatusInternalServerError)
 		}
 		return

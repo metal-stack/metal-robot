@@ -18,10 +18,10 @@ type DocsPreviewCommentParams struct {
 }
 
 // AddDocsPreviewComment adds a comment to a pull request in the docs repository
-func AddDocsPreviewComment(p *DocsPreviewCommentParams) error {
+func AddDocsPreviewComment(ctx context.Context, p *DocsPreviewCommentParams) error {
 	b := fmt.Sprintf("Thanks for contributing a pull request to the metal-stack docs!\n\nA rendered preview of your changes will be available at: https://docs.metal-stack.io/previews/PR%d", p.PullRequestNumber)
-	_, _, err := p.Client.Issues.CreateComment(
-		context.TODO(),
+	c, _, err := p.Client.Issues.CreateComment(
+		ctx,
 		controllers.GithubOrganisation,
 		p.RepositoryName,
 		p.PullRequestNumber,
@@ -33,7 +33,7 @@ func AddDocsPreviewComment(p *DocsPreviewCommentParams) error {
 		return errors.Wrap(err, "error creating pull request comment in docs repo")
 	}
 
-	p.Logger.Infow("added preview comment in docs repo")
+	p.Logger.Infow("added preview comment in docs repo", "url", c.GetURL())
 
 	return nil
 }

@@ -21,6 +21,7 @@ require (
 	github.com/tidwall/gjson v1.6.0
 	github.com/tidwall/sjson v1.1.1
 	go.uber.org/zap v1.15.0
+	golang.org/x/sync v0.0.0-20190423024810-112230192c58
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
 	gopkg.in/go-playground/validator.v9 v9.31.0
 	gopkg.in/go-playground/webhooks.v5 v5.14.0
