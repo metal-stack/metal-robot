@@ -42,45 +42,45 @@ var (
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metal-api.tag"}},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metal-api.tag"}},
 		},
 		"masterdata-api": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.control-plane.masterdata-api.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.control-plane.masterdata-api.tag"},
 			},
 		},
 		"metal-console": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metal-console.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metal-console.tag"},
 			},
 		},
 		"metalctl": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metalctl.tag"},
-				{File: "releases.yaml", YAMLPath: "binaries.metal-stack.metalctl.version"},
-				{File: "releases.yaml", YAMLPath: "binaries.metal-stack.metalctl.linux.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-linux-amd64"},
-				{File: "releases.yaml", YAMLPath: "binaries.metal-stack.metalctl.windows.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-windows-amd64"},
-				{File: "releases.yaml", YAMLPath: "binaries.metal-stack.metalctl.darwin.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-darwin-amd64"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.control-plane.metalctl.tag"},
+				{File: "release.yaml", YAMLPath: "binaries.metal-stack.metalctl.version"},
+				{File: "release.yaml", YAMLPath: "binaries.metal-stack.metalctl.linux.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-linux-amd64"},
+				{File: "release.yaml", YAMLPath: "binaries.metal-stack.metalctl.windows.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-windows-amd64"},
+				{File: "release.yaml", YAMLPath: "binaries.metal-stack.metalctl.darwin.url", Template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-darwin-amd64"},
 			},
 		},
 		"metal-core": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.partition.metal-core.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.partition.metal-core.tag"},
 			},
 		},
 		"ipmi-catcher": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.control-plane.ipmi-catcher.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.control-plane.ipmi-catcher.tag"},
 			},
 		},
 
@@ -88,14 +88,14 @@ var (
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"},
 			},
 		},
 		"metal-dockerfiles": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.generic.deployment-base.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.generic.deployment-base.tag"},
 			},
 		},
 
@@ -103,21 +103,21 @@ var (
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.gardener.gardener-extension-provider-metal.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.gardener.gardener-extension-provider-metal.tag"},
 			},
 		},
 		"os-metal-extension": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.gardener.os-metal-extension.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.gardener.os-metal-extension.tag"},
 			},
 		},
 		"firewall-controller": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.gardener.firewall-controller.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.gardener.firewall-controller.tag"},
 			},
 		},
 
@@ -125,22 +125,22 @@ var (
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.csi-lvm-controller.tag"},
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.csi-lvm-provisioner.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.csi-lvm-controller.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.csi-lvm-provisioner.tag"},
 			},
 		},
 		"metal-ccm": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.metal-ccm.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.metal-ccm.tag"},
 			},
 		},
 		"kubernetes-splunk-audit-webhook": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.splunk-audit-webhook.tag"},
+				{File: "release.yaml", YAMLPath: "docker-images.metal-stack.kubernetes.splunk-audit-webhook.tag"},
 			},
 		},
 
@@ -148,14 +148,14 @@ var (
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "ansible-roles.metal-roles.version"},
+				{File: "release.yaml", YAMLPath: "ansible-roles.metal-roles.version"},
 			},
 		},
 		"ansible-common": {
 			Name: "releases",
 			URL:  "https://github.com/metal-stack/releases",
 			Patches: actions.YAMLPathVersionPatches{
-				{File: "releases.yaml", YAMLPath: "ansible-roles.ansible-common.version"},
+				{File: "release.yaml", YAMLPath: "ansible-roles.ansible-common.version"},
 			},
 		},
 		// Just for testing
