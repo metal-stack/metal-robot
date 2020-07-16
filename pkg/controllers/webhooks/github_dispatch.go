@@ -28,22 +28,13 @@ func (c *Controller) GithubWebhooks(response http.ResponseWriter, request *http.
 	switch payload := payload.(type) {
 	case ghwebhooks.ReleasePayload:
 		c.logger.Debugw("received release event")
-		if err := c.processReleaseEvent(&payload); err != nil {
-			c.writeError(err, response)
-			return
-		}
+		go c.processReleaseEvent(&payload)
 	case ghwebhooks.PullRequestPayload:
 		c.logger.Debugw("received pull request event")
-		if err := c.processPullRequestEvent(&payload); err != nil {
-			c.writeError(err, response)
-			return
-		}
+		go c.processPullRequestEvent(&payload)
 	case ghwebhooks.PushPayload:
 		c.logger.Debugw("received push event")
-		if err := c.processPushEvent(&payload); err != nil {
-			c.writeError(err, response)
-			return
-		}
+		go c.processPushEvent(&payload)
 	case ghwebhooks.IssuesPayload:
 		c.logger.Debugw("received issues event")
 	default:
@@ -53,7 +44,7 @@ func (c *Controller) GithubWebhooks(response http.ResponseWriter, request *http.
 	response.WriteHeader(http.StatusOK)
 }
 
-func (c *Controller) processReleaseEvent(payload *ghwebhooks.ReleasePayload) error {
+func (c *Controller) processReleaseEvent(payload *ghwebhooks.ReleasePayload) {
 	ctx, cancel := context.WithTimeout(context.Background(), controllers.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
@@ -79,10 +70,12 @@ func (c *Controller) processReleaseEvent(payload *ghwebhooks.ReleasePayload) err
 		return nil
 	})
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		c.logger.Errorw("errors processing event", "error", err)
+	}
 }
 
-func (c *Controller) processPullRequestEvent(payload *ghwebhooks.PullRequestPayload) error {
+func (c *Controller) processPullRequestEvent(payload *ghwebhooks.PullRequestPayload) {
 	ctx, cancel := context.WithTimeout(context.Background(), controllers.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
@@ -106,10 +99,12 @@ func (c *Controller) processPullRequestEvent(payload *ghwebhooks.PullRequestPayl
 		return nil
 	})
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		c.logger.Errorw("errors processing event", "error", err)
+	}
 }
 
-func (c *Controller) processPushEvent(payload *ghwebhooks.PushPayload) error {
+func (c *Controller) processPushEvent(payload *ghwebhooks.PushPayload) {
 	ctx, cancel := context.WithTimeout(context.Background(), controllers.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
@@ -160,18 +155,11 @@ func (c *Controller) processPushEvent(payload *ghwebhooks.PushPayload) error {
 		return nil
 	})
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		c.logger.Errorw("errors processing event", "error", err)
+	}
 }
 
 func extractTag(payload *ghwebhooks.PushPayload) string {
 	return strings.Replace(payload.Ref, "refs/tags/", "", 1)
-}
-
-func (c *Controller) writeError(err error, response http.ResponseWriter) {
-	c.logger.Errorw("error processing event", "error", err)
-	response.WriteHeader(http.StatusInternalServerError)
-	_, err = response.Write([]byte(err.Error()))
-	if err != nil {
-		c.logger.Errorw("could not write error to http response", "error", err)
-	}
 }
