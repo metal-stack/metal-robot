@@ -7,6 +7,7 @@ A bot helping to automate some tasks on Github and Gitlab.
 - Automatically add releases of certain repositories to the [releases](https://github.com/metal-stack/releases) repository (`develop` branch)
 - Automatically add commit and PR for swagger client repositories to update their clients (`auto-generate/<version>` branch, Github action needs to generate the client and push it back to this branch)
 - Adds a comment on [docs](https://github.com/metal-stack/docs) PRs to a rendered preview
+- Create team for repository maintainers on repository creation (can be used for CODEOWNERS)
 
 ## Development
 
