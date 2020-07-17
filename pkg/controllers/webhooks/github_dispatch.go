@@ -177,9 +177,9 @@ func (c *Controller) processRepositoryEvent(payload *ghwebhooks.RepositoryPayloa
 			return nil
 		}
 		p := &handlers.RepositoryMaintainersParams{
-			Logger:         c.logger.Named("releases-webhook"),
+			Logger:         c.logger.Named("repository-webhook"),
 			RepositoryName: payload.Repository.Name,
-			CreatorID:      payload.Repository.Owner.ID,
+			Creator:        payload.Sender.Login,
 			Client:         c.gh.auth.GetV3Client(),
 		}
 		err := handlers.CreateRepositoryMaintainersTeam(ctx, p)

@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"strconv"
+	"strings"
 
 	v3 "github.com/google/go-github/v32/github"
 	"github.com/metal-stack/metal-robot/pkg/controllers"
@@ -18,7 +18,7 @@ var (
 type RepositoryMaintainersParams struct {
 	Logger         *zap.SugaredLogger
 	RepositoryName string
-	CreatorID      int64
+	Creator        string
 	Client         *v3.Client
 }
 
@@ -31,15 +31,18 @@ func CreateRepositoryMaintainersTeam(ctx context.Context, p *RepositoryMaintaine
 	_, _, err := p.Client.Teams.CreateTeam(ctx, controllers.GithubOrganisation, v3.NewTeam{
 		Name:        name,
 		Description: v3.String(description),
-		Maintainers: []string{strconv.FormatInt(p.CreatorID, 10)},
+		Maintainers: []string{p.Creator},
 		RepoNames:   []string{p.RepositoryName},
 		Privacy:     v3.String("closed"),
 	})
 	if err != nil {
-		return errors.Wrap(err, "error creating maintainers team")
+		// Could be that team already exists...
+		if !strings.Contains(err.Error(), "Name must be unique for this org") {
+			return errors.Wrap(err, "error creating maintainers team")
+		}
+	} else {
+		p.Logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
 	}
-
-	p.Logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
 
 	return nil
 }
