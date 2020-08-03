@@ -3,6 +3,7 @@ module github.com/metal-stack/metal-robot
 go 1.14
 
 require (
+	github.com/atedja/go-multilock v0.0.0-20170315063113-31d195f255fb
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/bradleyfalzon/ghinstallation v1.1.1
 	github.com/ghodss/yaml v1.0.0
@@ -13,6 +14,7 @@ require (
 	github.com/google/go-github/v32 v32.0.0
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/metal-stack/v v1.0.2
+	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/afero v1.2.2 // indirect
 	github.com/spf13/cobra v1.0.0

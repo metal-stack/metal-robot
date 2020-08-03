@@ -6,6 +6,22 @@ metadata:
   labels:
     name: metal-robot
 ---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: metal-robot
+stringData:
+  key.pem: |
+    <your private github app secret>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metal-robot
+data:
+  metal-robot.yaml: |
+    <your metal-robot config>
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,14 +46,24 @@ spec:
           env:
           - name: METAL_ROBOT_BIND_ADDR
             value: "0.0.0.0"
-          - name: METAL_ROBOT_GITHUB_WEBHOOK_SECRET
-            value: "something"
-          - name: METAL_ROBOT_GITLAB_WEBHOOK_SECRET
-            value: "something"
           ports:
           - containerPort: 3000
             protocol: TCP
         restartPolicy: Always
+        volumeMounts:
+        - name: secrets
+          mountPath: /etc/metal-robot/certs/
+          readOnly: true
+        - name: config
+          mountPath: /etc/metal-robot
+          readOnly: true
+        volumes:
+        - name: secrets
+          secret:
+            secretName: metal-robot
+        - name: config
+          configMap:
+            name: metal-robot
 ---
 apiVersion: v1
 kind: Service

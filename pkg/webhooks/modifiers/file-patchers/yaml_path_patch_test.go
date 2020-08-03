@@ -1,10 +1,10 @@
-package actions
+package filepatchers
 
 import (
 	"testing"
 
-	"github.com/blang/semver"
 	"github.com/google/go-cmp/cmp"
+	"github.com/metal-stack/metal-robot/pkg/config"
 )
 
 func Test_setYAML(t *testing.T) {
@@ -75,70 +75,56 @@ func Test_setYAML(t *testing.T) {
 }
 
 func TestYAMLPathVersionPatches_Apply(t *testing.T) {
+	tpl := "http://server.io/v%s.exe"
+
 	tests := []struct {
 		name     string
-		p        YAMLPathVersionPatches
+		p        YAMLPathPatch
 		input    string
 		output   string
-		version  semver.Version
-		prefix   string
+		newValue string
 		template string
 		wantErr  bool
 	}{
 		{
-			name: "replace a path",
-			p: YAMLPathVersionPatches{
-				{File: "example.yaml", YAMLPath: "a"},
-			},
-			version: semver.MustParse("0.0.2"),
-			input:   "a: v0.0.1",
-			output:  "a: v0.0.2\n",
-			prefix:  "v",
-			wantErr: false,
+			name:     "replace a path",
+			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			newValue: "0.0.2",
+			input:    "a: v0.0.1",
+			output:   "a: v0.0.2\n",
+			wantErr:  false,
 		},
 		{
-			name: "replace a path without original prefix",
-			p: YAMLPathVersionPatches{
-				{File: "example.yaml", YAMLPath: "a"},
-			},
-			version: semver.MustParse("0.0.2"),
-			input:   "a: 0.0.1",
-			output:  "a: v0.0.2\n",
-			prefix:  "v",
-			wantErr: false,
+			name:     "replace a path without original prefix",
+			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			newValue: "0.0.2",
+			input:    "a: 0.0.1",
+			output:   "a: v0.0.2\n",
+			wantErr:  false,
 		},
 		{
-			name: "replace a path with no prefix",
-			p: YAMLPathVersionPatches{
-				{File: "example.yaml", YAMLPath: "a"},
-			},
-			version: semver.MustParse("0.0.2"),
-			input:   "a: 0.0.1",
-			output:  "a: 0.0.2\n",
-			prefix:  "",
-			wantErr: false,
+			name:     "replace a path with no prefix",
+			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			newValue: "0.0.2",
+			input:    "a: 0.0.1",
+			output:   "a: v0.0.2\n",
+			wantErr:  false,
 		},
 		{
-			name: "change nothing on lower version",
-			p: YAMLPathVersionPatches{
-				{File: "example.yaml", YAMLPath: "a"},
-			},
-			version: semver.MustParse("0.0.1"),
-			input:   "a: v0.0.2",
-			output:  "a: v0.0.2\n",
-			prefix:  "v",
-			wantErr: false,
+			name:     "change nothing on lower version",
+			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			newValue: "0.0.1",
+			input:    "a: v0.0.2",
+			output:   "a: v0.0.2\n",
+			wantErr:  false,
 		},
 		{
-			name: "replace with a template",
-			p: YAMLPathVersionPatches{
-				{File: "example.yaml", YAMLPath: "a", Template: "http://server.io/%s.exe"},
-			},
-			version: semver.MustParse("0.0.2"),
-			input:   "a: something",
-			output:  "a: http://server.io/v0.0.2.exe\n",
-			prefix:  "v",
-			wantErr: false,
+			name:     "replace with a template",
+			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", Template: &tpl}},
+			newValue: "0.0.2",
+			input:    "a: something",
+			output:   "a: http://server.io/v0.0.2.exe\n",
+			wantErr:  false,
 		},
 	}
 	for _, tt := range tests {
@@ -152,8 +138,8 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 				}
 				return nil
 			}
-			if err := tt.p.Apply(cn, cw, tt.version, tt.prefix); (err != nil) != tt.wantErr {
-				t.Errorf("YAMLPathVersionPatches.Apply() error = %v, wantErr %v", err, tt.wantErr)
+			if err := tt.p.Apply(cn, cw, tt.newValue); (err != nil) != tt.wantErr {
+				t.Errorf("YAMLPathVersionPatch.Apply() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
