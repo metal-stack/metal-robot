@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"io/ioutil"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/pkg/errors"
 )
+
+var NoChangesError = fmt.Errorf("no changes")
 
 const (
 	defaultLocalRef   = "refs/heads"
@@ -68,6 +71,20 @@ func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {
 		return "", errors.Wrap(err, "error getting worktree")
+	}
+
+	_, err = w.Add(".")
+	if err != nil {
+		return "", errors.Wrap(err, "error adding files to git index")
+	}
+
+	status, err := w.Status()
+	if err != nil {
+		return "", errors.Wrap(err, "error getting git status")
+	}
+
+	if status.IsClean() {
+		return "", NoChangesError
 	}
 
 	hash, err := w.Commit(msg, &git.CommitOptions{

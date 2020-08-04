@@ -5,6 +5,9 @@ A bot helping to automate some tasks on Github and Gitlab.
 ## Task Descriptions
 
 - Automatically add releases of certain repositories to the [releases](https://github.com/metal-stack/releases) repository (`develop` branch)
+- Automatically add commit and PR for swagger client repositories to update their clients (`auto-generate/<version>` branch, Github action needs to generate the client and push it back to this branch)
+- Adds a comment on [docs](https://github.com/metal-stack/docs) PRs to a rendered preview
+- Create team for repository maintainers on repository creation (can be used for CODEOWNERS)
 
 ## Development
 
@@ -17,24 +20,18 @@ If you have any better ideas, please open a PR or an issue.
 Here is how to do it:
 
 ```
-# build the binary
-make
-
-# start the robot
-bin/metal-robot \
-  --bind-addr 0.0.0.0 \
-  --github-webhook-secret <something> \
-  --gitlab-webhook-secret <something>
+# build and start the robot locally
+make start
 
 # in another terminal window run
-make local
-
+make swap
 # this requires:
 # - Ubuntu & Docker
 # - KUBECONFIG env var points to the cluster where the robot is deployed
-#   - change to the correct context
-#   - change to the namespace
-#   - the deplyoment needs to be called "metal-robot"
+# - the deplyoment in the cluster needs to be called "metal-robot"
 #
 # when you are done, exit the container shell
+# if your session was really long, telepresence sometimes does not swap
+# back the deployment properly. delete the temporary deployment and redeploy
+# the robot if necessary.
 ```
