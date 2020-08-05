@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/mitchellh/mapstructure"
 )
 
 const (
@@ -23,27 +22,9 @@ type Patcher interface {
 func InitPatcher(c config.Modifier) (Patcher, error) {
 	switch t := c.Type; t {
 	case YAMLPathVersionModifierName:
-		var patcher YAMLPathPatch
-		err := mapstructure.Decode(c.Args, &patcher.YAMLPathPatchConfig)
-		if err != nil {
-			return nil, err
-		}
-		err = patcher.Validate()
-		if err != nil {
-			return nil, err
-		}
-		return patcher, nil
+		return newYAMLPathPatch(c.Args)
 	case LinePatchModifierName:
-		var patcher LinePatch
-		err := mapstructure.Decode(c.Args, &patcher.LinePatchConfig)
-		if err != nil {
-			return nil, err
-		}
-		err = patcher.Validate()
-		if err != nil {
-			return nil, err
-		}
-		return patcher, nil
+		return newLinePatch(c.Args)
 	default:
 		return nil, fmt.Errorf("unsupported modifier type: %v", t)
 	}

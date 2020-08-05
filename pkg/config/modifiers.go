@@ -15,5 +15,5 @@ type YAMLPathPatchConfig struct {
 	File           string  `mapstructure:"file" description:"the name of the file to be patched"`
 	YAMLPath       string  `mapstructure:"yaml-path" description:"the yaml path to the version"`
 	Template       *string `mapstructure:"template" description:"a special template to be used for patching the version"`
-	VersionCompare bool    `mapstructure:"version-compare" description:"makes a version comparison before replacement and only replaces if version is greater than current"`
+	VersionCompare *bool   `mapstructure:"version-compare" description:"makes a version comparison before replacement and only replaces if version is greater than current"`
 }

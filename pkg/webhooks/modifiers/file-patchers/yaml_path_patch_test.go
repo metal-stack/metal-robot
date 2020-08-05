@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/metal-stack/metal-robot/pkg/config"
 )
 
 func Test_setYAML(t *testing.T) {
@@ -75,7 +74,7 @@ func Test_setYAML(t *testing.T) {
 }
 
 func TestYAMLPathVersionPatches_Apply(t *testing.T) {
-	tpl := "http://server.io/v%s.exe"
+	tpl := "http://server.io/%s.exe"
 
 	tests := []struct {
 		name     string
@@ -88,23 +87,39 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 	}{
 		{
 			name:     "replace a path",
-			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a"},
+			newValue: "c",
+			input:    "a: b",
+			output:   "a: c\n",
+			wantErr:  false,
+		},
+		{
+			name:     "replace a path with version comparison",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
 			newValue: "0.0.2",
 			input:    "a: v0.0.1",
 			output:   "a: v0.0.2\n",
 			wantErr:  false,
 		},
 		{
-			name:     "replace a path without original prefix",
-			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			name:     "replace a path with version comparison when there was no semantic version before",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
+			newValue: "0.0.2",
+			input:    "a: bla",
+			output:   "a: v0.0.2\n",
+			wantErr:  false,
+		},
+		{
+			name:     "replace a path without original prefix with version comparison",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
 			newValue: "0.0.2",
 			input:    "a: 0.0.1",
 			output:   "a: v0.0.2\n",
 			wantErr:  false,
 		},
 		{
-			name:     "replace a path with no prefix",
-			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			name:     "replace a path with no prefix with version comparison",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
 			newValue: "0.0.2",
 			input:    "a: 0.0.1",
 			output:   "a: v0.0.2\n",
@@ -112,17 +127,41 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 		},
 		{
 			name:     "change nothing on lower version",
-			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", VersionCompare: true}},
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
 			newValue: "0.0.1",
 			input:    "a: v0.0.2",
 			output:   "a: v0.0.2\n",
 			wantErr:  false,
 		},
 		{
-			name:     "replace with a template",
-			p:        YAMLPathPatch{YAMLPathPatchConfig: config.YAMLPathPatchConfig{File: "example.yaml", YAMLPath: "a", Template: &tpl}},
+			name:     "replace a path with a template",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl},
+			newValue: "c",
+			input:    "a: http://server.io/b.exe",
+			output:   "a: http://server.io/c.exe\n",
+			wantErr:  false,
+		},
+		{
+			name:     "replace with a template and version comparison",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
 			newValue: "0.0.2",
-			input:    "a: something",
+			input:    "a: http://server.io/v0.0.1.exe",
+			output:   "a: http://server.io/v0.0.2.exe\n",
+			wantErr:  false,
+		},
+		{
+			name:     "change nothing on lower version with template",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
+			newValue: "0.0.2",
+			input:    "a: http://server.io/v0.0.3.exe",
+			output:   "a: http://server.io/v0.0.3.exe\n",
+			wantErr:  false,
+		},
+		{
+			name:     "replace with a template and version comparison when there was no semantic version before",
+			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
+			newValue: "0.0.2",
+			input:    "a: http://server.io/bla.exe",
 			output:   "a: http://server.io/v0.0.2.exe\n",
 			wantErr:  false,
 		},

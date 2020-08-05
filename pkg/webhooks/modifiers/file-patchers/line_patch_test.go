@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/metal-stack/metal-robot/pkg/config"
 )
 
 func TestLinePatch_Apply(t *testing.T) {
@@ -27,7 +26,7 @@ a
 			name:    "replace a line",
 			input:   testContent,
 			output:  testResult,
-			r:       LinePatch{LinePatchConfig: config.LinePatchConfig{Line: 2, ReplaceTemplate: &tpl}},
+			r:       LinePatch{line: 2, replaceTemplate: &tpl},
 			value:   "a",
 			wantErr: false,
 		},

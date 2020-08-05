@@ -2,10 +2,13 @@ package filepatchers
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/blang/semver"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/utils"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 
 	yamlconv "github.com/ghodss/yaml"
@@ -14,17 +17,51 @@ import (
 	"github.com/tidwall/sjson"
 )
 
+var (
+	// semanticVersionMatcher is taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+	semanticVersionMatcher = regexp.MustCompile(`v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?`)
+)
+
 type YAMLPathPatch struct {
-	config.YAMLPathPatchConfig
+	file           string
+	yamlPath       string
+	template       *string
+	versionCompare bool
+}
+
+func newYAMLPathPatch(rawConfig map[string]interface{}) (*YAMLPathPatch, error) {
+	var typedConfig config.YAMLPathPatchConfig
+	err := mapstructure.Decode(rawConfig, &typedConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	p := YAMLPathPatch{
+		file:           typedConfig.File,
+		yamlPath:       typedConfig.YAMLPath,
+		template:       typedConfig.Template,
+		versionCompare: true,
+	}
+
+	if typedConfig.VersionCompare != nil {
+		p.versionCompare = *typedConfig.VersionCompare
+	}
+
+	err = p.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	return &p, nil
 }
 
 func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string) error {
-	content, err := cn(p.File)
+	content, err := cn(p.file)
 	if err != nil {
 		return errors.Wrap(err, "error reading patch file")
 	}
 
-	if p.VersionCompare {
+	if p.versionCompare {
 		newValue = strings.TrimPrefix(newValue, "v")
 
 		newVersion, err := semver.Parse(newValue)
@@ -32,34 +69,37 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 			return err
 		}
 
-		old, err := getYAML(content, p.YAMLPath)
+		old, err := getYAML(content, p.yamlPath)
 		if err != nil {
 			return errors.Wrap(err, "error retrieving yaml path from file")
 		}
 
-		old = strings.TrimPrefix(old, "v")
-		oldVersion, err := semver.Parse(old)
-		if err != nil {
-			return err
+		if p.template != nil {
+			groups := utils.RegexCapture(semanticVersionMatcher, old)
+			old = groups["full_match"]
 		}
 
-		if !newVersion.GT(oldVersion) {
-			return nil
+		old = strings.TrimPrefix(old, "v")
+		oldVersion, err := semver.Parse(old)
+		if err == nil {
+			if !newVersion.GT(oldVersion) {
+				return nil
+			}
 		}
 
 		newValue = "v" + newValue
 	}
 
-	if p.Template != nil {
-		newValue = fmt.Sprintf(*p.Template, newValue)
+	if p.template != nil {
+		newValue = fmt.Sprintf(*p.template, newValue)
 	}
 
-	content, err = setYAML(content, p.YAMLPath, newValue)
+	content, err = setYAML(content, p.yamlPath, newValue)
 	if err != nil {
 		return err
 	}
 
-	err = cw(p.File, content)
+	err = cw(p.file, content)
 	if err != nil {
 		return errors.Wrap(err, "error writing patch file")
 	}
@@ -105,14 +145,11 @@ func getYAML(data []byte, path string) (string, error) {
 }
 
 func (p YAMLPathPatch) Validate() error {
-	if p.File == "" {
+	if p.file == "" {
 		return fmt.Errorf("file must be specified")
 	}
-	if p.YAMLPath == "" {
+	if p.yamlPath == "" {
 		return fmt.Errorf("yaml-path must be specified")
-	}
-	if p.VersionCompare && p.Template != nil {
-		return fmt.Errorf("when using version-compare, template can not be used")
 	}
 	return nil
 }

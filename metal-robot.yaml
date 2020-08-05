@@ -4,12 +4,12 @@ clients:
   organization: metal-stack
   github:
     app-id: 72006
-    key-path: key.pem
-- name: fc-native-github
-  organization: fc-native
+    key-path: metal-stack.pem
+- name: fi-ts-github
+  organization: fi-ts
   github:
-    app-id: 75591
-    key-path: fc-native.pem
+    app-id: 75683
+    key-path: fi-ts.pem
 # - name: fits-gitlab
 #   organization: cloud-native
 #   gitlab:
@@ -56,28 +56,24 @@ webhooks:
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.control-plane.metal-api.tag"
-              version-compare: true
 
           masterdata-api:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.control-plane.masterdata-api.tag"
-              version-compare: true
 
           metal-console:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.control-plane.metal-console.tag"
-              version-compare: true
 
           metalctl:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.control-plane.metalctl.tag"
-              version-compare: true
 
           - type: yaml-path-version-patch
             args:
@@ -105,89 +101,76 @@ webhooks:
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.partition.metal-core.tag"
-              version-compare: true
 
           ipmi-catcher:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.control-plane.ipmi-catcher.tag"
-              version-compare: true
 
           backup-restore-sidecar:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"
-              version-compare: true
 
           metal-dockerfiles:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.generic.deployment-base.tag"
-              version-compare: true
 
           gardener-extension-provider-metal:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.gardener.gardener-extension-provider-metal.tag"
-              version-compare: true
 
           os-metal-extension:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.gardener.os-metal-extension.tag"
-              version-compare: true
 
           firewall-controller:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.gardener.firewall-controller.tag"
-              version-compare: true
 
           csi-lvm:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-controller.tag"
-              version-compare: true
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-provisioner.tag"
-              version-compare: true
 
           metal-ccm:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.kubernetes.metal-ccm.tag"
-              version-compare: true
 
           kubernetes-splunk-audit-webhook:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.kubernetes.splunk-audit-webhook.tag"
-              version-compare: true
 
           metal-roles:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "ansible-roles.metal-roles.version"
-              version-compare: true
 
           ansible-common:
           - type: yaml-path-version-patch
             args:
               file: "release.yaml"
               yaml-path: "ansible-roles.ansible-common.version"
-              version-compare: true
 
     - type: swagger-clients
       client: metal-stack-github
@@ -211,24 +194,37 @@ webhooks:
             # 		line: 1
             # 		template: "VERSION = '%s'"
 
-# - vcs: github
-#   serve-path: /github/webhooks/fc-native
-#   handlers:
-#     - type: create-repository-maintainers
-#       client: fc-native-github
-#       args:
-
-#     - type: swagger-clients
-#       client: fc-native-github
-#       args:
-#         auto-build-branch-prefix: "auto-generate/"
-#         repos:
-#           cloud-api:
-#             - name: "cloud-go"
-#               url: "https://github.com/fc-native/cloud-go"
-#               modifiers:
-#               - type: gitlab-file-replace
-#                 file: cloud-api.json
-#                 from-repo: https://git.f-i-ts.de/cloud-native/cloud-api
-#                 from-file: spec/cloud-api.json
-#                 from-client: fits-gitlab
+- vcs: github
+  serve-path: /github/webhooks/fi-ts
+  actions:
+    - type: release-vector
+      client: fi-ts-github
+      args:
+        repository: releases
+        repository-url: https://github.com/fi-ts/releases
+        repos:
+          cloudctl:
+          - type: yaml-path-version-patch
+            args:
+              file: "release.yaml"
+              yaml-path: "binaries.metal-stack.cloudctl.version"
+          - type: yaml-path-version-patch
+            args:
+              file: "release.yaml"
+              yaml-path: "binaries.metal-stack.cloudctl.version"
+              template: "https://blobstore.fi-ts.io/cloud-native/cloudctl/v%s/cloudctl-linux-amd64"
+          - type: yaml-path-version-patch
+            args:
+              file: "release.yaml"
+              yaml-path: "binaries.metal-stack.cloudctl.linux.url"
+              template: "https://github.com/metal-stack/metalctl/releases/download/v%s/metalctl-linux-amd64"
+          - type: yaml-path-version-patch
+            args:
+              file: "release.yaml"
+              yaml-path: "binaries.metal-stack.cloudctl.windows.url"
+              template: "https://blobstore.fi-ts.io/cloud-native/cloudctl/v%s/cloudctl-windows-amd64"
+          - type: yaml-path-version-patch
+            args:
+              file: "release.yaml"
+              yaml-path: "binaries.metal-stack.cloudctl.darwin.url"
+              template: "https://blobstore.fi-ts.io/cloud-native/cloudctl/v%s/cloudctl-darwin-amd64"
