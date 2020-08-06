@@ -21,6 +21,7 @@ type ReleaseVectorConfig struct {
 	RepositoryURL     string                `mapstructure:"repository-url" description:"the url of the release repo"`
 	Branch            *string               `mapstructure:"branch" description:"the branch to push in the release vector repo"`
 	CommitMsgTemplate *string               `mapstructure:"commit-tpl" description:"template of the commit message"`
+	PullRequestTitle  *string               `mapstructure:"pull-request-title" description:"title of the pull request"`
 	Repos             map[string][]Modifier `mapstructure:"repos" description:"the repositories that will be pushed to the release vector"`
 }
 

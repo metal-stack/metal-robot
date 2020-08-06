@@ -27,6 +27,7 @@ type releaseVector struct {
 	patchMap              map[string][]filepatchers.Patcher
 	repoURL               string
 	repoName              string
+	pullRequestTitle      string
 }
 
 type releaseVectorParams struct {
@@ -38,6 +39,7 @@ func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 	var (
 		branch                = "develop"
 		commitMessageTemplate = "Bump %s to version %s"
+		pullRequestTitle      = "Next release"
 	)
 
 	var typedConfig config.ReleaseVectorConfig
@@ -57,6 +59,9 @@ func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
+	}
+	if typedConfig.PullRequestTitle != nil {
+		pullRequestTitle = *typedConfig.PullRequestTitle
 	}
 
 	patchMap := make(map[string][]filepatchers.Patcher)
@@ -84,6 +89,7 @@ func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 		patchMap:              patchMap,
 		repoURL:               typedConfig.RepositoryURL,
 		repoName:              typedConfig.RepositoryName,
+		pullRequestTitle:      pullRequestTitle,
 	}, nil
 }
 
@@ -160,7 +166,7 @@ func (r *releaseVector) AddToRelaseVector(ctx context.Context, p *releaseVectorP
 		Title:               v3.String("Next release"),
 		Head:                v3.String(r.branch),
 		Base:                v3.String("master"),
-		Body:                v3.String("Next release of metal-stack"),
+		Body:                v3.String(r.pullRequestTitle),
 		MaintainerCanModify: v3.Bool(true),
 	})
 	if err != nil {
