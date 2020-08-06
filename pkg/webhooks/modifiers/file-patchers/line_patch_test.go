@@ -1,4 +1,4 @@
-package actions
+package filepatchers
 
 import (
 	"testing"
@@ -6,28 +6,27 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestLinePatches_Apply(t *testing.T) {
+func TestLinePatch_Apply(t *testing.T) {
 	testContent := `1
 2
 3`
 	testResult := `1
 a
 3`
+	tpl := "%s"
 	tests := []struct {
 		name    string
 		input   string
 		output  string
-		r       LinePatches
+		r       LinePatch
 		value   string
 		wantErr bool
 	}{
 		{
-			name:   "replace a line",
-			input:  testContent,
-			output: testResult,
-			r: LinePatches{
-				{Line: 2, ReplaceTemplate: "%s"},
-			},
+			name:    "replace a line",
+			input:   testContent,
+			output:  testResult,
+			r:       LinePatch{line: 2, replaceTemplate: &tpl},
 			value:   "a",
 			wantErr: false,
 		},
@@ -44,7 +43,7 @@ a
 				return nil
 			}
 			if err := tt.r.Apply(cn, cw, tt.value); (err != nil) != tt.wantErr {
-				t.Errorf("LinePatches.Apply() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("LinePatch.Apply() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

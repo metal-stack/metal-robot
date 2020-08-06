@@ -8,8 +8,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/metal-stack/metal-robot/pkg/controllers/webhooks"
-	"github.com/metal-stack/metal-robot/pkg/controllers/webhooks/github"
+	"github.com/metal-stack/metal-robot/pkg/clients"
+	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks"
 	"github.com/metal-stack/v"
 
 	"github.com/spf13/cobra"
@@ -25,6 +26,8 @@ const (
 var (
 	cfgFile string
 	logger  *zap.SugaredLogger
+
+	c *config.Configuration
 )
 
 // Opts is required in order to have proper validation for args from cobra and viper.
@@ -33,14 +36,6 @@ var (
 type Opts struct {
 	BindAddr string
 	Port     int
-
-	GithubWebhookServePath  string
-	GithubWebhookSecret     string `validate:"required"`
-	GithubAppPrivateKeyPath string
-	GithubAppID             int64 `validate:"required"`
-
-	GitlabWebhookServePath string
-	GitlabWebhookSecret    string `validate:"required"`
 }
 
 var cmd = &cobra.Command{
@@ -74,13 +69,6 @@ func init() {
 
 	cmd.Flags().StringP("bind-addr", "", "127.0.0.1", "the bind addr of the server")
 	cmd.Flags().IntP("port", "", 3000, "the port to serve on")
-	cmd.Flags().StringP("github-webhook-serve-path", "", "/github/webhooks", "the path on which the server serves github webhook requests")
-	cmd.Flags().StringP("github-webhook-secret", "", "", "the github webhook secret")
-	cmd.Flags().StringP("github-app-private-key-path", "", "/etc/metal-robot/key.pem", "the github app secret auth key certificate file path")
-	cmd.Flags().Int64("github-app-id", 0, "the github app id")
-
-	cmd.Flags().StringP("gitlab-webhook-serve-path", "", "/gitlab/webhooks", "the path on which the server serves gitlab webhook requests")
-	cmd.Flags().StringP("gitlab-webhook-secret", "", "", "the gitlab webhook secret")
 
 	err := viper.BindPFlags(cmd.Flags())
 	if err != nil {
@@ -96,14 +84,6 @@ func initOpts() (*Opts, error) {
 	opts := &Opts{
 		BindAddr: viper.GetString("bind-addr"),
 		Port:     viper.GetInt("port"),
-
-		GithubWebhookServePath:  viper.GetString("github-webhook-serve-path"),
-		GithubWebhookSecret:     viper.GetString("github-webhook-secret"),
-		GithubAppPrivateKeyPath: viper.GetString("github-app-private-key-path"),
-		GithubAppID:             viper.GetInt64("github-app-id"),
-
-		GitlabWebhookServePath: viper.GetString("gitlab-webhook-secret"),
-		GitlabWebhookSecret:    viper.GetString("gitlab-webhook-secret"),
 	}
 
 	validate := validator.New()
@@ -128,7 +108,7 @@ func initConfig() error {
 			return fmt.Errorf("Config file path set explicitly, but unreadable: %v", err)
 		}
 	} else {
-		viper.SetConfigName("config")
+		viper.SetConfigName(moduleName + "." + cfgFileType)
 		viper.AddConfigPath("/etc/" + moduleName)
 		viper.AddConfigPath("$HOME/." + moduleName)
 		viper.AddConfigPath(".")
@@ -140,6 +120,20 @@ func initConfig() error {
 		}
 	}
 
+	err := loadRobotConfig()
+	if err != nil {
+		return fmt.Errorf("error occurred loading config: %v", err)
+	}
+
+	return nil
+}
+
+func loadRobotConfig() error {
+	var err error
+	c, err = config.New(viper.ConfigFileUsed())
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -165,18 +159,15 @@ func initLogging() {
 }
 
 func run(opts *Opts) error {
-	githubAuth, err := github.NewAuth(logger.Named("github-auth"), opts.GithubAppID, opts.GithubAppPrivateKeyPath)
+	cs, err := clients.InitClients(logger, c.Clients)
 	if err != nil {
 		return err
 	}
 
-	webhookController, err := webhooks.NewController(logger.Named("webhook-controller"), githubAuth, opts.GithubWebhookSecret)
+	err = webhooks.InitWebhooks(logger, cs, c)
 	if err != nil {
 		return err
 	}
-
-	http.HandleFunc(opts.GithubWebhookServePath, webhookController.GithubWebhooks)
-	http.HandleFunc(opts.GitlabWebhookServePath, webhookController.GitlabWebhooks)
 
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
 	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)
@@ -184,5 +175,6 @@ func run(opts *Opts) error {
 	if err != nil && err != http.ErrServerClosed {
 		return err
 	}
+
 	return nil
 }
