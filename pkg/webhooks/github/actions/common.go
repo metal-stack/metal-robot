@@ -25,7 +25,7 @@ type WebhookActions struct {
 	logger *zap.SugaredLogger
 	rm     []*repositoryMaintainers
 	dp     []*docsPreviewComment
-	rv     []*releaseVector
+	rv     []*ReleaseVector
 	sc     []*swaggerClient
 }
 
@@ -62,7 +62,7 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 			actions.dp = append(actions.dp, h)
 			logger.Debugw("initialized github webhook action", "name", ActionDocsPreviewComment)
 		case ActionAddToReleaseVector:
-			h, err := newReleaseVector(logger, c.(*clients.Github), spec.Args)
+			h, err := NewReleaseVector(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -94,7 +94,7 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 			if payload.Action != "released" {
 				return nil
 			}
-			p := &releaseVectorParams{
+			p := &ReleaseVectorParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        payload.Release.TagName,
 			}
@@ -153,7 +153,7 @@ func (w *WebhookActions) ProcessPushEvent(payload *ghwebhooks.PushPayload) {
 			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
 				return nil
 			}
-			releaseParams := &releaseVectorParams{
+			releaseParams := &ReleaseVectorParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        extractTag(payload),
 			}

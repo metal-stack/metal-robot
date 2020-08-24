@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type releaseVector struct {
+type ReleaseVector struct {
 	logger                *zap.SugaredLogger
 	client                *clients.Github
 	branch                string
@@ -30,12 +30,12 @@ type releaseVector struct {
 	pullRequestTitle      string
 }
 
-type releaseVectorParams struct {
+type ReleaseVectorParams struct {
 	RepositoryName string
 	TagName        string
 }
 
-func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*releaseVector, error) {
+func NewReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*ReleaseVector, error) {
 	var (
 		branch                = "develop"
 		commitMessageTemplate = "Bump %s to version %s"
@@ -81,7 +81,7 @@ func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 		}
 	}
 
-	return &releaseVector{
+	return &ReleaseVector{
 		logger:                logger,
 		client:                client,
 		branch:                branch,
@@ -94,7 +94,7 @@ func newReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 }
 
 // AddToRelaseVector adds a release to the release vector in a release repository
-func (r *releaseVector) AddToRelaseVector(ctx context.Context, p *releaseVectorParams) error {
+func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorParams) error {
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
 		r.logger.Debugw("skip adding new version to release vector because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
