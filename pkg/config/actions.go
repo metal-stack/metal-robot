@@ -25,6 +25,13 @@ type ReleaseVectorConfig struct {
 	Repos             map[string][]Modifier `mapstructure:"repos" description:"the repositories that will be pushed to the release vector"`
 }
 
+type ReleaseDraftConfig struct {
+	RepositoryName string   `mapstructure:"repository" description:"the name of the release repo"`
+	RepositoryURL  string   `mapstructure:"repository-url" description:"the url of the release repo"`
+	Template       *string  `mapstructure:"template" description:"a template for the release draft"`
+	Repos          []string `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
+}
+
 type SwaggerClientsConfig struct {
 	BranchTemplate    *string                        `mapstructure:"branch-template" description:"the branch to push in the swagger client repo"`
 	CommitMsgTemplate *string                        `mapstructure:"commit-tpl" description:"template of the commit message in the swagger client repo"`
