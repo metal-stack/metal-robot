@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -17,11 +18,10 @@ import (
 )
 
 type ReleaseDrafter struct {
-	logger          *zap.SugaredLogger
-	client          *clients.Github
-	releaseTemplate string
-	repoMap         map[string]bool
-	repoName        string
+	logger   *zap.SugaredLogger
+	client   *clients.Github
+	repoMap  map[string]bool
+	repoName string
 }
 
 type ReleaseDrafterParams struct {
@@ -31,12 +31,6 @@ type ReleaseDrafterParams struct {
 }
 
 func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*ReleaseDrafter, error) {
-	var (
-		releaseTemplate = `$TITLE
-
-$COMPONENT_RELEASE_INFO
-`
-	)
 
 	var typedConfig config.ReleaseDraftConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
@@ -46,9 +40,6 @@ $COMPONENT_RELEASE_INFO
 
 	if typedConfig.RepositoryName == "" {
 		return nil, fmt.Errorf("repository must be specified")
-	}
-	if typedConfig.Template != nil {
-		releaseTemplate = *typedConfig.Template
 	}
 
 	repos := make(map[string]bool)
@@ -61,11 +52,10 @@ $COMPONENT_RELEASE_INFO
 	}
 
 	return &ReleaseDrafter{
-		logger:          logger,
-		client:          client,
-		releaseTemplate: releaseTemplate,
-		repoMap:         repos,
-		repoName:        typedConfig.RepositoryName,
+		logger:   logger,
+		client:   client,
+		repoMap:  repos,
+		repoName: typedConfig.RepositoryName,
 	}, nil
 }
 
@@ -170,6 +160,113 @@ func (r *ReleaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 }
 
 func (r *ReleaseDrafter) updateReleaseBody(version string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
-	result := strings.Replace(r.releaseTemplate, "$TITLE", "# "+version, -1)
+	m := parseMarkdown(priorBody)
+
+	m.EnsureSection(1, nil, version, "")
+	body := ""
+	if componentBody != nil {
+		body = *componentBody
+	}
+
+	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
+	s := m.EnsureSection(2, &component, heading, body)
+
+	groups := utils.RegexCapture(utils.SemanticVersionMatcher, s.Heading)
+	old := groups["full_match"]
+	old = strings.TrimPrefix(old, "v")
+	oldVersion, err := semver.Parse(old)
+	if err == nil {
+		if componentVersion.GT(oldVersion) {
+			s.Heading = heading
+			s.Content += "\n" + body
+		}
+	} else {
+		s.Heading = heading
+	}
+
+	return m.String()
+}
+
+type markdown struct {
+	sections []*markdownSection
+}
+
+type markdownSection struct {
+	Level   int
+	Heading string
+	Content string
+}
+
+func parseMarkdown(content string) *markdown {
+	var sections []*markdownSection
+	lines := strings.Split(content, "\n")
+
+	var currentSection *markdownSection
+	for _, l := range lines {
+		if strings.HasPrefix(l, "#") {
+			level := 0
+			for _, char := range l {
+				if char != '#' {
+					break
+				}
+				level++
+			}
+			currentSection = &markdownSection{
+				Level:   level,
+				Heading: strings.TrimSpace(l[level:]),
+			}
+			sections = append(sections, currentSection)
+			continue
+		}
+
+		if currentSection == nil {
+			currentSection = &markdownSection{}
+			sections = append(sections, currentSection)
+		}
+
+		if currentSection.Content == "" {
+			currentSection.Content = l
+		} else {
+			currentSection.Content = currentSection.Content + "\n" + l
+		}
+	}
+
+	return &markdown{
+		sections: sections,
+	}
+}
+
+func (m *markdown) EnsureSection(level int, headlinePrefix *string, headline string, content string) *markdownSection {
+	for _, s := range m.sections {
+		if s.Level == level {
+			if headlinePrefix == nil {
+				return s
+			}
+			if strings.HasPrefix(s.Heading, *headlinePrefix) {
+				return s
+			}
+		}
+	}
+	s := &markdownSection{
+		Level:   level,
+		Heading: headline,
+		Content: content,
+	}
+	m.sections = append(m.sections, s)
+	return s
+}
+
+func (m *markdown) String() string {
+	result := ""
+	for _, s := range m.sections {
+		if s.Level > 0 {
+			result += "\n"
+			for i := 0; i < s.Level; i++ {
+				result += "#"
+			}
+			result += " " + s.Heading + "\n"
+		}
+		result += s.Content
+	}
 	return result
 }

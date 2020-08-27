@@ -28,7 +28,6 @@ type ReleaseVectorConfig struct {
 type ReleaseDraftConfig struct {
 	RepositoryName string   `mapstructure:"repository" description:"the name of the release repo"`
 	RepositoryURL  string   `mapstructure:"repository-url" description:"the url of the release repo"`
-	Template       *string  `mapstructure:"template" description:"a template for the release draft"`
 	Repos          []string `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
 }
 
