@@ -62,9 +62,9 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 	}
 
 	if p.versionCompare {
-		newValue = strings.TrimPrefix(newValue, "v")
+		trimmedValue := strings.TrimPrefix(newValue, "v")
 
-		newVersion, err := semver.Parse(newValue)
+		newVersion, err := semver.Parse(trimmedValue)
 		if err != nil {
 			return err
 		}
@@ -86,8 +86,6 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 				return nil
 			}
 		}
-
-		newValue = "v" + newValue
 	}
 
 	if p.template != nil {

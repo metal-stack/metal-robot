@@ -100,9 +100,12 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 		r.logger.Debugw("skip adding new version to release vector because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
 		return nil
 	}
+
 	tag := p.TagName
-	if !strings.HasPrefix(tag, "v") {
-		r.logger.Debugw("skip adding new version to release vector because not starting with v", "repo", p.RepositoryName, "release", tag)
+	trimmed := strings.TrimPrefix(tag, "v")
+	_, err := semver.Make(trimmed)
+	if err != nil {
+		r.logger.Infow("skip adding new version to release vector because not a valid semver release tag", "repo", p.RepositoryName, "release", tag, "parse-error", err)
 		return nil
 	}
 
@@ -111,11 +114,6 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 	lock := multilock.New(r.repoName)
 	lock.Lock()
 	defer once.Do(func() { lock.Unlock() })
-
-	version, err := semver.Make(tag[1:])
-	if err != nil {
-		return errors.Wrap(err, "not a valid semver release tag")
-	}
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
@@ -142,7 +140,7 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 	}
 
 	for _, patch := range patches {
-		err = patch.Apply(reader, writer, version.String())
+		err = patch.Apply(reader, writer, tag)
 		if err != nil {
 			return errors.Wrap(err, "error applying release updates")
 		}

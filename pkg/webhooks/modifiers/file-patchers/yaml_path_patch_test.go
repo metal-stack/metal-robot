@@ -96,7 +96,7 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 		{
 			name:     "replace a path with version comparison",
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
-			newValue: "0.0.2",
+			newValue: "v0.0.2",
 			input:    "a: v0.0.1",
 			output:   "a: v0.0.2\n",
 			wantErr:  false,
@@ -104,16 +104,8 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 		{
 			name:     "replace a path with version comparison when there was no semantic version before",
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
-			newValue: "0.0.2",
+			newValue: "v0.0.2",
 			input:    "a: bla",
-			output:   "a: v0.0.2\n",
-			wantErr:  false,
-		},
-		{
-			name:     "replace a path without original prefix with version comparison",
-			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
-			newValue: "0.0.2",
-			input:    "a: 0.0.1",
 			output:   "a: v0.0.2\n",
 			wantErr:  false,
 		},
@@ -122,7 +114,7 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", versionCompare: true},
 			newValue: "0.0.2",
 			input:    "a: 0.0.1",
-			output:   "a: v0.0.2\n",
+			output:   "a: 0.0.2\n",
 			wantErr:  false,
 		},
 		{
@@ -144,7 +136,7 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 		{
 			name:     "replace with a template and version comparison",
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
-			newValue: "0.0.2",
+			newValue: "v0.0.2",
 			input:    "a: http://server.io/v0.0.1.exe",
 			output:   "a: http://server.io/v0.0.2.exe\n",
 			wantErr:  false,
@@ -152,17 +144,17 @@ func TestYAMLPathVersionPatches_Apply(t *testing.T) {
 		{
 			name:     "change nothing on lower version with template",
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
-			newValue: "0.0.2",
+			newValue: "v0.0.2",
 			input:    "a: http://server.io/v0.0.3.exe",
 			output:   "a: http://server.io/v0.0.3.exe\n",
 			wantErr:  false,
 		},
 		{
-			name:     "replace with a template and version comparison when there was no semantic version before",
+			name:     "replace with a template and version comparison when there is no semantic version",
 			p:        YAMLPathPatch{file: "example.yaml", yamlPath: "a", template: &tpl, versionCompare: true},
 			newValue: "0.0.2",
 			input:    "a: http://server.io/bla.exe",
-			output:   "a: http://server.io/v0.0.2.exe\n",
+			output:   "a: http://server.io/0.0.2.exe\n",
 			wantErr:  false,
 		},
 	}
