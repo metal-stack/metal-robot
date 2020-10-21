@@ -180,5 +180,9 @@ func (s *swaggerClient) GenerateSwaggerClients(ctx context.Context, p *swaggerPa
 		})
 	}
 
+	if err := g.Wait(); err != nil {
+		s.logger.Errorw("errors creating swagger clients", "error", err)
+	}
+
 	return nil
 }
