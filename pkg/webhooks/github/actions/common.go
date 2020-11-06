@@ -15,18 +15,18 @@ import (
 )
 
 const (
-	ActionAddToReleaseVector          string = "release-vector"
+	ActionAggregateReleases           string = "aggregate-releases"
 	ActionDocsPreviewComment          string = "docs-preview-comment"
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
-	ActionUpdateSwaggerClients        string = "swagger-clients"
+	ActionDistributeReleases          string = "distribute-releases"
 )
 
 type WebhookActions struct {
 	logger *zap.SugaredLogger
 	rm     []*repositoryMaintainers
 	dp     []*docsPreviewComment
-	rv     []*ReleaseVector
-	sc     []*swaggerClient
+	ar     []*AggregateReleases
+	dr     []*distributeReleases
 }
 
 func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
@@ -53,31 +53,29 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 				return nil, err
 			}
 			actions.rm = append(actions.rm, h)
-			logger.Debugw("initialized github webhook action", "name", ActionCreateRepositoryMaintainers)
 		case ActionDocsPreviewComment:
 			h, err := newDocsPreviewComment(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
 			actions.dp = append(actions.dp, h)
-			logger.Debugw("initialized github webhook action", "name", ActionDocsPreviewComment)
-		case ActionAddToReleaseVector:
-			h, err := NewReleaseVector(logger, c.(*clients.Github), spec.Args)
+		case ActionAggregateReleases:
+			h, err := NewAggregateReleases(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.rv = append(actions.rv, h)
-			logger.Debugw("initialized github webhook action", "name", ActionAddToReleaseVector)
-		case ActionUpdateSwaggerClients:
-			h, err := newSwaggerClient(logger, c.(*clients.Github), spec.Args)
+			actions.ar = append(actions.ar, h)
+		case ActionDistributeReleases:
+			h, err := newDistributeReleases(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.sc = append(actions.sc, h)
-			logger.Debugw("initialized github webhook action", "name", ActionUpdateSwaggerClients)
+			actions.dr = append(actions.dr, h)
 		default:
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
+
+		logger.Debugw("initialized github webhook action", "name", spec.Type)
 	}
 
 	return &actions, nil
@@ -88,19 +86,19 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
-	for _, a := range w.rv {
+	for _, a := range w.ar {
 		a := a
 		g.Go(func() error {
 			if payload.Action != "released" {
 				return nil
 			}
-			p := &ReleaseVectorParams{
+			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        payload.Release.TagName,
 			}
-			err := a.AddToRelaseVector(ctx, p)
+			err := a.AggregateRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error adding release to release vector", "release-repo", a.repoURL, "repo", p.RepositoryName, "tag", p.TagName, "error", err)
+				w.logger.Errorw("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -124,12 +122,12 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 			if payload.Action != "opened" || payload.Repository.Name != "docs" {
 				return nil
 			}
-			p := &docsPreviewCommentParams{
+			params := &docsPreviewCommentParams{
 				PullRequestNumber: int(payload.PullRequest.Number),
 			}
-			err := a.AddDocsPreviewComment(ctx, p)
+			err := a.AddDocsPreviewComment(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", p.PullRequestNumber, "error", err)
+				w.logger.Errorw("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", params.PullRequestNumber, "error", err)
 				return err
 			}
 
@@ -147,20 +145,20 @@ func (w *WebhookActions) ProcessPushEvent(payload *ghwebhooks.PushPayload) {
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
-	for _, a := range w.rv {
+	for _, a := range w.ar {
 		a := a
 		g.Go(func() error {
 			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
 				return nil
 			}
-			releaseParams := &ReleaseVectorParams{
+			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        extractTag(payload),
 			}
 
-			err := a.AddToRelaseVector(ctx, releaseParams)
+			err := a.AggregateRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error adding new tag to release vector", "release-repo", a.repoURL, "repo", releaseParams.RepositoryName, "tag", releaseParams.TagName, "error", err)
+				w.logger.Errorw("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -168,21 +166,21 @@ func (w *WebhookActions) ProcessPushEvent(payload *ghwebhooks.PushPayload) {
 		})
 	}
 
-	for _, a := range w.sc {
+	for _, a := range w.dr {
 		a := a
 		g.Go(func() error {
 			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
 				return nil
 			}
 
-			swaggerParams := &swaggerParams{
+			params := &distributeReleaseParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        extractTag(payload),
 			}
 
-			err := a.GenerateSwaggerClients(ctx, swaggerParams)
+			err := a.DistributeRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error creating branches for swagger client repositories", "repo", swaggerParams.RepositoryName, "tag", swaggerParams.TagName, "error", err)
+				w.logger.Errorw("error in distribute release action", "source-repo", params.RepositoryName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -207,13 +205,13 @@ func (w *WebhookActions) ProcessRepositoryEvent(payload *ghwebhooks.RepositoryPa
 				return nil
 			}
 
-			p := &repositoryMaintainersParams{
+			params := &repositoryMaintainersParams{
 				RepositoryName: payload.Repository.Name,
 				Creator:        payload.Sender.Login,
 			}
-			err := a.CreateRepositoryMaintainers(ctx, p)
+			err := a.CreateRepositoryMaintainers(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error creating repository maintainers team", "repo", p.RepositoryName, "error", err)
+				w.logger.Errorw("error creating repository maintainers team", "repo", params.RepositoryName, "error", err)
 				return err
 			}
 

@@ -16,23 +16,26 @@ type DocsPreviewCommentConfig struct {
 	RepositoryName  string  `mapstructure:"repository" description:"the name of the docs repo"`
 }
 
-type ReleaseVectorConfig struct {
-	RepositoryName    string                `mapstructure:"repository" description:"the name of the release repo"`
-	RepositoryURL     string                `mapstructure:"repository-url" description:"the url of the release repo"`
-	Branch            *string               `mapstructure:"branch" description:"the branch to push in the release vector repo"`
-	CommitMsgTemplate *string               `mapstructure:"commit-tpl" description:"template of the commit message"`
-	PullRequestTitle  *string               `mapstructure:"pull-request-title" description:"title of the pull request"`
-	Repos             map[string][]Modifier `mapstructure:"repos" description:"the repositories that will be pushed to the release vector"`
+type AggregateReleasesConfig struct {
+	TargetRepositoryName string                `mapstructure:"repository" description:"the name of the taget repo"`
+	TargetRepositoryURL  string                `mapstructure:"repository-url" description:"the url of the target repo"`
+	Branch               *string               `mapstructure:"branch" description:"the branch to push in the target repo"`
+	CommitMsgTemplate    *string               `mapstructure:"commit-tpl" description:"template of the commit message"`
+	PullRequestTitle     *string               `mapstructure:"pull-request-title" description:"title of the pull request"`
+	SourceRepos          map[string][]Modifier `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
-type SwaggerClientsConfig struct {
-	BranchTemplate    *string                        `mapstructure:"branch-template" description:"the branch to push in the swagger client repo"`
-	CommitMsgTemplate *string                        `mapstructure:"commit-tpl" description:"template of the commit message in the swagger client repo"`
-	Repos             map[string][]SwaggerClientRepo `mapstructure:"repos" description:"the swagger client repositories that will be updated"`
+type DistributeReleasesConfig struct {
+	TargetRepositoryName string       `mapstructure:"repository" description:"the name of the source repo"`
+	TargetRepositoryURL  string       `mapstructure:"repository-url" description:"the url of the source repo"`
+	BranchTemplate       *string      `mapstructure:"branch-template" description:"the branch to push in the target repos"`
+	CommitMsgTemplate    *string      `mapstructure:"commit-tpl" description:"template of the commit message in the target repos"`
+	PullRequestTitle     *string      `mapstructure:"pull-request-title" description:"title of the pull request"`
+	TargetRepos          []TargetRepo `mapstructure:"repos" description:"the  repositories that will be updated"`
 }
 
-type SwaggerClientRepo struct {
-	RepositoryName string     `mapstructure:"repository" description:"the name of the swagger client repo"`
-	RepositoryURL  string     `mapstructure:"repository-url" description:"the name of the swagger client repo"`
-	Patches        []Modifier `mapstructure:"modifiers" description:"the name of the swagger client repo"`
+type TargetRepo struct {
+	RepositoryName string     `mapstructure:"repository" description:"the name of the target repo"`
+	RepositoryURL  string     `mapstructure:"repository-url" description:"the name of the target repo"`
+	Patches        []Modifier `mapstructure:"modifiers" description:"the name of the target repo"`
 }
