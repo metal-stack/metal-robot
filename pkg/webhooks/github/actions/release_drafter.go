@@ -171,7 +171,12 @@ func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, co
 	var body []string
 	if componentBody != nil {
 		lines := strings.Split(*componentBody, "\n")
-		body = append(body, lines...)
+		for _, l := range lines {
+			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
+			if strings.HasPrefix(l, "-") {
+				body = append(body, l)
+			}
+		}
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
 	section := m.EnsureSection(2, &component, heading, body)
