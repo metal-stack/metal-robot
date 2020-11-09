@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type ReleaseVector struct {
+type AggregateReleases struct {
 	logger                *zap.SugaredLogger
 	client                *clients.Github
 	branch                string
@@ -30,29 +30,29 @@ type ReleaseVector struct {
 	pullRequestTitle      string
 }
 
-type ReleaseVectorParams struct {
+type AggregateReleaseParams struct {
 	RepositoryName string
 	TagName        string
 }
 
-func NewReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*ReleaseVector, error) {
+func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*AggregateReleases, error) {
 	var (
 		branch                = "develop"
 		commitMessageTemplate = "Bump %s to version %s"
 		pullRequestTitle      = "Next release"
 	)
 
-	var typedConfig config.ReleaseVectorConfig
+	var typedConfig config.AggregateReleasesConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	if typedConfig.RepositoryName == "" {
-		return nil, fmt.Errorf("repository must be specified")
+	if typedConfig.TargetRepositoryName == "" {
+		return nil, fmt.Errorf("target repository name must be specified")
 	}
-	if typedConfig.RepositoryURL == "" {
-		return nil, fmt.Errorf("repository-url must be specified")
+	if typedConfig.TargetRepositoryURL == "" {
+		return nil, fmt.Errorf("target repository-url must be specified")
 	}
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
@@ -65,7 +65,7 @@ func NewReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 	}
 
 	patchMap := make(map[string][]filepatchers.Patcher)
-	for n, modifiers := range typedConfig.Repos {
+	for n, modifiers := range typedConfig.SourceRepos {
 		for _, m := range modifiers {
 			patcher, err := filepatchers.InitPatcher(m)
 			if err != nil {
@@ -81,23 +81,23 @@ func NewReleaseVector(logger *zap.SugaredLogger, client *clients.Github, rawConf
 		}
 	}
 
-	return &ReleaseVector{
+	return &AggregateReleases{
 		logger:                logger,
 		client:                client,
 		branch:                branch,
 		commitMessageTemplate: commitMessageTemplate,
 		patchMap:              patchMap,
-		repoURL:               typedConfig.RepositoryURL,
-		repoName:              typedConfig.RepositoryName,
+		repoURL:               typedConfig.TargetRepositoryURL,
+		repoName:              typedConfig.TargetRepositoryName,
 		pullRequestTitle:      pullRequestTitle,
 	}, nil
 }
 
-// AddToRelaseVector adds a release to the release vector in a release repository
-func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorParams) error {
+// AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
+func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip adding new version to release vector because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
+		r.logger.Debugw("skip applying release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 	trimmed := strings.TrimPrefix(tag, "v")
 	_, err := semver.Make(trimmed)
 	if err != nil {
-		r.logger.Infow("skip adding new version to release vector because not a valid semver release tag", "repo", p.RepositoryName, "release", tag, "parse-error", err)
+		r.logger.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
@@ -150,13 +150,13 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
 		if err == git.NoChangesError {
-			r.logger.Debugw("skip adding new version to release vector because nothing changed", "repo", p.RepositoryName, "release", tag)
+			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 			return nil
 		}
-		return errors.Wrap(err, "error pushing release file")
+		return errors.Wrap(err, "error pushing to target repository")
 	}
 
-	r.logger.Infow("pushed to release repo", "repo", r.repoName, "release", tag, "branch", r.branch, "hash", hash)
+	r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
 
 	once.Do(func() { lock.Unlock() })
 
@@ -172,7 +172,7 @@ func (r *ReleaseVector) AddToRelaseVector(ctx context.Context, p *ReleaseVectorP
 			return err
 		}
 	} else {
-		r.logger.Infow("created pull request", "url", pr.GetURL())
+		r.logger.Infow("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
 	}
 
 	return nil

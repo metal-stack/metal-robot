@@ -45,7 +45,7 @@ webhooks:
     #           file: "deploy/kubernetes.yaml"
     #           yaml-path: "metadata.name"
 
-    - type: release-vector
+    - type: aggregate-releases
       client: metal-stack-github
       args:
         repository: releases
@@ -210,7 +210,7 @@ webhooks:
               file: "release.yaml"
               yaml-path: "projects.metal-stack.mini-lab.version"
 
-    - type: release-vector
+    - type: aggregate-releases
       client: fi-ts-github
       args:
         repository: releases
@@ -230,11 +230,12 @@ webhooks:
               file: "release.yaml"
               yaml-path: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"
 
-    - type: swagger-clients
+    - type: distribute-releases
       client: metal-stack-github
       args:
+        repository: metal-api
+        repository-url: https://github.com/metal-stack/metal-api
         repos:
-          metal-api:
             - repository: metal-python
               repository-url: "https://github.com/metal-stack/metal-python"
               modifiers:
