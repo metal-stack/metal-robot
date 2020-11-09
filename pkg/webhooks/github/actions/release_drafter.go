@@ -31,7 +31,6 @@ type ReleaseDrafterParams struct {
 }
 
 func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*ReleaseDrafter, error) {
-
 	var typedConfig config.ReleaseDraftConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -43,7 +42,7 @@ func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	}
 
 	repos := make(map[string]bool)
-	for _, name := range typedConfig.Repos {
+	for name := range typedConfig.Repos {
 		_, ok := repos[name]
 		if ok {
 			return nil, fmt.Errorf("repository defined twice: %v", name)
@@ -160,113 +159,19 @@ func (r *ReleaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 }
 
 func (r *ReleaseDrafter) updateReleaseBody(version string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
-	m := parseMarkdown(priorBody)
+	m := utils.ParseMarkdown(priorBody)
 
-	m.EnsureSection(1, nil, version, "")
-	body := ""
+	// ensure draft header
+	m.EnsureSection(1, nil, version, nil)
+
+	// ensure component secftion
+	var body []string
 	if componentBody != nil {
-		body = *componentBody
+		lines := strings.Split(*componentBody, "\n")
+		body = append(body, lines...)
 	}
-
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	s := m.EnsureSection(2, &component, heading, body)
-
-	groups := utils.RegexCapture(utils.SemanticVersionMatcher, s.Heading)
-	old := groups["full_match"]
-	old = strings.TrimPrefix(old, "v")
-	oldVersion, err := semver.Parse(old)
-	if err == nil {
-		if componentVersion.GT(oldVersion) {
-			s.Heading = heading
-			s.Content += "\n" + body
-		}
-	} else {
-		s.Heading = heading
-	}
+	m.EnsureSection(2, &component, heading, body)
 
 	return m.String()
-}
-
-type markdown struct {
-	sections []*markdownSection
-}
-
-type markdownSection struct {
-	Level   int
-	Heading string
-	Content string
-}
-
-func parseMarkdown(content string) *markdown {
-	var sections []*markdownSection
-	lines := strings.Split(content, "\n")
-
-	var currentSection *markdownSection
-	for _, l := range lines {
-		if strings.HasPrefix(l, "#") {
-			level := 0
-			for _, char := range l {
-				if char != '#' {
-					break
-				}
-				level++
-			}
-			currentSection = &markdownSection{
-				Level:   level,
-				Heading: strings.TrimSpace(l[level:]),
-			}
-			sections = append(sections, currentSection)
-			continue
-		}
-
-		if currentSection == nil {
-			currentSection = &markdownSection{}
-			sections = append(sections, currentSection)
-		}
-
-		if currentSection.Content == "" {
-			currentSection.Content = l
-		} else {
-			currentSection.Content = currentSection.Content + "\n" + l
-		}
-	}
-
-	return &markdown{
-		sections: sections,
-	}
-}
-
-func (m *markdown) EnsureSection(level int, headlinePrefix *string, headline string, content string) *markdownSection {
-	for _, s := range m.sections {
-		if s.Level == level {
-			if headlinePrefix == nil {
-				return s
-			}
-			if strings.HasPrefix(s.Heading, *headlinePrefix) {
-				return s
-			}
-		}
-	}
-	s := &markdownSection{
-		Level:   level,
-		Heading: headline,
-		Content: content,
-	}
-	m.sections = append(m.sections, s)
-	return s
-}
-
-func (m *markdown) String() string {
-	result := ""
-	for _, s := range m.sections {
-		if s.Level > 0 {
-			result += "\n"
-			for i := 0; i < s.Level; i++ {
-				result += "#"
-			}
-			result += " " + s.Heading + "\n"
-		}
-		result += s.Content
-	}
-	return result
 }
