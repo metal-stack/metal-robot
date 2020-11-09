@@ -154,7 +154,7 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 		if err != nil {
 			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
 		} else {
-			latestTag.Minor = latestTag.Minor + 1
+			latestTag.Patch = latestTag.Patch + 1
 			return "v" + latestTag.String(), nil
 		}
 	}
