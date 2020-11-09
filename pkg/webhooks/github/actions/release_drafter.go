@@ -26,6 +26,7 @@ type releaseDrafter struct {
 	logger        *zap.SugaredLogger
 	client        *clients.Github
 	titleTemplate string
+	draftHeadline string
 	repoMap       map[string]bool
 	repoName      string
 }
@@ -39,6 +40,7 @@ type releaseDrafterParams struct {
 func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*releaseDrafter, error) {
 	var (
 		releaseTitleTemplate = "%s"
+		draftHeadline        = "General"
 	)
 
 	var typedConfig config.ReleaseDraftConfig
@@ -52,6 +54,9 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	}
 	if typedConfig.ReleaseTitleTemplate != nil {
 		releaseTitleTemplate = *typedConfig.ReleaseTitleTemplate
+	}
+	if typedConfig.DraftHeadline != nil {
+		draftHeadline = *typedConfig.DraftHeadline
 	}
 
 	repos := make(map[string]bool)
@@ -69,6 +74,7 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 		repoMap:       repos,
 		repoName:      typedConfig.RepositoryName,
 		titleTemplate: releaseTitleTemplate,
+		draftHeadline: draftHeadline,
 	}, nil
 }
 
@@ -130,7 +136,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		priorBody = *existingDraft.Body
 	}
 
-	body := r.updateReleaseBody("General", r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
+	body := r.updateReleaseBody(r.draftHeadline, r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
 
 	if existingDraft != nil {
 		existingDraft.Body = &body
