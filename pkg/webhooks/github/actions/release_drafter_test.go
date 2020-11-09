@@ -11,9 +11,9 @@ import (
 
 func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 	tests := []struct {
-		name            string
-		releaseTemplate string
-
+		name             string
+		releaseTemplate  string
+		org              string
 		version          string
 		priorBody        string
 		component        string
@@ -25,6 +25,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		{
 			name:             "creating fresh release draft",
 			version:          "v0.1.0",
+			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
 			componentBody: v3.String(`- Adding new feature
@@ -39,6 +40,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		{
 			name:             "creating fresh release draft, no release body",
 			version:          "v0.1.0",
+			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
 			componentBody:    nil,
@@ -50,6 +52,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		{
 			name:             "creating fresh release draft, empty release body",
 			version:          "v0.1.0",
+			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
 			componentBody:    v3.String(""),
@@ -61,6 +64,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		{
 			name:             "adding new section to existing release draft",
 			version:          "v0.1.0",
+			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
 			componentBody: v3.String(`- Adding new feature
@@ -82,9 +86,10 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		{
 			name:             "updating release draft with another component release",
 			version:          "v0.1.0",
+			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String(`- Fixed yet another bug`),
+			componentBody:    v3.String(`- Fixed yet another bug (#123)`),
 			priorBody: `# v0.1.0
 
 ## metal-test v0.1.0
@@ -101,7 +106,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 ## metal-robot v0.2.5
 - Adding new feature
 - Fixed a bug
-- Fixed yet another bug`,
+- Fixed yet another bug (metal-stack/metal-robot#123)`,
 		},
 	}
 	for _, tt := range tests {
@@ -110,12 +115,12 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 				logger: zaptest.NewLogger(t).Sugar(),
 				client: nil,
 			}
-			res := r.updateReleaseBody(tt.version, tt.priorBody, tt.component, tt.componentVersion, tt.componentBody)
+			res := r.updateReleaseBody(tt.version, tt.org, tt.priorBody, tt.component, tt.componentVersion, tt.componentBody)
 			if diff := cmp.Diff(tt.want, res); diff != "" {
 				t.Errorf("ReleaseDrafter.updateReleaseBody(), diff: %v", diff)
 				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)
 			}
-			idempotent := r.updateReleaseBody(tt.version, res, tt.component, tt.componentVersion, tt.componentBody)
+			idempotent := r.updateReleaseBody(tt.version, tt.org, res, tt.component, tt.componentVersion, tt.componentBody)
 			if diff := cmp.Diff(tt.want, idempotent); diff != "" {
 				t.Errorf("not idempotent: %v", diff)
 				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)

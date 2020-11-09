@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/blang/semver"
@@ -15,6 +16,10 @@ import (
 	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v32/github"
+)
+
+var (
+	githubIssueRef = regexp.MustCompile(`\(#(?P<issue>[0-9]+)\)`)
 )
 
 type releaseDrafter struct {
@@ -116,7 +121,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		priorBody = *existingDraft.Body
 	}
 
-	body := r.updateReleaseBody("General", priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
+	body := r.updateReleaseBody("General", r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
 
 	if existingDraft != nil {
 		existingDraft.Body = &body
@@ -162,7 +167,7 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 	return "v0.0.1", nil
 }
 
-func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
+func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
 	m := utils.ParseMarkdown(priorBody)
 
 	// ensure draft header
@@ -174,9 +179,18 @@ func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, co
 		lines := strings.Split(*componentBody, "\n")
 		for _, l := range lines {
 			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
-			if strings.HasPrefix(l, "-") || strings.HasPrefix(l, "*") {
-				body = append(body, l)
+			if !strings.HasPrefix(l, "-") && !strings.HasPrefix(l, "*") {
+				continue
 			}
+
+			groups := utils.RegexCapture(githubIssueRef, l)
+			issue, ok := groups["issue"]
+			if ok {
+				l = strings.Replace(l, groups["full_match"], fmt.Sprintf("(%s/%s#%s)", org, component, issue), -1)
+			}
+
+			body = append(body, l)
+
 		}
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
