@@ -49,10 +49,10 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 	}
 
 	if typedConfig.TargetRepositoryName == "" {
-		return nil, fmt.Errorf("repository must be specified")
+		return nil, fmt.Errorf("target repository name must be specified")
 	}
 	if typedConfig.TargetRepositoryURL == "" {
-		return nil, fmt.Errorf("repository-url must be specified")
+		return nil, fmt.Errorf("target repository-url must be specified")
 	}
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
@@ -93,7 +93,7 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 	}, nil
 }
 
-// AggregateRelease applies release actions to the target repository
+// AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
 func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {

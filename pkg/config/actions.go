@@ -26,8 +26,8 @@ type AggregateReleasesConfig struct {
 }
 
 type DistributeReleasesConfig struct {
-	TargetRepositoryName string       `mapstructure:"repository" description:"the name of the source repo"`
-	TargetRepositoryURL  string       `mapstructure:"repository-url" description:"the url of the source repo"`
+	SourceRepositoryName string       `mapstructure:"repository" description:"the name of the source repo"`
+	SourceRepositoryURL  string       `mapstructure:"repository-url" description:"the url of the source repo"`
 	BranchTemplate       *string      `mapstructure:"branch-template" description:"the branch to push in the target repos"`
 	CommitMsgTemplate    *string      `mapstructure:"commit-tpl" description:"template of the commit message in the target repos"`
 	PullRequestTitle     *string      `mapstructure:"pull-request-title" description:"title of the pull request"`

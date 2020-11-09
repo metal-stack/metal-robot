@@ -53,11 +53,11 @@ func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, ra
 		return nil, err
 	}
 
-	if typedConfig.TargetRepositoryName == "" {
-		return nil, fmt.Errorf("repository must be specified")
+	if typedConfig.SourceRepositoryName == "" {
+		return nil, fmt.Errorf("source repository name must be specified")
 	}
-	if typedConfig.TargetRepositoryURL == "" {
-		return nil, fmt.Errorf("repository-url must be specified")
+	if typedConfig.SourceRepositoryURL == "" {
+		return nil, fmt.Errorf("source repository-url must be specified")
 	}
 	if typedConfig.BranchTemplate != nil {
 		branchTemplate = *typedConfig.BranchTemplate
@@ -92,14 +92,14 @@ func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, ra
 		client:                client,
 		branchTemplate:        branchTemplate,
 		commitMessageTemplate: commitMessageTemplate,
-		repoURL:               typedConfig.TargetRepositoryURL,
-		repoName:              typedConfig.TargetRepositoryName,
+		repoURL:               typedConfig.SourceRepositoryURL,
+		repoName:              typedConfig.SourceRepositoryName,
 		targetRepos:           targetRepos,
 		pullRequestTitle:      pullRequestTitle,
 	}, nil
 }
 
-// DistributeRelease applies release actions to the target repositories
+// DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
 func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distributeReleaseParams) error {
 	if p.RepositoryName != d.repoName {
 		d.logger.Debugw("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
