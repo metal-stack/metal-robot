@@ -50,8 +50,6 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 		repos[name] = true
 	}
 
-	logger.Infow("for", "#", len(repos))
-
 	return &releaseDrafter{
 		logger:   logger,
 		client:   client,
@@ -149,7 +147,10 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 		return "", errors.Wrap(err, "unable to find latest release")
 	}
 	if latest != nil && latest.TagName != nil {
-		latestTag, err := semver.Parse(*latest.TagName)
+		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
+		t := groups["full_match"]
+		t = strings.TrimPrefix(t, "v")
+		latestTag, err := semver.Parse(t)
 		if err != nil {
 			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
 		} else {
