@@ -32,6 +32,10 @@ type DistributeReleasesConfig struct {
 	CommitMsgTemplate    *string      `mapstructure:"commit-tpl" description:"template of the commit message in the target repos"`
 	PullRequestTitle     *string      `mapstructure:"pull-request-title" description:"title of the pull request"`
 	TargetRepos          []TargetRepo `mapstructure:"repos" description:"the  repositories that will be updated"`
+type ReleaseDraftConfig struct {
+	RepositoryName string   `mapstructure:"repository" description:"the name of the release repo"`
+	RepositoryURL  string   `mapstructure:"repository-url" description:"the url of the release repo"`
+	Repos          []string `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
 }
 
 type TargetRepo struct {

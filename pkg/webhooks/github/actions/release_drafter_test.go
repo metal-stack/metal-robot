@@ -125,3 +125,66 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		})
 	}
 }
+
+func Test_parseMarkdown(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    []*markdownSection
+	}{
+		{
+			name:    "no sections",
+			content: "test",
+			want: []*markdownSection{
+				{
+					Level:   0,
+					Heading: "",
+					Content: "test",
+				},
+			},
+		},
+		{
+			name: "parses friendly sections",
+			content: `pre-section
+without a level
+
+# section 1
+content 1
+
+## section 2
+content 2
+still content 2`,
+			want: []*markdownSection{
+				{
+					Level:   0,
+					Heading: "",
+					Content: "pre-section\nwithout a level\n",
+				},
+				{
+					Level:   1,
+					Heading: "section 1",
+					Content: "content 1\n",
+				},
+				{
+					Level:   2,
+					Heading: "section 2",
+					Content: "content 2\nstill content 2",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		// regex := regexp.MustCompile("\n\n")
+		t.Run(tt.name, func(t *testing.T) {
+			m := parseMarkdown(tt.content)
+			if diff := cmp.Diff(m.sections, tt.want); diff != "" {
+				t.Errorf("parseMarkdown(), differs in sections: %v", diff)
+			}
+			// clean := regex.ReplaceAllString(tt.content, "\n")
+			if diff := cmp.Diff(m.String(), tt.content); diff != "" {
+				t.Errorf("String(), content has changed: %v", diff)
+				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.content, m.String())
+			}
+		})
+	}
+}
