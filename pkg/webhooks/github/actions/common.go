@@ -19,6 +19,7 @@ const (
 	ActionDocsPreviewComment          string = "docs-preview-comment"
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
+	ActionReleaseDraft                string = "release-draft"
 )
 
 type WebhookActions struct {
@@ -27,6 +28,7 @@ type WebhookActions struct {
 	dp     []*docsPreviewComment
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
+	rd     []*releaseDrafter
 }
 
 func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
@@ -71,6 +73,13 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 				return nil, err
 			}
 			actions.dr = append(actions.dr, h)
+		case ActionReleaseDraft:
+			h, err := newReleaseDrafter(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.rd = append(actions.rd, h)
+
 		default:
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
@@ -99,6 +108,27 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {
 				w.logger.Errorw("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	for _, a := range w.rd {
+		a := a
+		g.Go(func() error {
+			if payload.Action != "released" {
+				return nil
+			}
+			params := &releaseDrafterParams{
+				RepositoryName:       payload.Repository.Name,
+				TagName:              payload.Release.TagName,
+				ComponentReleaseInfo: payload.Release.Body,
+			}
+			err := a.draft(ctx, params)
+			if err != nil {
+				w.logger.Errorw("error creating release draft", "repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 

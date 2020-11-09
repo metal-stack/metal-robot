@@ -2,7 +2,6 @@ package filepatchers
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/blang/semver"
@@ -15,11 +14,6 @@ import (
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
-)
-
-var (
-	// semanticVersionMatcher is taken from https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-	semanticVersionMatcher = regexp.MustCompile(`v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?`)
 )
 
 type YAMLPathPatch struct {
@@ -75,7 +69,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 		}
 
 		if p.template != nil {
-			groups := utils.RegexCapture(semanticVersionMatcher, old)
+			groups := utils.RegexCapture(utils.SemanticVersionMatcher, old)
 			old = groups["full_match"]
 		}
 

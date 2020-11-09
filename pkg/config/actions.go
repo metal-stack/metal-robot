@@ -39,3 +39,10 @@ type TargetRepo struct {
 	RepositoryURL  string     `mapstructure:"repository-url" description:"the name of the target repo"`
 	Patches        []Modifier `mapstructure:"modifiers" description:"the name of the target repo"`
 }
+
+type ReleaseDraftConfig struct {
+	Repos                map[string]interface{} `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
+	RepositoryName       string                 `mapstructure:"repository" description:"the name of the release repo"`
+	ReleaseTitleTemplate *string                `mapstructure:"title-template" description:"custom template for the release title"`
+	DraftHeadline        *string                `mapstructure:"draft-headline" description:"custom headline for the release draft"`
+}
