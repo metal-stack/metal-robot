@@ -115,7 +115,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		priorBody = *existingDraft.Body
 	}
 
-	body := r.updateReleaseBody(releaseTag, priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
+	body := r.updateReleaseBody("General", priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
 
 	if existingDraft != nil {
 		existingDraft.Body = &body
@@ -161,11 +161,11 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 	return "v0.0.1", nil
 }
 
-func (r *releaseDrafter) updateReleaseBody(version string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
+func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
 	m := utils.ParseMarkdown(priorBody)
 
 	// ensure draft header
-	m.EnsureSection(1, nil, version, nil)
+	m.EnsureSection(1, nil, headline, nil)
 
 	// ensure component secftion
 	var body []string
