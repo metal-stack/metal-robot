@@ -89,7 +89,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String(`- Fixed yet another bug (#123)`),
+			componentBody:    v3.String(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# v0.1.0
 
 ## metal-test v0.1.0
@@ -106,7 +106,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 ## metal-robot v0.2.5
 - Adding new feature
 - Fixed a bug
-- Fixed yet another bug (metal-stack/metal-robot#123)`,
+* Fix (metal-stack/metal-robot#123) @Gerrit91`,
 		},
 	}
 	for _, tt := range tests {

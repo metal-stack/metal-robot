@@ -23,10 +23,11 @@ var (
 )
 
 type releaseDrafter struct {
-	logger   *zap.SugaredLogger
-	client   *clients.Github
-	repoMap  map[string]bool
-	repoName string
+	logger        *zap.SugaredLogger
+	client        *clients.Github
+	titleTemplate string
+	repoMap       map[string]bool
+	repoName      string
 }
 
 type releaseDrafterParams struct {
@@ -36,6 +37,10 @@ type releaseDrafterParams struct {
 }
 
 func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*releaseDrafter, error) {
+	var (
+		releaseTitleTemplate = "%s"
+	)
+
 	var typedConfig config.ReleaseDraftConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -44,6 +49,9 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 
 	if typedConfig.RepositoryName == "" {
 		return nil, fmt.Errorf("repository must be specified")
+	}
+	if typedConfig.ReleaseTitleTemplate != nil {
+		releaseTitleTemplate = *typedConfig.ReleaseTitleTemplate
 	}
 
 	repos := make(map[string]bool)
@@ -56,10 +64,11 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	}
 
 	return &releaseDrafter{
-		logger:   logger,
-		client:   client,
-		repoMap:  repos,
-		repoName: typedConfig.RepositoryName,
+		logger:        logger,
+		client:        client,
+		repoMap:       repos,
+		repoName:      typedConfig.RepositoryName,
+		titleTemplate: releaseTitleTemplate,
 	}, nil
 }
 
@@ -113,7 +122,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		if err != nil {
 			return err
 		}
-		releaseTag = r.repoName + " " + releaseTag
+		releaseTag = fmt.Sprintf(r.titleTemplate, releaseTag)
 	}
 
 	var priorBody string
@@ -176,7 +185,7 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 	// ensure component secftion
 	var body []string
 	if componentBody != nil {
-		lines := strings.Split(*componentBody, "\n")
+		lines := strings.Split(strings.Replace(*componentBody, `\r\n`, "\n", -1), "\n")
 		for _, l := range lines {
 			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
 			if !strings.HasPrefix(l, "-") && !strings.HasPrefix(l, "*") {
@@ -190,7 +199,6 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 			}
 
 			body = append(body, l)
-
 		}
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())

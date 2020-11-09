@@ -41,6 +41,7 @@ type TargetRepo struct {
 }
 
 type ReleaseDraftConfig struct {
-	Repos          map[string]interface{} `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
-	RepositoryName string                 `mapstructure:"repository" description:"the name of the release repo"`
+	Repos                map[string]interface{} `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
+	RepositoryName       string                 `mapstructure:"repository" description:"the name of the release repo"`
+	ReleaseTitleTemplate *string                `mapstructure:"title-template" description:"the template for the release title"`
 }
