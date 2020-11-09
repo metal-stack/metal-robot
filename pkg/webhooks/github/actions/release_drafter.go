@@ -17,20 +17,20 @@ import (
 	v3 "github.com/google/go-github/v32/github"
 )
 
-type ReleaseDrafter struct {
+type releaseDrafter struct {
 	logger   *zap.SugaredLogger
 	client   *clients.Github
 	repoMap  map[string]bool
 	repoName string
 }
 
-type ReleaseDrafterParams struct {
+type releaseDrafterParams struct {
 	RepositoryName       string
 	TagName              string
 	ComponentReleaseInfo *string
 }
 
-func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*ReleaseDrafter, error) {
+func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*releaseDrafter, error) {
 	var typedConfig config.ReleaseDraftConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -50,7 +50,9 @@ func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 		repos[name] = true
 	}
 
-	return &ReleaseDrafter{
+	logger.Infow("for", "#", len(repos))
+
+	return &releaseDrafter{
 		logger:   logger,
 		client:   client,
 		repoMap:  repos,
@@ -59,7 +61,7 @@ func NewReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 }
 
 // UpdateReleaseDraft updates a release draft in a release repository
-func (r *ReleaseDrafter) UpdateReleaseDraft(ctx context.Context, p *ReleaseDrafterParams) error {
+func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) error {
 	_, ok := r.repoMap[p.RepositoryName]
 	if !ok {
 		r.logger.Debugw("skip adding release draft because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
@@ -141,7 +143,7 @@ func (r *ReleaseDrafter) UpdateReleaseDraft(ctx context.Context, p *ReleaseDraft
 	return nil
 }
 
-func (r *ReleaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
+func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
 	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
 	if err != nil {
 		return "", errors.Wrap(err, "unable to find latest release")
@@ -158,7 +160,7 @@ func (r *ReleaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 	return "v0.0.1", nil
 }
 
-func (r *ReleaseDrafter) updateReleaseBody(version string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
+func (r *releaseDrafter) updateReleaseBody(version string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
 	m := utils.ParseMarkdown(priorBody)
 
 	// ensure draft header

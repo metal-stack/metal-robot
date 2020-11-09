@@ -15,6 +15,166 @@ clients:
 #   gitlab:
 #     token: ...
 
+.metal-stack-release-repos: &release-repos
+  metal-api:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.control-plane.metal-api.tag"
+
+  masterdata-api:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.control-plane.masterdata-api.tag"
+
+  metal-console:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.control-plane.metal-console.tag"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.partition.bmc-proxy.tag"
+
+  kernel:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.kernel.version"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.kernel.url"
+      template: "https://github.com/metal-stack/kernel/releases/download/%s/metal-kernel"
+
+  metal-hammer:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metal-hammer.version"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metal-hammer.url"
+      template: "https://github.com/metal-stack/metal-hammer/releases/download/%s/metal-hammer-initrd.img.lz4"
+
+  metalctl:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.control-plane.metalctl.tag"
+
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metalctl.version"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metalctl.linux.url"
+      template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-linux-amd64"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metalctl.windows.url"
+      template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-windows-amd64"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "binaries.metal-stack.metalctl.darwin.url"
+      template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-darwin-amd64"
+
+  metal-core:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.partition.metal-core.tag"
+
+  bmc-catcher:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.control-plane.bmc-catcher.tag"
+
+  backup-restore-sidecar:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"
+
+  metal-dockerfiles:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.generic.deployment-base.tag"
+
+  gardener-extension-provider-metal:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.gardener.gardener-extension-provider-metal.tag"
+
+  os-metal-extension:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.gardener.os-metal-extension.tag"
+
+  firewall-controller:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.gardener.firewall-controller.tag"
+
+  csi-lvm:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-controller.tag"
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-provisioner.tag"
+
+  csi-driver-lvm:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.kubernetes.csi-driver-lvm.tag"
+
+  metal-ccm:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.kubernetes.metal-ccm.tag"
+
+  kubernetes-splunk-audit-webhook:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "docker-images.metal-stack.kubernetes.splunk-audit-webhook.tag"
+
+  metal-roles:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "ansible-roles.metal-roles.version"
+
+  ansible-common:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "ansible-roles.ansible-common.version"
+
+  mini-lab:
+  - type: yaml-path-version-patch
+    args:
+      file: "release.yaml"
+      yaml-path: "projects.metal-stack.mini-lab.version"
+
+
 webhooks:
 - serve-path: /github/webhooks/metal-stack
   secret: something
@@ -31,6 +191,13 @@ webhooks:
 
           A rendered preview of your changes will be available at: https://docs.metal-stack.io/previews/PR%d/
         repository: docs
+
+    - type: release-draft
+      client: metal-stack-github
+      args:
+        repository: releases
+        repos:
+          <<: *release-repos
 
     # just for testing
     # - type: release-vector
@@ -52,163 +219,6 @@ webhooks:
         repository-url: https://github.com/metal-stack/releases
         pull-request-title: "Next release of metal-stack"
         repos:
-          metal-api:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.control-plane.metal-api.tag"
-
-          masterdata-api:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.control-plane.masterdata-api.tag"
-
-          metal-console:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.control-plane.metal-console.tag"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.partition.bmc-proxy.tag"
-
-          kernel:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.kernel.version"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.kernel.url"
-              template: "https://github.com/metal-stack/kernel/releases/download/%s/metal-kernel"
-
-          metal-hammer:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metal-hammer.version"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metal-hammer.url"
-              template: "https://github.com/metal-stack/metal-hammer/releases/download/%s/metal-hammer-initrd.img.lz4"
-
-          metalctl:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.control-plane.metalctl.tag"
-
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metalctl.version"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metalctl.linux.url"
-              template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-linux-amd64"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metalctl.windows.url"
-              template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-windows-amd64"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "binaries.metal-stack.metalctl.darwin.url"
-              template: "https://github.com/metal-stack/metalctl/releases/download/%s/metalctl-darwin-amd64"
-
-          metal-core:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.partition.metal-core.tag"
-
-          bmc-catcher:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.control-plane.bmc-catcher.tag"
-
-          backup-restore-sidecar:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.generic.backup-restore-sidecar.tag"
-
-          metal-dockerfiles:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.generic.deployment-base.tag"
-
-          gardener-extension-provider-metal:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.gardener.gardener-extension-provider-metal.tag"
-
-          os-metal-extension:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.gardener.os-metal-extension.tag"
-
-          firewall-controller:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.gardener.firewall-controller.tag"
-
-          csi-lvm:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-controller.tag"
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.kubernetes.csi-lvm-provisioner.tag"
-
-          csi-driver-lvm:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.kubernetes.csi-driver-lvm.tag"
-
-          metal-ccm:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.kubernetes.metal-ccm.tag"
-
-          kubernetes-splunk-audit-webhook:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "docker-images.metal-stack.kubernetes.splunk-audit-webhook.tag"
-
-          metal-roles:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "ansible-roles.metal-roles.version"
-
-          ansible-common:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "ansible-roles.ansible-common.version"
-
-          mini-lab:
-          - type: yaml-path-version-patch
-            args:
-              file: "release.yaml"
-              yaml-path: "projects.metal-stack.mini-lab.version"
 
     - type: aggregate-releases
       client: fi-ts-github
@@ -257,7 +267,7 @@ webhooks:
   secret: something
   vcs: github
   actions:
-    - type: release-vector
+    - type: aggregate-releases
       client: fi-ts-github
       args:
         repository: releases
@@ -289,7 +299,7 @@ webhooks:
   secret: something
   vcs: gitlab
   actions:
-    - type: release-vector
+    - type: aggregate-releases
       client: fi-ts-github
       args:
         repository: releases

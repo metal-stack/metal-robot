@@ -106,7 +106,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &ReleaseDrafter{
+			r := &releaseDrafter{
 				logger: zaptest.NewLogger(t).Sugar(),
 				client: nil,
 			}
