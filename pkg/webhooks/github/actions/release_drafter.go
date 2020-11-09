@@ -108,6 +108,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		if err != nil {
 			return err
 		}
+		releaseTag = r.repoName + " " + releaseTag
 	}
 
 	var priorBody string
