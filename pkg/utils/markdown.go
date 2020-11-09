@@ -47,6 +47,8 @@ func ParseMarkdown(content string) *Markdown {
 	}
 }
 
+// EnsureSection ensures a section in the markdown and returns nil.
+// If headlinePrefix is given and a headline with this prefix already exists, it returns the existing section.
 func (m *Markdown) EnsureSection(level int, headlinePrefix *string, headline string, contentLines []string) *MarkdownSection {
 	for _, s := range m.sections {
 		if s.Level == level {
@@ -64,7 +66,7 @@ func (m *Markdown) EnsureSection(level int, headlinePrefix *string, headline str
 		ContentLines: contentLines,
 	}
 	m.sections = append(m.sections, s)
-	return s
+	return nil
 }
 
 func (m *Markdown) String() string {

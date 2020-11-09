@@ -171,7 +171,22 @@ func (r *ReleaseDrafter) updateReleaseBody(version string, priorBody string, com
 		body = append(body, lines...)
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	m.EnsureSection(2, &component, heading, body)
+	section := m.EnsureSection(2, &component, heading, body)
+	if section != nil {
+		groups := utils.RegexCapture(utils.SemanticVersionMatcher, section.Heading)
+		old := groups["full_match"]
+		old = strings.TrimPrefix(old, "v")
+		oldVersion, err := semver.Parse(old)
+		if err == nil {
+			if componentVersion.GT(oldVersion) {
+				// indicates this section has been there before and the version was updated
+				// in this case we need to merge contents together and update the headline
+				section.Heading = heading
+				section.ContentLines = append(section.ContentLines, body...)
+			}
+		}
 
-	return m.String()
+	}
+
+	return strings.Trim(strings.TrimSpace(m.String()), "\n")
 }

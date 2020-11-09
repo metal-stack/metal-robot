@@ -93,3 +93,88 @@ still content 2`,
 		})
 	}
 }
+
+func TestMarkdown_EnsureSection(t *testing.T) {
+	type section struct {
+		level          int
+		headlinePrefix *string
+		headline       string
+		contentLines   []string
+	}
+	tests := []struct {
+		name    string
+		content string
+		s       section
+		want    string
+	}{
+		{
+			name: "add new section",
+			content: `# Markdown sample
+
+Some introduction text.
+
+## Next section
+
+This is a next section.
+`,
+			s: section{
+				level:          3,
+				headlinePrefix: nil,
+				headline:       "Third section",
+				contentLines:   []string{"a", "b", "c"},
+			},
+			want: `# Markdown sample
+
+Some introduction text.
+
+## Next section
+
+This is a next section.
+
+### Third section
+a
+b
+c`,
+		},
+		{
+			name: "keep existing section",
+			content: `# Markdown sample
+
+Some introduction text.
+
+## Next section
+
+This is a next section.
+`,
+			s: section{
+				level:          2,
+				headlinePrefix: strPtr("Next"),
+				headline:       "Next section",
+				contentLines:   []string{"a", "b", "c"},
+			},
+			want: `# Markdown sample
+
+Some introduction text.
+
+## Next section
+
+This is a next section.
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := ParseMarkdown(tt.content)
+			m.EnsureSection(tt.s.level, tt.s.headlinePrefix, tt.s.headline, tt.s.contentLines)
+
+			if diff := cmp.Diff(tt.want, m.String()); diff != "" {
+				t.Errorf("String(), content was unexpected: %v", diff)
+				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, m.String())
+			}
+		})
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
+}
