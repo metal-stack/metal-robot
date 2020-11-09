@@ -173,7 +173,7 @@ func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, co
 		lines := strings.Split(*componentBody, "\n")
 		for _, l := range lines {
 			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
-			if strings.HasPrefix(l, "-") {
+			if strings.HasPrefix(l, "-") || strings.HasPrefix(l, "*") {
 				body = append(body, l)
 			}
 		}
@@ -181,19 +181,18 @@ func (r *releaseDrafter) updateReleaseBody(headline string, priorBody string, co
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
 	section := m.EnsureSection(2, &component, heading, body)
 	if section != nil {
+		// indicates this section has been there before, maybe we need to update the contents
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, section.Heading)
 		old := groups["full_match"]
 		old = strings.TrimPrefix(old, "v")
 		oldVersion, err := semver.Parse(old)
 		if err == nil {
 			if componentVersion.GT(oldVersion) {
-				// indicates this section has been there before and the version was updated
 				// in this case we need to merge contents together and update the headline
 				section.Heading = heading
 				section.ContentLines = append(section.ContentLines, body...)
 			}
 		}
-
 	}
 
 	return strings.Trim(strings.TrimSpace(m.String()), "\n")
