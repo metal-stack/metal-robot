@@ -128,7 +128,6 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		if err != nil {
 			return err
 		}
-		releaseTag = fmt.Sprintf(r.titleTemplate, releaseTag)
 	}
 
 	var priorBody string
@@ -148,7 +147,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 	} else {
 		newDraft := &github.RepositoryRelease{
 			TagName: v3.String(releaseTag),
-			Name:    v3.String(releaseTag),
+			Name:    v3.String(fmt.Sprintf(r.titleTemplate, releaseTag)),
 			Body:    &body,
 			Draft:   v3.Bool(true),
 		}
