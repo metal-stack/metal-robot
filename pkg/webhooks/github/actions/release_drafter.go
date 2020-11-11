@@ -218,7 +218,7 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 			if componentVersion.GT(oldVersion) {
 				// in this case we need to merge contents together and update the headline
 				section.Heading = heading
-				section.ContentLines = append(section.ContentLines, body...)
+				section.ContentLines = append(body, section.ContentLines...)
 			}
 		}
 	}

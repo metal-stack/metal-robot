@@ -104,9 +104,9 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 - 42
 
 ## metal-robot v0.2.5
+* Fix (metal-stack/metal-robot#123) @Gerrit91
 - Adding new feature
-- Fixed a bug
-* Fix (metal-stack/metal-robot#123) @Gerrit91`,
+- Fixed a bug`,
 		},
 	}
 	for _, tt := range tests {
