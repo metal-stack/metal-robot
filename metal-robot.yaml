@@ -220,6 +220,23 @@ webhooks:
         pull-request-title: "Next release of metal-stack"
         repos:
 
+    - type: yaml-translate-releases
+      client: metal-stack-github
+      args:
+        repository: releases
+        repository-url: https://github.com/metal-stack/releases
+        pull-request-title: "Next release of metal-stack"
+        repos:
+          helm-charts:
+          - from:
+              file: "charts/metal-control-plane/Chart.yaml"
+              yaml-path: "version"
+            to:
+              - type: yaml-path-version-patch
+                args:
+                  file: "release.yaml"
+                  yaml-path: "helm-charts.metal-stack.metal-control-plane.tag"
+
     - type: aggregate-releases
       client: fi-ts-github
       args:

@@ -63,7 +63,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 			return err
 		}
 
-		old, err := getYAML(content, p.yamlPath)
+		old, err := GetYAML(content, p.yamlPath)
 		if err != nil {
 			return errors.Wrap(err, "error retrieving yaml path from file")
 		}
@@ -118,7 +118,7 @@ func setYAML(data []byte, path string, value interface{}) ([]byte, error) {
 	return res, nil
 }
 
-func getYAML(data []byte, path string) (string, error) {
+func GetYAML(data []byte, path string) (string, error) {
 	json, err := yamlconv.YAMLToJSON(data)
 	if err != nil {
 		return "", err
