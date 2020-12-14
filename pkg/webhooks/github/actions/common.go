@@ -16,6 +16,7 @@ import (
 
 const (
 	ActionAggregateReleases           string = "aggregate-releases"
+	ActionYAMLTranslateReleases       string = "yaml-translate-releases"
 	ActionDocsPreviewComment          string = "docs-preview-comment"
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
@@ -29,6 +30,7 @@ type WebhookActions struct {
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
+	yr     []*yamlTranslateReleases
 }
 
 func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
@@ -79,6 +81,12 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 				return nil, err
 			}
 			actions.rd = append(actions.rd, h)
+		case ActionYAMLTranslateReleases:
+			h, err := newYAMLTranslateReleases(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.yr = append(actions.yr, h)
 
 		default:
 			return nil, fmt.Errorf("handler type not supported: %s", t)
@@ -129,6 +137,27 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 			err := a.draft(ctx, params)
 			if err != nil {
 				w.logger.Errorw("error creating release draft", "repo", a.repoName, "tag", params.TagName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	for _, a := range w.yr {
+		a := a
+		g.Go(func() error {
+			if payload.Action != "released" {
+				return nil
+			}
+			params := &yamlTranslateReleaseParams{
+				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.CloneURL,
+				TagName:        payload.Release.TagName,
+			}
+			err := a.translateRelease(ctx, params)
+			if err != nil {
+				w.logger.Errorw("error creating translating release", "repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 

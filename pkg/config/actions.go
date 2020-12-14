@@ -31,7 +31,26 @@ type DistributeReleasesConfig struct {
 	BranchTemplate       *string      `mapstructure:"branch-template" description:"the branch to push in the target repos"`
 	CommitMsgTemplate    *string      `mapstructure:"commit-tpl" description:"template of the commit message in the target repos"`
 	PullRequestTitle     *string      `mapstructure:"pull-request-title" description:"title of the pull request"`
-	TargetRepos          []TargetRepo `mapstructure:"repos" description:"the  repositories that will be updated"`
+	TargetRepos          []TargetRepo `mapstructure:"repos" description:"the repositories that will be updated"`
+}
+
+type YAMLTranslateReleasesConfig struct {
+	TargetRepositoryName string                       `mapstructure:"repository" description:"the name of the taget repo"`
+	TargetRepositoryURL  string                       `mapstructure:"repository-url" description:"the url of the target repo"`
+	Branch               *string                      `mapstructure:"branch" description:"the branch to push in the target repo"`
+	CommitMsgTemplate    *string                      `mapstructure:"commit-tpl" description:"template of the commit message"`
+	PullRequestTitle     *string                      `mapstructure:"pull-request-title" description:"title of the pull request"`
+	SourceRepos          map[string][]YAMLTranslation `mapstructure:"repos" description:"the source repositories to trigger this action"`
+}
+
+type YAMLTranslation struct {
+	From YAMLTranslationRead `mapstructure:"from" description:"the yaml path from where to read the replacement value"`
+	To   []Modifier          `mapstructure:"to" description:"the actions to take on the traget repo with the read the replacement value"`
+}
+
+type YAMLTranslationRead struct {
+	File     string `mapstructure:"file" description:"the name of the file to be patched"`
+	YAMLPath string `mapstructure:"yaml-path" description:"the yaml path to the version"`
 }
 
 type TargetRepo struct {
