@@ -104,6 +104,7 @@ func TestMarkdown_EnsureSection(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
+		prepend bool
 		s       section
 		want    string
 	}{
@@ -161,11 +162,33 @@ Some introduction text.
 This is a next section.
 `,
 		},
+		{
+			name:    "prepend a section",
+			prepend: true,
+			content: `# PR Section
+
+* A PR was merged
+`,
+			s: section{
+				level:        1,
+				headline:     "General",
+				contentLines: []string{"a", "b", "c"},
+			},
+
+			want: `# General
+a
+b
+c
+# PR Section
+
+* A PR was merged
+`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := ParseMarkdown(tt.content)
-			m.EnsureSection(tt.s.level, tt.s.headlinePrefix, tt.s.headline, tt.s.contentLines)
+			m.EnsureSection(tt.s.level, tt.s.headlinePrefix, tt.s.headline, tt.s.contentLines, tt.prepend)
 
 			if diff := cmp.Diff(tt.want, m.String()); diff != "" {
 				t.Errorf("String(), content was unexpected: %v", diff)

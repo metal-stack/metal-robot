@@ -49,11 +49,15 @@ func ParseMarkdown(content string) *Markdown {
 
 // EnsureSection ensures a section in the markdown and returns nil.
 // If headlinePrefix is given and a headline with this prefix already exists, it returns the existing section.
-func (m *Markdown) EnsureSection(level int, headlinePrefix *string, headline string, contentLines []string) *MarkdownSection {
+func (m *Markdown) EnsureSection(level int, headlinePrefix *string, headline string, contentLines []string, prepend bool) *MarkdownSection {
 	for _, s := range m.sections {
 		if s.Level == level {
-			if headlinePrefix == nil {
+			if headline == s.Heading {
 				return s
+			}
+
+			if headlinePrefix == nil {
+				continue
 			}
 			if strings.HasPrefix(s.Heading, *headlinePrefix) {
 				return s
@@ -65,7 +69,13 @@ func (m *Markdown) EnsureSection(level int, headlinePrefix *string, headline str
 		Heading:      headline,
 		ContentLines: contentLines,
 	}
-	m.sections = append(m.sections, s)
+
+	if prepend {
+		m.sections = append([]*MarkdownSection{s}, m.sections...)
+	} else {
+		m.sections = append(m.sections, s)
+	}
+
 	return nil
 }
 

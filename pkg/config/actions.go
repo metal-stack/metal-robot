@@ -64,4 +64,7 @@ type ReleaseDraftConfig struct {
 	RepositoryName       string                 `mapstructure:"repository" description:"the name of the release repo"`
 	ReleaseTitleTemplate *string                `mapstructure:"title-template" description:"custom template for the release title"`
 	DraftHeadline        *string                `mapstructure:"draft-headline" description:"custom headline for the release draft"`
+
+	MergedPRsHeadline    *string `mapstructure:"merged-prs-section-headline" description:"custom headline for the section of merged pull requests"`
+	MergedPRsDescription *string `mapstructure:"merged-prs-section-description" description:"description for the merged pull requests section"`
 }
