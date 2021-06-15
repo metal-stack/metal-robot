@@ -216,8 +216,9 @@ Some description
 - Fixed a bug
 
 # Merged Pull Requests
-* Second PR (metal-stack/metal-robot#12) @metal-robot
-* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+* Some new feature (metal-stack/metal-robot#11) @metal-robot
+
+* Second PR (metal-stack/metal-robot#12) @metal-robot`,
 		},
 	}
 	for _, tt := range tests {
