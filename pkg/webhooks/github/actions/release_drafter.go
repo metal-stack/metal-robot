@@ -308,7 +308,7 @@ func (r *releaseDrafter) appendPullRequest(headline string, org string, priorBod
 	section := m.EnsureSection(1, &headline, headline, body, false)
 	if section != nil {
 		section.Heading = headline
-		section.ContentLines = append([]string{l}, section.ContentLines...)
+		section.ContentLines = append(section.ContentLines, l)
 	}
 
 	return strings.Trim(strings.TrimSpace(m.String()), "\n")
