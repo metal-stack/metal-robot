@@ -204,8 +204,7 @@ Some description
 - Fixed a bug
 
 # Merged Pull Requests
-* Some new feature (metal-stack/metal-robot#11) @metal-robot
-`,
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 			want: `# v0.1.0
 
 ## metal-test v0.1.0
@@ -217,7 +216,6 @@ Some description
 
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot
-
 * Second PR (metal-stack/metal-robot#12) @metal-robot`,
 		},
 	}

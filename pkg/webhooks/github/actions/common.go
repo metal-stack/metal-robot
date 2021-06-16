@@ -200,6 +200,10 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 			if payload.Action != "closed" {
 				return nil
 			}
+			if payload.Repository.Private {
+				return nil
+			}
+
 			params := &releaseDrafterParams{
 				RepositoryName: payload.Repository.Name,
 			}
