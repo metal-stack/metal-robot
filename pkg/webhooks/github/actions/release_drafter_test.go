@@ -31,8 +31,6 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 - Fixed a bug`),
 			priorBody: "",
 			want: `# v0.1.0
-
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug`,
@@ -46,8 +44,6 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			componentBody:    nil,
 			priorBody:        "",
 			want: `# v0.1.0
-
-
 ## metal-robot v0.2.4`,
 		},
 		{
@@ -59,8 +55,6 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			componentBody:    v3.String(""),
 			priorBody:        "",
 			want: `# v0.1.0
-
-
 ## metal-robot v0.2.4`,
 		},
 		{
@@ -72,17 +66,11 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			componentBody: v3.String(`- Adding new feature
 - Fixed a bug`),
 			priorBody: `# v0.1.0
-
-
 ## metal-test v0.1.0
-- 42
-`,
+- 42`,
 			want: `# v0.1.0
-
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug`,
@@ -95,24 +83,40 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			componentVersion: semver.MustParse("0.2.5"),
 			componentBody:    v3.String(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# v0.1.0
-
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug`,
 			want: `# v0.1.0
-
-
 ## metal-test v0.1.0
 - 42
-
+## metal-robot v0.2.5
+- Adding new feature
+- Fixed a bug
+* Fix (metal-stack/metal-robot#123) @Gerrit91`,
+		},
+		{
+			name:             "updating release draft when there is a pull request summary",
+			version:          "v0.1.0",
+			org:              "metal-stack",
+			component:        "metal-robot",
+			componentVersion: semver.MustParse("0.2.5"),
+			componentBody:    v3.String(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
+			priorBody: `# v0.1.0
+## metal-test v0.1.0
+- 42
+# Merged Pull Requests
+Some description
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+			want: `# v0.1.0
+## metal-test v0.1.0
+- 42
 ## metal-robot v0.2.5
 * Fix (metal-stack/metal-robot#123) @Gerrit91
-- Adding new feature
-- Fixed a bug`,
+# Merged Pull Requests
+Some description
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},
 	}
 	for _, tt := range tests {
@@ -168,18 +172,14 @@ func Test_releaseDrafter_appendPullRequest(t *testing.T) {
 			author:      "metal-robot",
 			description: "Some description",
 			priorBody: `# v0.1.0
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug`,
 			want: `# v0.1.0
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug
@@ -195,25 +195,19 @@ Some description
 			number: 12,
 			author: "metal-robot",
 			priorBody: `# v0.1.0
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug
-
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 			want: `# v0.1.0
-
 ## metal-test v0.1.0
 - 42
-
 ## metal-robot v0.2.4
 - Adding new feature
 - Fixed a bug
-
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot
 * Second PR (metal-stack/metal-robot#12) @metal-robot`,

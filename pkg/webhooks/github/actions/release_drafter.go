@@ -200,8 +200,14 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
 	m := utils.ParseMarkdown(priorBody)
 
-	// ensure draft header
-	m.EnsureSection(1, nil, headline, nil, true)
+	releaseSection := m.FindSectionByHeading(1, headline)
+	if releaseSection == nil {
+		releaseSection = &utils.MarkdownSection{
+			Level:   1,
+			Heading: headline,
+		}
+		m.PrependSection(releaseSection)
+	}
 
 	// ensure component section
 	var body []string
@@ -223,19 +229,23 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 		}
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	section := m.EnsureSection(2, &component, heading, body, false)
-	if section != nil {
+	section := m.FindSectionByHeadingPrefix(2, component)
+	if section == nil {
+		releaseSection.AppendChild(&utils.MarkdownSection{
+			Level:        2,
+			Heading:      heading,
+			ContentLines: body,
+		})
+	} else {
 		// indicates this section has been there before, maybe we need to update the contents
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, section.Heading)
 		old := groups["full_match"]
 		old = strings.TrimPrefix(old, "v")
 		oldVersion, err := semver.Parse(old)
-		if err == nil {
-			if componentVersion.GT(oldVersion) {
-				// in this case we need to merge contents together and update the headline
-				section.Heading = heading
-				section.ContentLines = append(body, section.ContentLines...)
-			}
+		if err == nil && componentVersion.GT(oldVersion) {
+			// in this case we need to merge contents together and update the headline
+			section.Heading = heading
+			section.AppendContent(body)
 		}
 	}
 
@@ -305,10 +315,16 @@ func (r *releaseDrafter) appendPullRequest(headline string, org string, priorBod
 	if r.prDescription != nil {
 		body = append([]string{*r.prDescription}, body...)
 	}
-	section := m.EnsureSection(1, &headline, headline, body, false)
-	if section != nil {
-		section.Heading = headline
-		section.ContentLines = append(section.ContentLines, l)
+
+	section := m.FindSectionByHeading(1, headline)
+	if section == nil {
+		m.AppendSection(&utils.MarkdownSection{
+			Level:        1,
+			Heading:      headline,
+			ContentLines: body,
+		})
+	} else {
+		section.AppendContent(body)
 	}
 
 	return strings.Trim(strings.TrimSpace(m.String()), "\n")
