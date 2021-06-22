@@ -194,6 +194,29 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 		})
 	}
 
+	for _, a := range w.rd {
+		a := a
+		g.Go(func() error {
+			if payload.Action != "closed" {
+				return nil
+			}
+			if payload.Repository.Private {
+				return nil
+			}
+
+			params := &releaseDrafterParams{
+				RepositoryName: payload.Repository.Name,
+			}
+			err := a.appendMergedPR(ctx, payload.PullRequest.Title, payload.PullRequest.Number, payload.PullRequest.User.Login, params)
+			if err != nil {
+				w.logger.Errorw("error append merged PR to release draft", "repo", a.repoName, "pr", payload.PullRequest.Title, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
 	if err := g.Wait(); err != nil {
 		w.logger.Errorw("errors processing event", "error", err)
 	}

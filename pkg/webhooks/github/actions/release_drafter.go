@@ -29,6 +29,8 @@ type releaseDrafter struct {
 	draftHeadline string
 	repoMap       map[string]bool
 	repoName      string
+	prHeadline    string
+	prDescription *string
 }
 
 type releaseDrafterParams struct {
@@ -41,6 +43,7 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	var (
 		releaseTitleTemplate = "%s"
 		draftHeadline        = "General"
+		prHeadline           = "Merged Pull Requests"
 	)
 
 	var typedConfig config.ReleaseDraftConfig
@@ -58,6 +61,9 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	if typedConfig.DraftHeadline != nil {
 		draftHeadline = *typedConfig.DraftHeadline
 	}
+	if typedConfig.MergedPRsHeadline != nil {
+		prHeadline = *typedConfig.MergedPRsHeadline
+	}
 
 	repos := make(map[string]bool)
 	for name := range typedConfig.Repos {
@@ -74,11 +80,13 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 		repoMap:       repos,
 		repoName:      typedConfig.RepositoryName,
 		titleTemplate: releaseTitleTemplate,
+		prHeadline:    prHeadline,
+		prDescription: typedConfig.MergedPRsDescription,
 		draftHeadline: draftHeadline,
 	}, nil
 }
 
-// UpdateReleaseDraft updates a release draft in a release repository
+// draft updates a release draft in a release repository
 func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) error {
 	_, ok := r.repoMap[p.RepositoryName]
 	if !ok {
@@ -97,27 +105,9 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return nil
 	}
 
-	opt := &github.ListOptions{
-		PerPage: 100,
-	}
-	var existingDraft *github.RepositoryRelease
-	for {
-		releases, resp, err := r.client.GetV3Client().Repositories.ListReleases(ctx, r.client.Organization(), r.repoName, opt)
-		if err != nil {
-			return errors.Wrap(err, "error retrieving releases")
-		}
-
-		for _, release := range releases {
-			if release.Draft != nil && *release.Draft {
-				existingDraft = release
-				break
-			}
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
+	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+	if err != nil {
+		return err
 	}
 
 	var releaseTag string
@@ -161,6 +151,32 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 	return nil
 }
 
+func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoName string) (*github.RepositoryRelease, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		releases, resp, err := client.GetV3Client().Repositories.ListReleases(ctx, client.Organization(), repoName, opt)
+		if err != nil {
+			return nil, errors.Wrap(err, "error retrieving releases")
+		}
+
+		for _, release := range releases {
+			if release.Draft != nil && *release.Draft {
+				return release, nil
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return nil, nil
+}
+
 func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
 	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
 	if err != nil {
@@ -184,10 +200,16 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
 	m := utils.ParseMarkdown(priorBody)
 
-	// ensure draft header
-	m.EnsureSection(1, nil, headline, nil)
+	releaseSection := m.FindSectionByHeading(1, headline)
+	if releaseSection == nil {
+		releaseSection = &utils.MarkdownSection{
+			Level:   1,
+			Heading: headline,
+		}
+		m.PrependSection(releaseSection)
+	}
 
-	// ensure component secftion
+	// ensure component section
 	var body []string
 	if componentBody != nil {
 		lines := strings.Split(strings.Replace(*componentBody, `\r\n`, "\n", -1), "\n")
@@ -207,20 +229,102 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 		}
 	}
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	section := m.EnsureSection(2, &component, heading, body)
-	if section != nil {
+	section := m.FindSectionByHeadingPrefix(2, component)
+	if section == nil {
+		releaseSection.AppendChild(&utils.MarkdownSection{
+			Level:        2,
+			Heading:      heading,
+			ContentLines: body,
+		})
+	} else {
 		// indicates this section has been there before, maybe we need to update the contents
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, section.Heading)
 		old := groups["full_match"]
 		old = strings.TrimPrefix(old, "v")
 		oldVersion, err := semver.Parse(old)
-		if err == nil {
-			if componentVersion.GT(oldVersion) {
-				// in this case we need to merge contents together and update the headline
-				section.Heading = heading
-				section.ContentLines = append(body, section.ContentLines...)
-			}
+		if err == nil && componentVersion.GT(oldVersion) {
+			// in this case we need to merge contents together and update the headline
+			section.Heading = heading
+			section.AppendContent(body)
 		}
+	}
+
+	return strings.Trim(strings.TrimSpace(m.String()), "\n")
+}
+
+// appends a merged pull request to the release draft
+func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, number int64, author string, p *releaseDrafterParams) error {
+	_, ok := r.repoMap[p.RepositoryName]
+	if ok {
+		r.logger.Debugw("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
+		return nil
+	}
+
+	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+	if err != nil {
+		return err
+	}
+
+	var releaseTag string
+	if existingDraft != nil && existingDraft.TagName != nil {
+		releaseTag = *existingDraft.TagName
+	} else {
+		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	var priorBody string
+	if existingDraft != nil && existingDraft.Body != nil {
+		priorBody = *existingDraft.Body
+	}
+
+	body := r.appendPullRequest(r.prHeadline, r.client.Organization(), priorBody, p.RepositoryName, title, number, author)
+
+	if existingDraft != nil {
+		existingDraft.Body = &body
+		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, existingDraft.GetID(), existingDraft)
+		if err != nil {
+			return errors.Wrap(err, "unable to update release draft")
+		}
+		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "pull-request", title)
+	} else {
+		newDraft := &github.RepositoryRelease{
+			TagName: v3.String(releaseTag),
+			Name:    v3.String(fmt.Sprintf(r.titleTemplate, releaseTag)),
+			Body:    &body,
+			Draft:   v3.Bool(true),
+		}
+		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
+		if err != nil {
+			return errors.Wrap(err, "unable to create release draft")
+		}
+		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "pull-request", title)
+	}
+
+	return nil
+}
+
+func (r *releaseDrafter) appendPullRequest(headline string, org string, priorBody string, repo string, title string, number int64, author string) string {
+	m := utils.ParseMarkdown(priorBody)
+
+	l := fmt.Sprintf("* %s (%s/%s#%d) @%s", title, org, repo, number, author)
+
+	body := []string{l}
+	if r.prDescription != nil {
+		body = append([]string{*r.prDescription}, body...)
+	}
+
+	section := m.FindSectionByHeading(1, headline)
+	if section == nil {
+		m.AppendSection(&utils.MarkdownSection{
+			Level:        1,
+			Heading:      headline,
+			ContentLines: body,
+		})
+	} else {
+		section.AppendContent(body)
 	}
 
 	return strings.Trim(strings.TrimSpace(m.String()), "\n")
