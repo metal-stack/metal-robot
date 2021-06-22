@@ -312,12 +312,13 @@ func (r *releaseDrafter) appendPullRequest(headline string, org string, priorBod
 	l := fmt.Sprintf("* %s (%s/%s#%d) @%s", title, org, repo, number, author)
 
 	body := []string{l}
-	if r.prDescription != nil {
-		body = append([]string{*r.prDescription}, body...)
-	}
 
 	section := m.FindSectionByHeading(1, headline)
 	if section == nil {
+		if r.prDescription != nil {
+			body = append([]string{*r.prDescription}, body...)
+		}
+
 		m.AppendSection(&utils.MarkdownSection{
 			Level:        1,
 			Heading:      headline,
