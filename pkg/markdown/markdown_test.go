@@ -1,4 +1,4 @@
-package utils
+package markdown
 
 import (
 	"testing"
@@ -173,7 +173,7 @@ content 1b`,
 	for _, tt := range tests {
 		// regex := regexp.MustCompile("\n\n")
 		t.Run(tt.name, func(t *testing.T) {
-			m := ParseMarkdown(tt.content)
+			m := Parse(tt.content)
 			if diff := cmp.Diff(m.sections, tt.want); diff != "" {
 				t.Errorf("parseMarkdown(), differs in sections: %v", diff)
 			}

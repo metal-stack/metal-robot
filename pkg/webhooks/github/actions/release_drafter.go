@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-github/v32/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -125,7 +126,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		priorBody = *existingDraft.Body
 	}
 
-	body := r.updateReleaseBody(r.draftHeadline, r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
+	body := r.updateReleaseBody(r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
 
 	if existingDraft != nil {
 		existingDraft.Body = &body
@@ -197,23 +198,26 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 	return "v0.0.1", nil
 }
 
-func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
-	m := utils.ParseMarkdown(priorBody)
+func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
+	m := markdown.Parse(priorBody)
 
-	releaseSection := m.FindSectionByHeading(1, headline)
-	if releaseSection == nil {
-		releaseSection = &utils.MarkdownSection{
-			Level:   1,
-			Heading: headline,
+	releaseSection := ensureReleaseSection(m, r.draftHeadline)
+
+	componentSection := m.FindSectionByHeading(2, "Component Releases")
+	if componentSection == nil {
+		componentSection = &markdown.MarkdownSection{
+			Level:   2,
+			Heading: "Component Releases",
 		}
-		m.PrependSection(releaseSection)
+		releaseSection.AppendChild(componentSection)
 	}
 
 	// ensure component section
 	var body []string
 	if componentBody != nil {
-		lines := strings.Split(strings.Replace(*componentBody, `\r\n`, "\n", -1), "\n")
-		for _, l := range lines {
+		for _, l := range markdown.SplitLines(*componentBody) {
+			l := strings.TrimSpace(l)
+
 			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
 			if !strings.HasPrefix(l, "-") && !strings.HasPrefix(l, "*") {
 				continue
@@ -227,12 +231,15 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 
 			body = append(body, l)
 		}
+
+		r.prependActionsRequired(m, *componentBody)
 	}
+
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	section := m.FindSectionByHeadingPrefix(2, component)
+	section := m.FindSectionByHeadingPrefix(3, component)
 	if section == nil {
-		releaseSection.AppendChild(&utils.MarkdownSection{
-			Level:        2,
+		componentSection.AppendChild(&markdown.MarkdownSection{
+			Level:        3,
 			Heading:      heading,
 			ContentLines: body,
 		})
@@ -249,7 +256,7 @@ func (r *releaseDrafter) updateReleaseBody(headline string, org string, priorBod
 		}
 	}
 
-	return strings.Trim(strings.TrimSpace(m.String()), "\n")
+	return m.String()
 }
 
 // appends a merged pull request to the release draft
@@ -280,7 +287,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 		priorBody = *existingDraft.Body
 	}
 
-	body := r.appendPullRequest(r.prHeadline, r.client.Organization(), priorBody, p.RepositoryName, title, number, author)
+	body := r.appendPullRequest(r.client.Organization(), priorBody, p.RepositoryName, title, number, author, p.ComponentReleaseInfo)
 
 	if existingDraft != nil {
 		existingDraft.Body = &body
@@ -306,27 +313,76 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 	return nil
 }
 
-func (r *releaseDrafter) appendPullRequest(headline string, org string, priorBody string, repo string, title string, number int64, author string) string {
-	m := utils.ParseMarkdown(priorBody)
+func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int64, author string, prBody *string) string {
+	m := markdown.Parse(priorBody)
 
 	l := fmt.Sprintf("* %s (%s/%s#%d) @%s", title, org, repo, number, author)
 
 	body := []string{l}
 
-	section := m.FindSectionByHeading(1, headline)
+	section := m.FindSectionByHeading(1, r.prHeadline)
 	if section == nil {
 		if r.prDescription != nil {
 			body = append([]string{*r.prDescription}, body...)
 		}
 
-		m.AppendSection(&utils.MarkdownSection{
+		m.AppendSection(&markdown.MarkdownSection{
 			Level:        1,
-			Heading:      headline,
+			Heading:      r.prHeadline,
 			ContentLines: body,
 		})
 	} else {
 		section.AppendContent(body)
 	}
 
-	return strings.Trim(strings.TrimSpace(m.String()), "\n")
+	if prBody != nil {
+		r.prependActionsRequired(m, *prBody)
+	}
+
+	return m.String()
+}
+
+func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string) {
+	actionBlock, err := markdown.ExtractAnnotatedBlock("ACTIONS_REQUIRED", body)
+	if err != nil {
+		return
+	}
+
+	actionBody := markdown.ToListItem(actionBlock)
+	if len(body) == 0 {
+		return
+	}
+
+	headline := "Required Actions"
+
+	releaseSection := ensureReleaseSection(m, r.draftHeadline)
+
+	section := releaseSection.FindSectionByHeading(2, headline)
+	if section != nil {
+		if len(section.ContentLines) > 0 && strings.Contains(section.ContentLines[len(section.ContentLines)-1], actionBody[0]) {
+			// idempotence check: hint was already added
+			return
+		}
+		section.AppendContent(actionBody)
+		return
+	}
+
+	releaseSection.PrependChild(&markdown.MarkdownSection{
+		Level:        2,
+		Heading:      headline,
+		ContentLines: actionBody,
+	})
+}
+
+func ensureReleaseSection(m *markdown.Markdown, headline string) *markdown.MarkdownSection {
+	releaseSection := m.FindSectionByHeading(1, headline)
+	if releaseSection == nil {
+		releaseSection = &markdown.MarkdownSection{
+			Level:   1,
+			Heading: headline,
+		}
+		m.PrependSection(releaseSection)
+	}
+
+	return releaseSection
 }
