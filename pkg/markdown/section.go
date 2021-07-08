@@ -12,16 +12,6 @@ type MarkdownSection struct {
 	SubSections  []*MarkdownSection
 }
 
-func (m *Markdown) allSections() []*MarkdownSection {
-	var result []*MarkdownSection
-
-	for _, s := range m.sections {
-		result = append(result, s.allSections()...)
-	}
-
-	return result
-}
-
 func (m *MarkdownSection) allSections() []*MarkdownSection {
 	var result []*MarkdownSection
 

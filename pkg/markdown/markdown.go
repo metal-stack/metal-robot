@@ -51,6 +51,17 @@ func Parse(content string) *Markdown {
 
 	return m
 }
+
+func (m *Markdown) allSections() []*MarkdownSection {
+	var result []*MarkdownSection
+
+	for _, s := range m.sections {
+		result = append(result, s.allSections()...)
+	}
+
+	return result
+}
+
 func (m *Markdown) AppendSection(s *MarkdownSection) {
 	m.sections = append(m.sections, s)
 }
