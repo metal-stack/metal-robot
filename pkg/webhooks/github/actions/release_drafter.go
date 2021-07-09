@@ -94,6 +94,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		r.logger.Debugw("skip adding release draft because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
 		return nil
 	}
+
 	componentTag := p.TagName
 	if !strings.HasPrefix(componentTag, "v") {
 		r.logger.Debugw("skip adding release draft because tag not starting with v", "repo", p.RepositoryName, "release", componentTag)
@@ -106,96 +107,14 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return nil
 	}
 
-	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+	infos, err := r.releaseInfos(ctx)
 	if err != nil {
 		return err
 	}
 
-	var releaseTag string
-	if existingDraft != nil && existingDraft.TagName != nil {
-		releaseTag = *existingDraft.TagName
-	} else {
-		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx)
-		if err != nil {
-			return err
-		}
-	}
+	body := r.updateReleaseBody(r.client.Organization(), infos.body, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
 
-	var priorBody string
-	if existingDraft != nil && existingDraft.Body != nil {
-		priorBody = *existingDraft.Body
-	}
-
-	body := r.updateReleaseBody(r.client.Organization(), priorBody, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
-
-	if existingDraft != nil {
-		existingDraft.Body = &body
-		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, existingDraft.GetID(), existingDraft)
-		if err != nil {
-			return errors.Wrap(err, "unable to update release draft")
-		}
-		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
-	} else {
-		newDraft := &github.RepositoryRelease{
-			TagName: v3.String(releaseTag),
-			Name:    v3.String(fmt.Sprintf(r.titleTemplate, releaseTag)),
-			Body:    &body,
-			Draft:   v3.Bool(true),
-		}
-		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
-		if err != nil {
-			return errors.Wrap(err, "unable to create release draft")
-		}
-		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
-	}
-
-	return nil
-}
-
-func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoName string) (*github.RepositoryRelease, error) {
-	opt := &github.ListOptions{
-		PerPage: 100,
-	}
-
-	for {
-		releases, resp, err := client.GetV3Client().Repositories.ListReleases(ctx, client.Organization(), repoName, opt)
-		if err != nil {
-			return nil, errors.Wrap(err, "error retrieving releases")
-		}
-
-		for _, release := range releases {
-			if release.Draft != nil && *release.Draft {
-				return release, nil
-			}
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-
-	return nil, nil
-}
-
-func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
-	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
-	if err != nil {
-		return "", errors.Wrap(err, "unable to find latest release")
-	}
-	if latest != nil && latest.TagName != nil {
-		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
-		t := groups["full_match"]
-		t = strings.TrimPrefix(t, "v")
-		latestTag, err := semver.Parse(t)
-		if err != nil {
-			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
-		} else {
-			latestTag.Patch = latestTag.Patch + 1
-			return "v" + latestTag.String(), nil
-		}
-	}
-	return "v0.0.1", nil
+	return r.createOrUpdateRelease(ctx, infos, body, p)
 }
 
 func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
@@ -232,7 +151,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			body = append(body, l)
 		}
 
-		r.prependActionsRequired(m, *componentBody)
+		_ = r.prependActionsRequired(m, *componentBody)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -263,54 +182,39 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, number int64, author string, p *releaseDrafterParams) error {
 	_, ok := r.repoMap[p.RepositoryName]
 	if ok {
-		r.logger.Debugw("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
-		return nil
+		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
+
+		if p.ComponentReleaseInfo == nil {
+			r.logger.Debugw("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
+			return nil
+		}
+
+		infos, err := r.releaseInfos(ctx)
+		if err != nil {
+			return err
+		}
+
+		m := markdown.Parse(infos.body)
+
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo)
+		if err != nil {
+			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
+			return nil
+		}
+
+		body := m.String()
+
+		return r.createOrUpdateRelease(ctx, infos, body, p)
 	}
 
-	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+	infos, err := r.releaseInfos(ctx)
 	if err != nil {
 		return err
 	}
 
-	var releaseTag string
-	if existingDraft != nil && existingDraft.TagName != nil {
-		releaseTag = *existingDraft.TagName
-	} else {
-		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx)
-		if err != nil {
-			return err
-		}
-	}
+	body := r.appendPullRequest(r.client.Organization(), infos.body, p.RepositoryName, title, number, author, p.ComponentReleaseInfo)
 
-	var priorBody string
-	if existingDraft != nil && existingDraft.Body != nil {
-		priorBody = *existingDraft.Body
-	}
-
-	body := r.appendPullRequest(r.client.Organization(), priorBody, p.RepositoryName, title, number, author, p.ComponentReleaseInfo)
-
-	if existingDraft != nil {
-		existingDraft.Body = &body
-		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, existingDraft.GetID(), existingDraft)
-		if err != nil {
-			return errors.Wrap(err, "unable to update release draft")
-		}
-		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "pull-request", title)
-	} else {
-		newDraft := &github.RepositoryRelease{
-			TagName: v3.String(releaseTag),
-			Name:    v3.String(fmt.Sprintf(r.titleTemplate, releaseTag)),
-			Body:    &body,
-			Draft:   v3.Bool(true),
-		}
-		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
-		if err != nil {
-			return errors.Wrap(err, "unable to create release draft")
-		}
-		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "pull-request", title)
-	}
-
-	return nil
+	return r.createOrUpdateRelease(ctx, infos, body, p)
 }
 
 func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int64, author string, prBody *string) string {
@@ -336,21 +240,21 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 	}
 
 	if prBody != nil {
-		r.prependActionsRequired(m, *prBody)
+		_ = r.prependActionsRequired(m, *prBody)
 	}
 
 	return m.String()
 }
 
-func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string) {
+func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string) error {
 	actionBlock, err := markdown.ExtractAnnotatedBlock("ACTIONS_REQUIRED", body)
 	if err != nil {
-		return
+		return err
 	}
 
 	actionBody := markdown.ToListItem(actionBlock)
 	if len(body) == 0 {
-		return
+		return err
 	}
 
 	headline := "Required Actions"
@@ -359,12 +263,12 @@ func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body strin
 
 	section := releaseSection.FindSectionByHeading(2, headline)
 	if section != nil {
-		if len(section.ContentLines) > 0 && strings.Contains(section.ContentLines[len(section.ContentLines)-1], actionBody[0]) {
+		if strings.Contains(strings.Join(section.ContentLines, ""), strings.Join(actionBody, "")) {
 			// idempotence check: hint was already added
-			return
+			return nil
 		}
 		section.AppendContent(actionBody)
-		return
+		return nil
 	}
 
 	releaseSection.PrependChild(&markdown.MarkdownSection{
@@ -372,6 +276,8 @@ func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body strin
 		Heading:      headline,
 		ContentLines: actionBody,
 	})
+
+	return nil
 }
 
 func ensureReleaseSection(m *markdown.Markdown, headline string) *markdown.MarkdownSection {
@@ -385,4 +291,109 @@ func ensureReleaseSection(m *markdown.Markdown, headline string) *markdown.Markd
 	}
 
 	return releaseSection
+}
+
+type releaseInfos struct {
+	existing   *v3.RepositoryRelease
+	releaseTag string
+	body       string
+}
+
+func (r *releaseDrafter) releaseInfos(ctx context.Context) (*releaseInfos, error) {
+	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+	if err != nil {
+		return nil, err
+	}
+
+	var releaseTag string
+	if existingDraft != nil && existingDraft.TagName != nil {
+		releaseTag = *existingDraft.TagName
+	} else {
+		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var body string
+	if existingDraft.Body != nil {
+		body = *existingDraft.Body
+	}
+
+	return &releaseInfos{
+		existing:   existingDraft,
+		releaseTag: releaseTag,
+		body:       body,
+	}, nil
+}
+
+func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
+	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
+	if err != nil {
+		return "", errors.Wrap(err, "unable to find latest release")
+	}
+	if latest != nil && latest.TagName != nil {
+		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
+		t := groups["full_match"]
+		t = strings.TrimPrefix(t, "v")
+		latestTag, err := semver.Parse(t)
+		if err != nil {
+			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
+		} else {
+			latestTag.Patch = latestTag.Patch + 1
+			return "v" + latestTag.String(), nil
+		}
+	}
+	return "v0.0.1", nil
+}
+
+func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoName string) (*github.RepositoryRelease, error) {
+	opt := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		releases, resp, err := client.GetV3Client().Repositories.ListReleases(ctx, client.Organization(), repoName, opt)
+		if err != nil {
+			return nil, errors.Wrap(err, "error retrieving releases")
+		}
+
+		for _, release := range releases {
+			if release.Draft != nil && *release.Draft {
+				return release, nil
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return nil, nil
+}
+
+func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *releaseInfos, body string, p *releaseDrafterParams) error {
+	if infos.existing != nil {
+		infos.existing.Body = &body
+		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, infos.existing.GetID(), infos.existing)
+		if err != nil {
+			return errors.Wrap(err, "unable to update release draft")
+		}
+		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
+	} else {
+		newDraft := &github.RepositoryRelease{
+			TagName: v3.String(infos.releaseTag),
+			Name:    v3.String(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
+			Body:    &body,
+			Draft:   v3.Bool(true),
+		}
+		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
+		if err != nil {
+			return errors.Wrap(err, "unable to create release draft")
+		}
+		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
+	}
+
+	return nil
 }

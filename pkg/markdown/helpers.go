@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+var NoSuchBlockError = fmt.Errorf("no such block")
+
 func isHeading(l string) bool {
 	return strings.HasPrefix(l, "#")
 }
@@ -23,12 +25,12 @@ func headingLevel(l string) int {
 func ExtractAnnotatedBlock(annotation string, s string) (string, error) {
 	parts := strings.SplitN(s, "```"+annotation, 2)
 	if len(parts) != 2 {
-		return "", fmt.Errorf("no such block")
+		return "", NoSuchBlockError
 	}
 
 	parts = strings.SplitN(parts[1], "```", 2)
 	if len(parts) != 2 {
-		return "", fmt.Errorf("no such block")
+		return "", NoSuchBlockError
 	}
 
 	return strings.TrimSpace(parts[0]), nil
