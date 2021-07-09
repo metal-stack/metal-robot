@@ -236,7 +236,15 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 			ContentLines: body,
 		})
 	} else {
-		section.AppendContent(body)
+		alreadyPresent := false
+		for _, existingLine := range section.ContentLines {
+			if existingLine == l {
+				alreadyPresent = true
+			}
+		}
+		if !alreadyPresent {
+			section.AppendContent(body)
+		}
 	}
 
 	if prBody != nil {
