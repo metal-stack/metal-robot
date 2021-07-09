@@ -274,7 +274,7 @@ Some description
 			prBody:    v3.String("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Required Actions
-* API has changed
+* API has changed (metal-stack/metal-robot#11)
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},

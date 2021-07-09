@@ -151,7 +151,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			body = append(body, l)
 		}
 
-		_ = r.prependActionsRequired(m, *componentBody)
+		_ = r.prependActionsRequired(m, *componentBody, org, nil)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -196,7 +196,8 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 
 		m := markdown.Parse(infos.body)
 
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo)
+		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.client.Organization(), p.RepositoryName, number)
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), &issueSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -248,16 +249,21 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 	}
 
 	if prBody != nil {
-		_ = r.prependActionsRequired(m, *prBody)
+		issueSuffix := fmt.Sprintf("(%s/%s#%d)", org, repo, number)
+		_ = r.prependActionsRequired(m, *prBody, org, &issueSuffix)
 	}
 
 	return m.String()
 }
 
-func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string) error {
+func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string, org string, issueSuffix *string) error {
 	actionBlock, err := markdown.ExtractAnnotatedBlock("ACTIONS_REQUIRED", body)
 	if err != nil {
 		return err
+	}
+
+	if issueSuffix != nil {
+		actionBlock += " " + *issueSuffix
 	}
 
 	actionBody := markdown.ToListItem(actionBlock)
