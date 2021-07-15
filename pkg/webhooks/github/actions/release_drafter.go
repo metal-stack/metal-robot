@@ -330,7 +330,7 @@ func (r *releaseDrafter) releaseInfos(ctx context.Context) (*releaseInfos, error
 	}
 
 	var body string
-	if existingDraft.Body != nil {
+	if existingDraft != nil && existingDraft.Body != nil {
 		body = *existingDraft.Body
 	}
 
