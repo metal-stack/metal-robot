@@ -1,7 +1,6 @@
-package utils
+package markdown
 
 import (
-	"fmt"
 	"strings"
 )
 
@@ -9,36 +8,7 @@ type Markdown struct {
 	sections []*MarkdownSection
 }
 
-func (m *Markdown) allSections() []*MarkdownSection {
-	var result []*MarkdownSection
-
-	for _, s := range m.sections {
-		result = append(result, s.allSections()...)
-	}
-
-	return result
-}
-
-func (m *MarkdownSection) allSections() []*MarkdownSection {
-	var result []*MarkdownSection
-
-	result = append(result, m)
-
-	for _, s := range m.SubSections {
-		result = append(result, s.allSections()...)
-	}
-
-	return result
-}
-
-type MarkdownSection struct {
-	Level        int
-	Heading      string
-	ContentLines []string
-	SubSections  []*MarkdownSection
-}
-
-func ParseMarkdown(content string) *Markdown {
+func Parse(content string) *Markdown {
 	m := &Markdown{}
 	lines := strings.Split(content, "\n")
 
@@ -82,19 +52,14 @@ func ParseMarkdown(content string) *Markdown {
 	return m
 }
 
-func isHeading(l string) bool {
-	return strings.HasPrefix(l, "#")
-}
+func (m *Markdown) allSections() []*MarkdownSection {
+	var result []*MarkdownSection
 
-func headingLevel(l string) int {
-	level := 0
-	for _, char := range l {
-		if char != '#' {
-			break
-		}
-		level++
+	for _, s := range m.sections {
+		result = append(result, s.allSections()...)
 	}
-	return level
+
+	return result
 }
 
 func (m *Markdown) AppendSection(s *MarkdownSection) {
@@ -103,22 +68,6 @@ func (m *Markdown) AppendSection(s *MarkdownSection) {
 
 func (m *Markdown) PrependSection(s *MarkdownSection) {
 	m.sections = append([]*MarkdownSection{s}, m.sections...)
-}
-
-func (m *MarkdownSection) AppendContent(contentLines []string) {
-	m.ContentLines = append(m.ContentLines, contentLines...)
-}
-
-func (m *MarkdownSection) PrependContent(contentLines []string) {
-	m.ContentLines = append(contentLines, m.ContentLines...)
-}
-
-func (m *MarkdownSection) AppendChild(child *MarkdownSection) {
-	m.SubSections = append(m.SubSections, child)
-}
-
-func (m *MarkdownSection) PrependChild(child *MarkdownSection) {
-	m.SubSections = append([]*MarkdownSection{child}, m.SubSections...)
 }
 
 func (m *Markdown) FindSectionByHeading(level int, headline string) *MarkdownSection {
@@ -148,28 +97,9 @@ func (m *Markdown) FindSectionByHeadingPrefix(level int, headlinePrefix string) 
 func (m *Markdown) String() string {
 	var result string
 	for _, s := range m.sections {
-		result += s.String()
+		result += "\n" + s.String()
+		result = strings.Trim(result, "\n")
 	}
+
 	return strings.TrimSpace(result)
-}
-
-func (m *MarkdownSection) String() string {
-	var result string
-
-	if m.Level > 0 {
-		for i := 0; i < m.Level; i++ {
-			result += "#"
-		}
-		result += " " + m.Heading + "\n"
-	}
-
-	for _, l := range m.ContentLines {
-		result += fmt.Sprintf("%s\n", l)
-	}
-
-	for _, sub := range m.SubSections {
-		result += sub.String()
-	}
-
-	return result
 }

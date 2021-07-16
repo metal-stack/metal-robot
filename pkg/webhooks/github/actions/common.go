@@ -205,7 +205,8 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 			}
 
 			params := &releaseDrafterParams{
-				RepositoryName: payload.Repository.Name,
+				RepositoryName:       payload.Repository.Name,
+				ComponentReleaseInfo: &payload.PullRequest.Body,
 			}
 			err := a.appendMergedPR(ctx, payload.PullRequest.Title, payload.PullRequest.Number, payload.PullRequest.User.Login, params)
 			if err != nil {
