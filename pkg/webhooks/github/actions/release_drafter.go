@@ -105,7 +105,8 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 
 		m := markdown.Parse(infos.body)
 
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), nil)
+		repoSuffix := fmt.Sprintf("(%s/%s)", r.client.Organization(), p.RepositoryName)
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), &repoSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
