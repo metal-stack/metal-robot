@@ -38,6 +38,7 @@ type releaseDrafterParams struct {
 	RepositoryName       string
 	TagName              string
 	ComponentReleaseInfo *string
+	ReleaseURL           string
 }
 
 func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*releaseDrafter, error) {
@@ -105,8 +106,12 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 
 		m := markdown.Parse(infos.body)
 
-		repoSuffix := fmt.Sprintf("(%s/%s)", r.client.Organization(), p.RepositoryName)
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), &repoSuffix)
+		var releaseSuffix *string
+		if p.ReleaseURL != "" {
+			tmp := fmt.Sprintf("([release notes](%s))", p.ReleaseURL)
+			releaseSuffix = &tmp
+		}
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), releaseSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -134,12 +139,12 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return err
 	}
 
-	body := r.updateReleaseBody(r.client.Organization(), infos.body, p.RepositoryName, componentSemver, p.ComponentReleaseInfo)
+	body := r.updateReleaseBody(r.client.Organization(), infos.body, p.RepositoryName, componentSemver, p.ComponentReleaseInfo, p.ReleaseURL)
 
 	return r.createOrUpdateRelease(ctx, infos, body, p)
 }
 
-func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion semver.Version, componentBody *string) string {
+func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion semver.Version, componentBody *string, releaseURL string) string {
 	m := markdown.Parse(priorBody)
 
 	releaseSection := ensureReleaseSection(m, r.draftHeadline)
@@ -173,7 +178,12 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			body = append(body, l)
 		}
 
-		_ = r.prependActionsRequired(m, *componentBody, org, nil)
+		var releaseSuffix *string
+		if releaseURL != "" {
+			tmp := fmt.Sprintf("([release notes](%s))", releaseURL)
+			releaseSuffix = &tmp
+		}
+		_ = r.prependActionsRequired(m, *componentBody, org, releaseSuffix)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())

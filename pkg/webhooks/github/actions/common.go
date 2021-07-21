@@ -133,6 +133,7 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 				RepositoryName:       payload.Repository.Name,
 				TagName:              payload.Release.TagName,
 				ComponentReleaseInfo: payload.Release.Body,
+				ReleaseURL:           payload.Release.URL,
 			}
 			err := a.draft(ctx, params)
 			if err != nil {
