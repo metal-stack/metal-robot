@@ -91,8 +91,29 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) error {
 	_, ok := r.repoMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip adding release draft because not a release vector repo", "repo", p.RepositoryName, "release", p.TagName)
-		return nil
+		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's not a release vector repository)
+
+		if p.ComponentReleaseInfo == nil {
+			r.logger.Debugw("skip adding release draft because not a release vector repo and no special sections", "repo", p.RepositoryName, "release", p.TagName)
+			return nil
+		}
+
+		infos, err := r.releaseInfos(ctx)
+		if err != nil {
+			return err
+		}
+
+		m := markdown.Parse(infos.body)
+
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), nil)
+		if err != nil {
+			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
+			return nil
+		}
+
+		body := m.String()
+
+		return r.createOrUpdateRelease(ctx, infos, body, p)
 	}
 
 	componentTag := p.TagName
