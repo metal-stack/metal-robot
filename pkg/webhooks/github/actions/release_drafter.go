@@ -107,7 +107,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 
 		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), nil)
 		if err != nil {
-			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
+			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
 		}
 
