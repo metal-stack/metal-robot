@@ -18,6 +18,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		component        string
 		componentVersion semver.Version
 		componentBody    *string
+		releaseURL       string
 
 		want string
 	}{
@@ -160,9 +161,10 @@ Some description
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
 			componentBody:    v3.String("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			releaseURL:       "https://some-url",
 			want: `# General
 ## Required Actions
-* API has changed
+* API has changed ([release notes](https://some-url))
 ## Component Releases
 ### metal-robot v0.2.5
 * Fix (metal-stack/metal-robot#123) @Gerrit91`,
@@ -175,12 +177,12 @@ Some description
 				client:        nil,
 				draftHeadline: tt.headline,
 			}
-			res := r.updateReleaseBody(tt.org, tt.priorBody, tt.component, tt.componentVersion, tt.componentBody)
+			res := r.updateReleaseBody(tt.org, tt.priorBody, tt.component, tt.componentVersion, tt.componentBody, tt.releaseURL)
 			if diff := cmp.Diff(tt.want, res); diff != "" {
 				t.Errorf("ReleaseDrafter.updateReleaseBody(), diff: %v", diff)
 				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)
 			}
-			idempotent := r.updateReleaseBody(tt.org, res, tt.component, tt.componentVersion, tt.componentBody)
+			idempotent := r.updateReleaseBody(tt.org, res, tt.component, tt.componentVersion, tt.componentBody, tt.releaseURL)
 			if diff := cmp.Diff(tt.want, idempotent); diff != "" {
 				t.Errorf("not idempotent: %v", diff)
 				t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)
