@@ -1,13 +1,14 @@
 package gitlab
 
 import (
+	"errors"
 	"net/http"
 
+	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/gitlab/actions"
 	"go.uber.org/zap"
-	glwebhooks "gopkg.in/go-playground/webhooks.v5/gitlab"
 )
 
 var (
@@ -49,7 +50,7 @@ func NewGitlabWebhook(logger *zap.SugaredLogger, w config.Webhook, cs clients.Cl
 func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	payload, err := w.hook.Parse(request, listenEvents...)
 	if err != nil {
-		if err == glwebhooks.ErrEventNotFound {
+		if errors.Is(err, glwebhooks.ErrEventNotFound) {
 			w.logger.Warnw("received unregistered gitlab event", "error", err)
 			response.WriteHeader(http.StatusOK)
 		} else {

@@ -32,6 +32,7 @@ a
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			cn := func(file string) ([]byte, error) {
 				return []byte(tt.input), nil

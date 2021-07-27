@@ -9,7 +9,7 @@ import (
 
 	"github.com/atedja/go-multilock"
 	"github.com/blang/semver"
-	v3 "github.com/google/go-github/v32/github"
+	v3 "github.com/google/go-github/v37/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -106,7 +106,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	_, err := semver.Make(trimmed)
 	if err != nil {
 		r.logger.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	// preventing concurrent git repo modifications
@@ -149,7 +149,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	commitMessage := fmt.Sprintf(r.commitMessageTemplate, p.RepositoryName, tag)
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
-		if err == git.NoChangesError {
+		if errors.Is(err, git.NoChangesError) {
 			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 			return nil
 		}

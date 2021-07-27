@@ -1,13 +1,14 @@
 package github
 
 import (
+	"errors"
 	"net/http"
 
+	ghwebhooks "github.com/go-playground/webhooks/v6/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"go.uber.org/zap"
-	ghwebhooks "gopkg.in/go-playground/webhooks.v5/github"
 )
 
 var listenEvents = []ghwebhooks.Event{
@@ -51,7 +52,7 @@ func NewGithubWebhook(logger *zap.SugaredLogger, w config.Webhook, cs clients.Cl
 func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	payload, err := w.hook.Parse(request, listenEvents...)
 	if err != nil {
-		if err == ghwebhooks.ErrEventNotFound {
+		if errors.Is(err, ghwebhooks.ErrEventNotFound) {
 			w.logger.Warnw("received unregistered github event", "error", err)
 			response.WriteHeader(http.StatusOK)
 		} else {

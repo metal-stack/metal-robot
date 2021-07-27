@@ -11,7 +11,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
-	ghwebhooks "gopkg.in/go-playground/webhooks.v5/github"
+	ghwebhooks "github.com/go-playground/webhooks/v6/github"
 )
 
 const (

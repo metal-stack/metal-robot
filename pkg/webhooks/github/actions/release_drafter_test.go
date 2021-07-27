@@ -5,7 +5,7 @@ import (
 
 	"github.com/blang/semver"
 	"github.com/google/go-cmp/cmp"
-	v3 "github.com/google/go-github/v32/github"
+	v3 "github.com/google/go-github/v37/github"
 	"go.uber.org/zap/zaptest"
 )
 
@@ -171,6 +171,7 @@ Some description
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			r := &releaseDrafter{
 				logger:        zaptest.NewLogger(t).Sugar(),
@@ -282,6 +283,7 @@ Some description
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				r := &releaseDrafter{

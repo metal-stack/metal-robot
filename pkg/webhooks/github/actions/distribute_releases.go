@@ -8,7 +8,7 @@ import (
 	"sync"
 
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v32/github"
+	v3 "github.com/google/go-github/v37/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -119,6 +119,8 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 
 	g, ctx := errgroup.WithContext(ctx)
 	for targetRepoName, targetRepo := range d.targetRepos {
+		targetRepoName := targetRepoName
+		targetRepo := targetRepo
 		g.Go(func() error {
 			repoURL, err := url.Parse(targetRepo.url)
 			if err != nil {
@@ -157,7 +159,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			commitMessage := fmt.Sprintf(d.commitMessageTemplate, p.RepositoryName, tag)
 			hash, err := git.CommitAndPush(r, commitMessage)
 			if err != nil {
-				if err == git.NoChangesError {
+				if errors.Is(err, git.NoChangesError) {
 					d.logger.Debugw("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
 					return nil
 				}
