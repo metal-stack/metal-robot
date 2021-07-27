@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
-	glwebhooks "gopkg.in/go-playground/webhooks.v5/gitlab"
+	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
 )
 
 type WebhookActions struct {

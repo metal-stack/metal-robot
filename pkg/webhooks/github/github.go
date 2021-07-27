@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 
+	ghwebhooks "github.com/go-playground/webhooks/v6/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"go.uber.org/zap"
-	ghwebhooks "gopkg.in/go-playground/webhooks.v5/github"
 )
 
 var listenEvents = []ghwebhooks.Event{

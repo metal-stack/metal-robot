@@ -4,11 +4,11 @@ import (
 	"errors"
 	"net/http"
 
+	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/gitlab/actions"
 	"go.uber.org/zap"
-	glwebhooks "gopkg.in/go-playground/webhooks.v5/gitlab"
 )
 
 var (

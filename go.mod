@@ -10,6 +10,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.3.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-playground/validator/v10 v10.8.0
+	github.com/go-playground/webhooks/v6 v6.0.0-beta.3
 	github.com/google/go-cmp v0.5.6
 	github.com/google/go-github/v37 v37.0.0
 	github.com/metal-stack/v v1.0.3
@@ -21,5 +22,4 @@ require (
 	github.com/tidwall/sjson v1.1.7
 	go.uber.org/zap v1.18.1
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
-	gopkg.in/go-playground/webhooks.v5 v5.17.0
 )
