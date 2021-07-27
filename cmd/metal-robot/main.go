@@ -14,9 +14,9 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/webhooks"
 	"github.com/metal-stack/v"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gopkg.in/go-playground/validator.v9"
 )
 
 const (
