@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	v3 "github.com/google/go-github/v32/github"
+	v3 "github.com/google/go-github/v37/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"

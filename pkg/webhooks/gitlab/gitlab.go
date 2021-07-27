@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
@@ -49,7 +50,7 @@ func NewGitlabWebhook(logger *zap.SugaredLogger, w config.Webhook, cs clients.Cl
 func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	payload, err := w.hook.Parse(request, listenEvents...)
 	if err != nil {
-		if err == glwebhooks.ErrEventNotFound {
+		if errors.Is(err, glwebhooks.ErrEventNotFound) {
 			w.logger.Warnw("received unregistered gitlab event", "error", err)
 			response.WriteHeader(http.StatusOK)
 		} else {

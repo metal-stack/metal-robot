@@ -49,8 +49,7 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 		Force:  true,
 	})
 	if err != nil {
-		switch err {
-		case plumbing.ErrReferenceNotFound:
+		if errors.Is(err, plumbing.ErrReferenceNotFound) {
 			err2 := w.Checkout(&git.CheckoutOptions{
 				Branch: plumbing.ReferenceName(defaultLocalRef + "/" + branch),
 				Force:  true,
@@ -59,7 +58,7 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 			if err2 != nil {
 				return nil, errors.Wrap(err2, "error during git checkout")
 			}
-		default:
+		} else {
 			return nil, errors.Wrap(err, "error during git checkout")
 		}
 	}

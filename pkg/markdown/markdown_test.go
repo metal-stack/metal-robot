@@ -171,6 +171,7 @@ content 1b`,
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		// regex := regexp.MustCompile("\n\n")
 		t.Run(tt.name, func(t *testing.T) {
 			m := Parse(tt.content)

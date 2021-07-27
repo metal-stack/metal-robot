@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -51,7 +52,7 @@ var cmd = &cobra.Command{
 		initLogging()
 		opts, err := initOpts()
 		if err != nil {
-			return fmt.Errorf("unable to init options: %v", err)
+			return fmt.Errorf("unable to init options: %w", err)
 		}
 		return run(opts)
 	},
@@ -105,7 +106,7 @@ func initConfig() error {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 		if err := viper.ReadInConfig(); err != nil {
-			return fmt.Errorf("Config file path set explicitly, but unreadable: %v", err)
+			return fmt.Errorf("config file path set explicitly, but unreadable: %w", err)
 		}
 	} else {
 		viper.SetConfigName(moduleName + "." + cfgFileType)
@@ -115,14 +116,14 @@ func initConfig() error {
 		if err := viper.ReadInConfig(); err != nil {
 			usedCfg := viper.ConfigFileUsed()
 			if usedCfg != "" {
-				return fmt.Errorf("Config file unreadable: %v", err)
+				return fmt.Errorf("config file unreadable: %w", err)
 			}
 		}
 	}
 
 	err := loadRobotConfig()
 	if err != nil {
-		return fmt.Errorf("error occurred loading config: %v", err)
+		return fmt.Errorf("error occurred loading config: %w", err)
 	}
 
 	return nil
@@ -172,7 +173,7 @@ func run(opts *Opts) error {
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
 	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)
 	err = http.ListenAndServe(addr, nil)
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 

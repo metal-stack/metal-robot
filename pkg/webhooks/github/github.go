@@ -1,6 +1,7 @@
 package github
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
@@ -51,7 +52,7 @@ func NewGithubWebhook(logger *zap.SugaredLogger, w config.Webhook, cs clients.Cl
 func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	payload, err := w.hook.Parse(request, listenEvents...)
 	if err != nil {
-		if err == ghwebhooks.ErrEventNotFound {
+		if errors.Is(err, ghwebhooks.ErrEventNotFound) {
 			w.logger.Warnw("received unregistered github event", "error", err)
 			response.WriteHeader(http.StatusOK)
 		} else {

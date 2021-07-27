@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	"github.com/google/go-github/v32/github"
+	"github.com/google/go-github/v37/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v32/github"
+	v3 "github.com/google/go-github/v37/github"
 )
 
 var (
@@ -111,7 +111,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 			tmp := fmt.Sprintf("([release notes](%s))", p.ReleaseURL)
 			releaseSuffix = &tmp
 		}
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), releaseSuffix)
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, releaseSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -131,7 +131,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 	componentSemver, err := semver.Parse(trimmedVersion)
 	if err != nil {
 		r.logger.Debugw("skip adding release draft because tag is not semver compatible", "repo", p.RepositoryName, "release", componentTag)
-		return nil
+		return nil //nolint:nilerr
 	}
 
 	infos, err := r.releaseInfos(ctx)
@@ -183,7 +183,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			tmp := fmt.Sprintf("([release notes](%s))", releaseURL)
 			releaseSuffix = &tmp
 		}
-		_ = r.prependActionsRequired(m, *componentBody, org, releaseSuffix)
+		_ = r.prependActionsRequired(m, *componentBody, releaseSuffix)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -229,7 +229,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 		m := markdown.Parse(infos.body)
 
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.client.Organization(), p.RepositoryName, number)
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, r.client.Organization(), &issueSuffix)
+		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, &issueSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -282,13 +282,13 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 
 	if prBody != nil {
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", org, repo, number)
-		_ = r.prependActionsRequired(m, *prBody, org, &issueSuffix)
+		_ = r.prependActionsRequired(m, *prBody, &issueSuffix)
 	}
 
 	return m.String()
 }
 
-func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string, org string, issueSuffix *string) error {
+func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string, issueSuffix *string) error {
 	actionBlock, err := markdown.ExtractAnnotatedBlock("ACTIONS_REQUIRED", body)
 	if err != nil {
 		return err
