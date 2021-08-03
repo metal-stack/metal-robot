@@ -169,6 +169,23 @@ Some description
 ### metal-robot v0.2.5
 * Fix (metal-stack/metal-robot#123) @Gerrit91`,
 		},
+		{
+			name:             "extracting breaking changes and required actions, empty release bidy",
+			headline:         "General",
+			org:              "metal-stack",
+			component:        "metal-robot",
+			componentVersion: semver.MustParse("0.2.5"),
+			componentBody:    v3.String("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			releaseURL:       "https://some-url",
+			want: `# General
+## Breaking Changes
+* API has changed ([release notes](https://some-url))
+## Required Actions
+* API has changed ([release notes](https://some-url))
+## Component Releases
+### metal-robot v0.2.5
+* Fix (metal-stack/metal-robot#123) @Gerrit91`,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -277,6 +294,21 @@ Some description
 			prBody:    v3.String("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Required Actions
+* API has changed (metal-stack/metal-robot#11)
+# Merged Pull Requests
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+		},
+		{
+			name:      "creating fresh release draft with breaking change",
+			org:       "metal-stack",
+			repo:      "metal-robot",
+			title:     "Some new feature",
+			number:    11,
+			author:    "metal-robot",
+			priorBody: "",
+			prBody:    v3.String("This is a new feature\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			want: `# General
+## Breaking Changes
 * API has changed (metal-stack/metal-robot#11)
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,

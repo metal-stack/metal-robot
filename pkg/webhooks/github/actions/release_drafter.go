@@ -21,7 +21,22 @@ import (
 
 var (
 	githubIssueRef = regexp.MustCompile(`\(#(?P<issue>[0-9]+)\)`)
+	blocks         = []codeBlock{
+		{
+			identifier:      "ACTIONS_REQUIRED",
+			sectionHeadline: "Required Actions",
+		},
+		{
+			identifier:      "BREAKING_CHANGE",
+			sectionHeadline: "Breaking Changes",
+		},
+	}
 )
+
+type codeBlock struct {
+	identifier      string
+	sectionHeadline string
+}
 
 type releaseDrafter struct {
 	logger        *zap.SugaredLogger
@@ -111,7 +126,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 			tmp := fmt.Sprintf("([release notes](%s))", p.ReleaseURL)
 			releaseSuffix = &tmp
 		}
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, releaseSuffix)
+		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, releaseSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -183,7 +198,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			tmp := fmt.Sprintf("([release notes](%s))", releaseURL)
 			releaseSuffix = &tmp
 		}
-		_ = r.prependActionsRequired(m, *componentBody, releaseSuffix)
+		_ = r.prependCodeBlocks(m, *componentBody, releaseSuffix)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -229,7 +244,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 		m := markdown.Parse(infos.body)
 
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.client.Organization(), p.RepositoryName, number)
-		err = r.prependActionsRequired(m, *p.ComponentReleaseInfo, &issueSuffix)
+		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, &issueSuffix)
 		if err != nil {
 			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
@@ -282,48 +297,56 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 
 	if prBody != nil {
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", org, repo, number)
-		_ = r.prependActionsRequired(m, *prBody, &issueSuffix)
+		_ = r.prependCodeBlocks(m, *prBody, &issueSuffix)
 	}
 
 	return m.String()
 }
 
-func (r *releaseDrafter) prependActionsRequired(m *markdown.Markdown, body string, issueSuffix *string) error {
-	actionBlock, err := markdown.ExtractAnnotatedBlock("ACTIONS_REQUIRED", body)
-	if err != nil {
-		return err
-	}
+func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, issueSuffix *string) error {
+	changed := false
 
-	if issueSuffix != nil {
-		actionBlock += " " + *issueSuffix
-	}
-
-	actionBody := markdown.ToListItem(actionBlock)
-	if len(body) == 0 {
-		return err
-	}
-
-	headline := "Required Actions"
-
-	releaseSection := ensureReleaseSection(m, r.draftHeadline)
-
-	section := releaseSection.FindSectionByHeading(2, headline)
-	if section != nil {
-		if strings.Contains(strings.Join(section.ContentLines, ""), strings.Join(actionBody, "")) {
-			// idempotence check: hint was already added
-			return nil
+	for _, b := range blocks {
+		actionBlock, err := markdown.ExtractAnnotatedBlock(b.identifier, body)
+		if err != nil {
+			continue
 		}
-		section.AppendContent(actionBody)
+
+		if issueSuffix != nil {
+			actionBlock += " " + *issueSuffix
+		}
+
+		actionBody := markdown.ToListItem(actionBlock)
+		if len(body) == 0 {
+			continue
+		}
+
+		releaseSection := ensureReleaseSection(m, r.draftHeadline)
+
+		section := releaseSection.FindSectionByHeading(2, b.sectionHeadline)
+		if section != nil {
+			if strings.Contains(strings.Join(section.ContentLines, ""), strings.Join(actionBody, "")) {
+				// idempotence check: hint was already added
+				continue
+			}
+			section.AppendContent(actionBody)
+			changed = true
+			continue
+		}
+
+		releaseSection.PrependChild(&markdown.MarkdownSection{
+			Level:        2,
+			Heading:      b.sectionHeadline,
+			ContentLines: actionBody,
+		})
+		changed = true
+	}
+
+	if changed {
 		return nil
 	}
 
-	releaseSection.PrependChild(&markdown.MarkdownSection{
-		Level:        2,
-		Heading:      headline,
-		ContentLines: actionBody,
-	})
-
-	return nil
+	return fmt.Errorf("no changes")
 }
 
 func ensureReleaseSection(m *markdown.Markdown, headline string) *markdown.MarkdownSection {
