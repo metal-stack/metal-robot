@@ -28,6 +28,8 @@ type AggregateReleases struct {
 	repoURL               string
 	repoName              string
 	pullRequestTitle      string
+
+	lock *multilock.Lock
 }
 
 type AggregateReleaseParams struct {
@@ -90,6 +92,7 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 		repoURL:               typedConfig.TargetRepositoryURL,
 		repoName:              typedConfig.TargetRepositoryName,
 		pullRequestTitle:      pullRequestTitle,
+		lock:                  multilock.New(typedConfig.TargetRepositoryName),
 	}, nil
 }
 
@@ -111,9 +114,8 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 
 	// preventing concurrent git repo modifications
 	var once sync.Once
-	lock := multilock.New(r.repoName)
-	lock.Lock()
-	defer once.Do(func() { lock.Unlock() })
+	r.lock.Lock()
+	defer once.Do(func() { r.lock.Unlock() })
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
@@ -158,7 +160,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 
 	r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
 
-	once.Do(func() { lock.Unlock() })
+	once.Do(func() { r.lock.Unlock() })
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),
