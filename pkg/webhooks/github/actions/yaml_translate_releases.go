@@ -9,7 +9,7 @@ import (
 
 	"github.com/atedja/go-multilock"
 	"github.com/blang/semver"
-	v3 "github.com/google/go-github/v37/github"
+	v3 "github.com/google/go-github/v38/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"

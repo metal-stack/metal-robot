@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v37/github"
+	v3 "github.com/google/go-github/v38/github"
 )
 
 type Github struct {
