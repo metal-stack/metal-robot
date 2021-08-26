@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/blang/semver"
-	"github.com/google/go-github/v37/github"
+	"github.com/google/go-github/v38/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v37/github"
+	v3 "github.com/google/go-github/v38/github"
 )
 
 var (
