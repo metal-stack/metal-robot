@@ -28,6 +28,8 @@ type yamlTranslateReleases struct {
 	repoURL               string
 	repoName              string
 	pullRequestTitle      string
+
+	lock *multilock.Lock
 }
 
 type yamlTranslation struct {
@@ -116,6 +118,7 @@ func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github,
 		repoURL:               typedConfig.TargetRepositoryURL,
 		repoName:              typedConfig.TargetRepositoryName,
 		pullRequestTitle:      pullRequestTitle,
+		lock:                  multilock.New(typedConfig.TargetRepositoryName),
 	}, nil
 }
 
@@ -137,9 +140,8 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 
 	// preventing concurrent git repo modifications
 	var once sync.Once
-	lock := multilock.New(r.repoName, p.RepositoryName)
-	lock.Lock()
-	defer once.Do(func() { lock.Unlock() })
+	r.lock.Lock()
+	defer once.Do(func() { r.lock.Unlock() })
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
@@ -207,7 +209,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 
 	r.logger.Infow("pushed to translate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
 
-	once.Do(func() { lock.Unlock() })
+	once.Do(func() { r.lock.Unlock() })
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),

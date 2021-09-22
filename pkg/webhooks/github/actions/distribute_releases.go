@@ -117,6 +117,12 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 		return errors.Wrap(err, "error creating git token")
 	}
 
+	var targetRepos []string
+	for targetRepoName := range d.targetRepos {
+		targetRepos = append(targetRepos, targetRepoName)
+	}
+	lock := multilock.New(targetRepos...)
+
 	g, ctx := errgroup.WithContext(ctx)
 	for targetRepoName, targetRepo := range d.targetRepos {
 		targetRepoName := targetRepoName
@@ -132,7 +138,6 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 
 			// preventing concurrent git repo modifications
 			var once sync.Once
-			lock := multilock.New(targetRepoName)
 			lock.Lock()
 			defer once.Do(func() { lock.Unlock() })
 
