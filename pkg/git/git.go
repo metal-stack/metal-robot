@@ -89,6 +89,7 @@ func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) 
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(defaultLocalRef + "/" + remoteBranch + ":" + defaultLocalRef + "/" + targetBranch),
 		},
+		Force: true, // when the contributor does a force push, this will make it work anyway
 	})
 	if err != nil {
 		return errors.Wrap(err, "error pushing to repo")
