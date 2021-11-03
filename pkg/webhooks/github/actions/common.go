@@ -341,6 +341,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(payload *ghwebhooks.IssueComme
 			params := &IssuesActionParams{
 				RepositoryName:    payload.Repository.Name,
 				Comment:           payload.Comment.Body,
+				CommentID:         payload.Comment.ID,
 				AuthorAssociation: payload.Comment.AuthorAssociation,
 				PullRequestNumber: int(pullRequestNumber),
 			}
