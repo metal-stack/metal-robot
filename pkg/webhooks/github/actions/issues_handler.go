@@ -129,7 +129,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams, t
 
 	r.logger.Infow("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
 
-	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, 8, "rocket")
+	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
 	if err != nil {
 		return errors.Wrap(err, "error creating issue comment reaction")
 	}
