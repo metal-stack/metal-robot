@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
@@ -21,6 +22,7 @@ const (
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
+	ActionIssuesHandler               string = "issue-handling"
 )
 
 type WebhookActions struct {
@@ -30,6 +32,7 @@ type WebhookActions struct {
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
+	ih     []*IssuesAction
 	yr     []*yamlTranslateReleases
 }
 
@@ -87,7 +90,12 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 				return nil, err
 			}
 			actions.yr = append(actions.yr, h)
-
+		case ActionIssuesHandler:
+			h, err := NewIssuesAction(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.ih = append(actions.ih, h)
 		default:
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
@@ -296,6 +304,50 @@ func (w *WebhookActions) ProcessRepositoryEvent(payload *ghwebhooks.RepositoryPa
 			err := a.CreateRepositoryMaintainers(ctx, params)
 			if err != nil {
 				w.logger.Errorw("error creating repository maintainers team", "repo", params.RepositoryName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		w.logger.Errorw("errors processing event", "error", err)
+	}
+}
+
+func (w *WebhookActions) ProcessIssueCommentEvent(payload *ghwebhooks.IssueCommentPayload) {
+	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+	defer cancel()
+	g, ctx := errgroup.WithContext(ctx)
+
+	for _, i := range w.ih {
+		i := i
+		g.Go(func() error {
+			if payload.Action != "created" {
+				return nil
+			}
+			if payload.Issue.PullRequest == nil {
+				return nil
+			}
+
+			parts := strings.Split(payload.Issue.PullRequest.URL, "/")
+			pullRequestNumberString := parts[len(parts)-1]
+			pullRequestNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
+			if err != nil {
+				return nil
+			}
+
+			params := &IssuesActionParams{
+				RepositoryName:    payload.Repository.Name,
+				Comment:           payload.Comment.Body,
+				AuthorAssociation: payload.Comment.AuthorAssociation,
+				PullRequestNumber: int(pullRequestNumber),
+			}
+
+			err = i.HandleIssueComment(ctx, params)
+			if err != nil {
+				w.logger.Errorw("error in issue comment handler action", "source-repo", params.RepositoryName, "error", err)
 				return err
 			}
 

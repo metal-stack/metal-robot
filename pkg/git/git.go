@@ -66,6 +66,27 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 	return r, nil
 }
 
+func PushToRemote(r *git.Repository, msg string, remoteURL string, branch string) error {
+	remote, err := r.CreateRemote(&config.RemoteConfig{
+		Name: "target-repo",
+		URLs: []string{remoteURL},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error creating remote")
+	}
+
+	err = remote.Push(&git.PushOptions{
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(branch + ":" + branch),
+		},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error pushing to repo")
+	}
+
+	return nil
+}
+
 func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {

@@ -16,6 +16,7 @@ var listenEvents = []ghwebhooks.Event{
 	ghwebhooks.PullRequestEvent,
 	ghwebhooks.PushEvent,
 	ghwebhooks.IssuesEvent,
+	ghwebhooks.IssueCommentEvent,
 	ghwebhooks.RepositoryEvent,
 }
 
@@ -74,6 +75,9 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		go w.a.ProcessPushEvent(&payload)
 	case ghwebhooks.IssuesPayload:
 		w.logger.Debugw("received issues event")
+	case ghwebhooks.IssueCommentPayload:
+		w.logger.Debugw("received issue comment event")
+		go w.a.ProcessIssueCommentEvent(&payload)
 	case ghwebhooks.RepositoryPayload:
 		w.logger.Debugw("received repository event")
 		go w.a.ProcessRepositoryEvent(&payload)
