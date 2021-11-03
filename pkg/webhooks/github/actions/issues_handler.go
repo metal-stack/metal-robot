@@ -16,7 +16,8 @@ import (
 type IssueCommentCommand string
 
 const (
-	IssueCommentBuildFork IssueCommentCommand = "/ok-to-build"
+	IssueCommentCommandPrefix                     = "/"
+	IssueCommentBuildFork     IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
 )
 
 var (
@@ -87,6 +88,16 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
+	switch IssueCommentCommand(comment) {
+	case IssueCommentBuildFork:
+		return r.buildForkPR(ctx, p, targetRepo)
+	default:
+		r.logger.Debugw("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
+		return nil
+	}
+}
+
+func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams, targetRepo targetRepo) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
 		return errors.Wrap(err, "error finding issue related pull request")
@@ -102,26 +113,20 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return errors.Wrap(err, "error creating git token")
 	}
 
-	headURL := *pullRequest.Head.Repo.CloneURL
-	sourceRepoURL, err := url.Parse(headURL)
+	targetRepoURL, err := url.Parse(targetRepo.url)
 	if err != nil {
 		return err
 	}
-	sourceRepoURL.User = url.UserPassword("x-access-token", token)
+	targetRepoURL.User = url.UserPassword("x-access-token", token)
 
 	headRef := *pullRequest.Head.Ref
-	repository, err := git.ShallowClone(sourceRepoURL.String(), headRef, 1)
-	if err != nil {
-		return err
-	}
-
 	commitMessage := "Triggering fork build approved by maintainer"
-	err = git.PushToRemote(repository, commitMessage, targetRepo.url, "fork-build/"+headRef)
+	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), "fork-build/"+headRef, commitMessage)
 	if err != nil {
 		return errors.Wrap(err, "error pushing to target remote repository")
 	}
 
-	r.logger.Infow("triggered fork build action by pushing to fork-build branch", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName)
+	r.logger.Infow("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
 
 	return nil
 }

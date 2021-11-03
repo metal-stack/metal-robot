@@ -192,6 +192,13 @@ webhooks:
           A rendered preview of your changes will be available at: https://docs.metal-stack.io/previews/PR%d/
         repository: docs
 
+    - type: issue-handling
+      client: metal-stack-github
+      args:
+        repos:
+          - repository: gardener-extension-provider-metal
+            repository-url: https://github.com/metal-stack/gardener-extension-provider-metal.git
+
     - type: release-draft
       client: metal-stack-github
       args:

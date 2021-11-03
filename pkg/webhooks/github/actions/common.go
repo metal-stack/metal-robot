@@ -335,7 +335,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(payload *ghwebhooks.IssueComme
 			pullRequestNumberString := parts[len(parts)-1]
 			pullRequestNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
 			if err != nil {
-				return nil
+				return err
 			}
 
 			params := &IssuesActionParams{
