@@ -98,6 +98,23 @@ func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) 
 	return nil
 }
 
+func DeleteBranch(repoURL, branch string) error {
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:   repoURL,
+		Depth: 1,
+	})
+	if err != nil {
+		return errors.Wrap(err, "error cloning git repo")
+	}
+
+	err = r.Storer.RemoveReference(plumbing.NewBranchReferenceName(branch))
+	if err != nil {
+		return errors.Wrap(err, "error deleting branch in git repo")
+	}
+
+	return nil
+}
+
 func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {

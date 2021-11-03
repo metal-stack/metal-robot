@@ -134,5 +134,10 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams, t
 		return errors.Wrap(err, "error creating issue comment reaction")
 	}
 
+	err = git.DeleteBranch(targetRepoURL.String(), "fork-build/"+headRef)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
