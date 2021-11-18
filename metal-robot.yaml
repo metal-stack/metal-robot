@@ -196,8 +196,7 @@ webhooks:
       client: metal-stack-github
       args:
         repos:
-          - repository: gardener-extension-provider-metal
-            repository-url: https://github.com/metal-stack/gardener-extension-provider-metal.git
+          <<: *release-repos
 
     - type: release-draft
       client: metal-stack-github

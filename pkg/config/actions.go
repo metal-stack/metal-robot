@@ -26,7 +26,7 @@ type AggregateReleasesConfig struct {
 }
 
 type IssuesCommentHandlerConfig struct {
-	TargetRepos []TargetRepo `mapstructure:"repos" description:"the repositories that will be updated"`
+	TargetRepos map[string]interface{} `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
 }
 
 type DistributeReleasesConfig struct {

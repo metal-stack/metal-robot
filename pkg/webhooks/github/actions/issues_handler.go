@@ -36,13 +36,14 @@ type IssuesAction struct {
 	logger *zap.SugaredLogger
 	client *clients.Github
 
-	targetRepos map[string]targetRepo
+	targetRepos map[string]bool
 }
 
 type IssuesActionParams struct {
 	PullRequestNumber int
 	AuthorAssociation string
 	RepositoryName    string
+	RepositoryURL     string
 	Comment           string
 	CommentID         int64
 }
@@ -54,11 +55,9 @@ func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfi
 		return nil, err
 	}
 
-	targetRepos := make(map[string]targetRepo)
-	for _, t := range typedConfig.TargetRepos {
-		targetRepos[t.RepositoryName] = targetRepo{
-			url: t.RepositoryURL,
-		}
+	targetRepos := make(map[string]bool)
+	for name := range typedConfig.TargetRepos {
+		targetRepos[name] = true
 	}
 
 	return &IssuesAction{
@@ -69,7 +68,7 @@ func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfi
 }
 
 func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionParams) error {
-	targetRepo, ok := r.targetRepos[p.RepositoryName]
+	_, ok := r.targetRepos[p.RepositoryName]
 	if !ok {
 		r.logger.Debugw("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
 		return nil
@@ -91,14 +90,14 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 
 	switch IssueCommentCommand(comment) {
 	case IssueCommentBuildFork:
-		return r.buildForkPR(ctx, p, targetRepo)
+		return r.buildForkPR(ctx, p)
 	default:
 		r.logger.Debugw("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
 		return nil
 	}
 }
 
-func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams, targetRepo targetRepo) error {
+func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
 		return errors.Wrap(err, "error finding issue related pull request")
@@ -114,7 +113,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams, t
 		return errors.Wrap(err, "error creating git token")
 	}
 
-	targetRepoURL, err := url.Parse(targetRepo.url)
+	targetRepoURL, err := url.Parse(p.RepositoryURL)
 	if err != nil {
 		return err
 	}

@@ -340,6 +340,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(payload *ghwebhooks.IssueComme
 
 			params := &IssuesActionParams{
 				RepositoryName:    payload.Repository.Name,
+				RepositoryURL:     payload.Repository.CloneURL,
 				Comment:           payload.Comment.Body,
 				CommentID:         payload.Comment.ID,
 				AuthorAssociation: payload.Comment.AuthorAssociation,
