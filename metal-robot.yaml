@@ -192,6 +192,12 @@ webhooks:
           A rendered preview of your changes will be available at: https://docs.metal-stack.io/previews/PR%d/
         repository: docs
 
+    - type: issue-handling
+      client: metal-stack-github
+      args:
+        repos:
+          <<: *release-repos
+
     - type: release-draft
       client: metal-stack-github
       args:

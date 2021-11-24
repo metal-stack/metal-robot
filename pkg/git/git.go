@@ -66,6 +66,55 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 	return r, nil
 }
 
+func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) error {
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		RemoteName:    "remote-repo",
+		URL:           remoteURL,
+		ReferenceName: plumbing.ReferenceName(defaultLocalRef + "/" + remoteBranch),
+	})
+	if err != nil {
+		return errors.Wrap(err, "error cloning git repo")
+	}
+
+	remote, err := r.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{targetURL},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error creating remote")
+	}
+
+	err = remote.Push(&git.PushOptions{
+		RemoteName: "origin",
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(defaultLocalRef + "/" + remoteBranch + ":" + defaultLocalRef + "/" + targetBranch),
+		},
+		Force: true, // when the contributor does a force push, this will make it work anyway
+	})
+	if err != nil {
+		return errors.Wrap(err, "error pushing to repo")
+	}
+
+	return nil
+}
+
+func DeleteBranch(repoURL, branch string) error {
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:   repoURL,
+		Depth: 1,
+	})
+	if err != nil {
+		return errors.Wrap(err, "error cloning git repo")
+	}
+
+	err = r.Storer.RemoveReference(plumbing.NewBranchReferenceName(branch))
+	if err != nil {
+		return errors.Wrap(err, "error deleting branch in git repo")
+	}
+
+	return nil
+}
+
 func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {
