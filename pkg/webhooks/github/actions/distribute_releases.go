@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+
 	"github.com/atedja/go-multilock"
 	v3 "github.com/google/go-github/v38/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
@@ -14,7 +16,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -114,7 +115,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 
 	token, err := d.client.GitToken(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error creating git token")
+		return fmt.Errorf("error creating git token %w", err)
 	}
 
 	var targetRepos []string
@@ -157,7 +158,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			for _, patch := range targetRepo.patches {
 				err = patch.Apply(reader, writer, tag)
 				if err != nil {
-					return errors.Wrap(err, "error applying repo updates")
+					return fmt.Errorf("error applying repo updates %w", err)
 				}
 			}
 
@@ -168,7 +169,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 					d.logger.Debugw("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
 					return nil
 				}
-				return errors.Wrap(err, "error applying release updates")
+				return fmt.Errorf("error applying release updates %w", err)
 			}
 
 			d.logger.Infow("pushed to target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "branch", prBranch, "hash", hash)

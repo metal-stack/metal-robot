@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 
-	yamlconv "github.com/ghodss/yaml"
+	yamlconv "sigs.k8s.io/yaml"
 
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
@@ -52,7 +51,7 @@ func newYAMLPathPatch(rawConfig map[string]interface{}) (*YAMLPathPatch, error) 
 func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string) error {
 	content, err := cn(p.file)
 	if err != nil {
-		return errors.Wrap(err, "error reading patch file")
+		return fmt.Errorf("error reading patch file %w", err)
 	}
 
 	if p.versionCompare {
@@ -65,7 +64,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 
 		old, err := GetYAML(content, p.yamlPath)
 		if err != nil {
-			return errors.Wrap(err, "error retrieving yaml path from file")
+			return fmt.Errorf("error retrieving yaml path from file %w", err)
 		}
 
 		if p.template != nil {
@@ -93,7 +92,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 
 	err = cw(p.file, content)
 	if err != nil {
-		return errors.Wrap(err, "error writing patch file")
+		return fmt.Errorf("error writing patch file %w", err)
 	}
 
 	return nil

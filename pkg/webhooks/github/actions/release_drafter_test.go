@@ -3,7 +3,7 @@ package actions
 import (
 	"testing"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/google/go-cmp/cmp"
 	v3 "github.com/google/go-github/v38/github"
 	"go.uber.org/zap/zaptest"

@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -100,7 +100,7 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
-		return errors.Wrap(err, "error finding issue related pull request")
+		return fmt.Errorf("error finding issue related pull request %w", err)
 	}
 
 	if pullRequest.Head.Repo.Fork == nil || !*pullRequest.Head.Repo.Fork {
@@ -110,7 +110,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error creating git token")
+		return fmt.Errorf("error creating git token %w", err)
 	}
 
 	targetRepoURL, err := url.Parse(p.RepositoryURL)
@@ -123,14 +123,14 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	commitMessage := "Triggering fork build approved by maintainer"
 	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), "fork-build/"+headRef, commitMessage)
 	if err != nil {
-		return errors.Wrap(err, "error pushing to target remote repository")
+		return fmt.Errorf("error pushing to target remote repository %w", err)
 	}
 
 	r.logger.Infow("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
 
 	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
 	if err != nil {
-		return errors.Wrap(err, "error creating issue comment reaction")
+		return fmt.Errorf("error creating issue comment reaction %w", err)
 	}
 
 	err = git.DeleteBranch(targetRepoURL.String(), "fork-build/"+headRef)

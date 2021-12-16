@@ -2,11 +2,11 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/bradleyfalzon/ghinstallation"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v38/github"
@@ -41,12 +41,12 @@ func NewGithub(logger *zap.SugaredLogger, organizationID string, config *config.
 func (a *Github) initClients() error {
 	atr, err := ghinstallation.NewAppsTransportKeyFromFile(http.DefaultTransport, a.appID, a.keyPath)
 	if err != nil {
-		return errors.Wrap(err, "error creating github app client")
+		return fmt.Errorf("error creating github app client %w", err)
 	}
 
 	installation, _, err := v3.NewClient(&http.Client{Transport: atr}).Apps.FindOrganizationInstallation(context.TODO(), a.organizationID)
 	if err != nil {
-		return errors.Wrap(err, "error finding organization installation")
+		return fmt.Errorf("error finding organization installation %w", err)
 	}
 
 	a.installationID = installation.GetID()
@@ -80,7 +80,7 @@ func (a *Github) GetV3AppClient() *v3.Client {
 func (a *Github) GitToken(ctx context.Context) (string, error) {
 	t, _, err := a.GetV3AppClient().Apps.CreateInstallationToken(ctx, a.installationID, &v3.InstallationTokenOptions{})
 	if err != nil {
-		return "", errors.Wrap(err, "error creating installation token")
+		return "", fmt.Errorf("error creating installation token %w", err)
 	}
 	return t.GetToken(), nil
 }
