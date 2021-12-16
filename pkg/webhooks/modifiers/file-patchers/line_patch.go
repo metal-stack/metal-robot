@@ -6,7 +6,6 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 )
 
 type LinePatch struct {
@@ -39,7 +38,7 @@ func newLinePatch(rawConfig map[string]interface{}) (*LinePatch, error) {
 func (p LinePatch) Apply(cr ContentReader, cw ContentWriter, newValue string) error {
 	content, err := cr(p.file)
 	if err != nil {
-		return errors.Wrap(err, "error reading patch file")
+		return fmt.Errorf("error reading patch file %w", err)
 	}
 
 	lines := strings.Split(string(content), "\n")
@@ -57,7 +56,7 @@ func (p LinePatch) Apply(cr ContentReader, cw ContentWriter, newValue string) er
 
 	err = cw(p.file, []byte(new))
 	if err != nil {
-		return errors.Wrap(err, "error writing patch file")
+		return fmt.Errorf("error writing patch file %w", err)
 	}
 
 	return nil

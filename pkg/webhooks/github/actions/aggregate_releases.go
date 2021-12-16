@@ -7,15 +7,16 @@ import (
 	"strings"
 	"sync"
 
+	"errors"
+
 	"github.com/atedja/go-multilock"
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	v3 "github.com/google/go-github/v38/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -119,7 +120,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return errors.Wrap(err, "error creating git token")
+		return fmt.Errorf("error creating git token %w", err)
 	}
 
 	repoURL, err := url.Parse(r.repoURL)
@@ -144,7 +145,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	for _, patch := range patches {
 		err = patch.Apply(reader, writer, tag)
 		if err != nil {
-			return errors.Wrap(err, "error applying release updates")
+			return fmt.Errorf("error applying release updates %w", err)
 		}
 	}
 
@@ -155,7 +156,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 			return nil
 		}
-		return errors.Wrap(err, "error pushing to target repository")
+		return fmt.Errorf("error pushing to target repository %w", err)
 	}
 
 	r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)

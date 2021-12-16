@@ -9,7 +9,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -62,7 +61,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	if err != nil {
 		// Could be that team already exists...
 		if !strings.Contains(err.Error(), "Name must be unique for this org") {
-			return errors.Wrap(err, "error creating maintainers team")
+			return fmt.Errorf("error creating maintainers team %w", err)
 		}
 	} else {
 		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)

@@ -8,7 +8,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -64,7 +63,7 @@ func (d *docsPreviewComment) AddDocsPreviewComment(ctx context.Context, p *docsP
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, "error creating pull request comment in docs repo")
+		return fmt.Errorf("error creating pull request comment in docs repo %w", err)
 	}
 
 	d.logger.Infow("added preview comment in docs repo", "url", c.GetURL())

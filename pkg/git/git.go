@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"time"
 
+	"errors"
+
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-billy/v5/util"
 	"github.com/go-git/go-git/v5"
@@ -12,7 +14,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/storage/memory"
-	"github.com/pkg/errors"
 )
 
 var NoChangesError = fmt.Errorf("no changes")
@@ -29,19 +30,19 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 		Depth: depth,
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "error cloning git repo")
+		return nil, fmt.Errorf("error cloning git repo %w", err)
 	}
 
 	w, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "error retrieving git worktree")
+		return nil, fmt.Errorf("error retrieving git worktree %w", err)
 	}
 
 	err = r.Fetch(&git.FetchOptions{
 		RefSpecs: []config.RefSpec{"refs/*:refs/*", "HEAD:refs/heads/HEAD"},
 	})
 	if err != nil {
-		return nil, errors.Wrap(err, "error fetching repository refs")
+		return nil, fmt.Errorf("error fetching repository refs %w", err)
 	}
 
 	err = w.Checkout(&git.CheckoutOptions{
@@ -56,10 +57,10 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 				Create: true,
 			})
 			if err2 != nil {
-				return nil, errors.Wrap(err2, "error during git checkout")
+				return nil, fmt.Errorf("error during git checkout %w", err2)
 			}
 		} else {
-			return nil, errors.Wrap(err, "error during git checkout")
+			return nil, fmt.Errorf("error during git checkout %w", err)
 		}
 	}
 
@@ -73,7 +74,7 @@ func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) 
 		ReferenceName: plumbing.ReferenceName(defaultLocalRef + "/" + remoteBranch),
 	})
 	if err != nil {
-		return errors.Wrap(err, "error cloning git repo")
+		return fmt.Errorf("error cloning git repo %w", err)
 	}
 
 	remote, err := r.CreateRemote(&config.RemoteConfig{
@@ -81,7 +82,7 @@ func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) 
 		URLs: []string{targetURL},
 	})
 	if err != nil {
-		return errors.Wrap(err, "error creating remote")
+		return fmt.Errorf("error creating remote %w", err)
 	}
 
 	err = remote.Push(&git.PushOptions{
@@ -92,7 +93,7 @@ func PushToRemote(remoteURL, remoteBranch, targetURL, targetBranch, msg string) 
 		Force: true, // when the contributor does a force push, this will make it work anyway
 	})
 	if err != nil {
-		return errors.Wrap(err, "error pushing to repo")
+		return fmt.Errorf("error pushing to repo %w", err)
 	}
 
 	return nil
@@ -104,12 +105,12 @@ func DeleteBranch(repoURL, branch string) error {
 		Depth: 1,
 	})
 	if err != nil {
-		return errors.Wrap(err, "error cloning git repo")
+		return fmt.Errorf("error cloning git repo %w", err)
 	}
 
 	err = r.Storer.RemoveReference(plumbing.NewBranchReferenceName(branch))
 	if err != nil {
-		return errors.Wrap(err, "error deleting branch in git repo")
+		return fmt.Errorf("error deleting branch in git repo %w", err)
 	}
 
 	return nil
@@ -118,17 +119,17 @@ func DeleteBranch(repoURL, branch string) error {
 func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {
-		return "", errors.Wrap(err, "error getting worktree")
+		return "", fmt.Errorf("error getting worktree %w", err)
 	}
 
 	_, err = w.Add(".")
 	if err != nil {
-		return "", errors.Wrap(err, "error adding files to git index")
+		return "", fmt.Errorf("error adding files to git index %w", err)
 	}
 
 	status, err := w.Status()
 	if err != nil {
-		return "", errors.Wrap(err, "error getting git status")
+		return "", fmt.Errorf("error getting git status %w", err)
 	}
 
 	if status.IsClean() {
@@ -144,12 +145,12 @@ func CommitAndPush(r *git.Repository, msg string) (string, error) {
 		All: true,
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "error during git commit")
+		return "", fmt.Errorf("error during git commit %w", err)
 	}
 
 	branch, err := GetCurrentBranchFromRepository(r)
 	if err != nil {
-		return "", errors.Wrap(err, "error finding current branch")
+		return "", fmt.Errorf("error finding current branch %w", err)
 	}
 
 	err = r.Push(&git.PushOptions{
@@ -158,7 +159,7 @@ func CommitAndPush(r *git.Repository, msg string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "error pushing to repo")
+		return "", fmt.Errorf("error pushing to repo %w", err)
 	}
 
 	return hash.String(), nil
@@ -195,18 +196,18 @@ func GetCurrentBranchFromRepository(r *git.Repository) (string, error) {
 func ReadRepoFile(r *git.Repository, path string) ([]byte, error) {
 	w, err := r.Worktree()
 	if err != nil {
-		return nil, errors.Wrap(err, "error retrieving git worktree")
+		return nil, fmt.Errorf("error retrieving git worktree %w", err)
 	}
 
 	f, err := w.Filesystem.Open(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "error opening repository file")
+		return nil, fmt.Errorf("error opening repository file %w", err)
 	}
 	defer f.Close()
 
 	data, err := ioutil.ReadAll(f)
 	if err != nil {
-		return nil, errors.Wrap(err, "error reading repository file")
+		return nil, fmt.Errorf("error reading repository file %w", err)
 	}
 
 	return data, nil
@@ -215,18 +216,18 @@ func ReadRepoFile(r *git.Repository, path string) ([]byte, error) {
 func WriteRepoFile(r *git.Repository, path string, data []byte) error {
 	w, err := r.Worktree()
 	if err != nil {
-		return errors.Wrap(err, "error retrieving git worktree")
+		return fmt.Errorf("error retrieving git worktree %w", err)
 	}
 
 	f, err := w.Filesystem.Open(path)
 	if err != nil {
-		return errors.Wrap(err, "error opening repository file")
+		return fmt.Errorf("error opening repository file %w", err)
 	}
 	defer f.Close()
 
 	err = util.WriteFile(w.Filesystem, path, data, 0755)
 	if err != nil {
-		return errors.Wrap(err, "error writing release file")
+		return fmt.Errorf("error writing release file %w", err)
 	}
 
 	return nil

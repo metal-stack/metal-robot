@@ -6,14 +6,13 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/blang/semver"
+	"github.com/blang/semver/v4"
 	"github.com/google/go-github/v38/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v38/github"
@@ -399,7 +398,7 @@ func (r *releaseDrafter) releaseInfos(ctx context.Context) (*releaseInfos, error
 func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) (string, error) {
 	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
 	if err != nil {
-		return "", errors.Wrap(err, "unable to find latest release")
+		return "", fmt.Errorf("unable to find latest release %w", err)
 	}
 	if latest != nil && latest.TagName != nil {
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
@@ -424,7 +423,7 @@ func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoN
 	for {
 		releases, resp, err := client.GetV3Client().Repositories.ListReleases(ctx, client.Organization(), repoName, opt)
 		if err != nil {
-			return nil, errors.Wrap(err, "error retrieving releases")
+			return nil, fmt.Errorf("error retrieving releases %w", err)
 		}
 
 		for _, release := range releases {
@@ -447,7 +446,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		infos.existing.Body = &body
 		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, infos.existing.GetID(), infos.existing)
 		if err != nil {
-			return errors.Wrap(err, "unable to update release draft")
+			return fmt.Errorf("unable to update release draft %w", err)
 		}
 		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	} else {
@@ -459,7 +458,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		}
 		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
 		if err != nil {
-			return errors.Wrap(err, "unable to create release draft")
+			return fmt.Errorf("unable to create release draft %w", err)
 		}
 		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	}
