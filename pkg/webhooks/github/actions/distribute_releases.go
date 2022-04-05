@@ -10,7 +10,7 @@ import (
 	"errors"
 
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v38/github"
+	v3 "github.com/google/go-github/v43/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
