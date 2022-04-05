@@ -212,6 +212,9 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 			if payload.Repository.Private {
 				return nil
 			}
+			if !payload.PullRequest.Merged {
+				return nil
+			}
 
 			params := &releaseDrafterParams{
 				RepositoryName:       payload.Repository.Name,
