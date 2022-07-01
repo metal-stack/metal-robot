@@ -22,7 +22,7 @@ type YAMLPathPatch struct {
 	versionCompare bool
 }
 
-func newYAMLPathPatch(rawConfig map[string]interface{}) (*YAMLPathPatch, error) {
+func newYAMLPathPatch(rawConfig map[string]any) (*YAMLPathPatch, error) {
 	var typedConfig config.YAMLPathPatchConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -98,7 +98,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 	return nil
 }
 
-func setYAML(data []byte, path string, value interface{}) ([]byte, error) {
+func setYAML(data []byte, path string, value any) ([]byte, error) {
 	json, err := yamlconv.YAMLToJSON(data)
 	if err != nil {
 		return nil, err

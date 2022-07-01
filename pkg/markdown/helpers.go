@@ -23,17 +23,17 @@ func headingLevel(l string) int {
 }
 
 func ExtractAnnotatedBlock(annotation string, s string) (string, error) {
-	parts := strings.SplitN(s, "```"+annotation, 2)
-	if len(parts) != 2 {
+	_, contentWithTicks, found := strings.Cut(s, "```"+annotation)
+	if !found {
 		return "", NoSuchBlockError
 	}
 
-	parts = strings.SplitN(parts[1], "```", 2)
-	if len(parts) != 2 {
+	content, _, found := strings.Cut(contentWithTicks, "```")
+	if !found {
 		return "", NoSuchBlockError
 	}
 
-	return strings.TrimSpace(parts[0]), nil
+	return strings.TrimSpace(content), nil
 }
 
 func ToListItem(lines string) []string {

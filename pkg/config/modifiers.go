@@ -1,8 +1,8 @@
 package config
 
 type Modifier struct {
-	Type string                 `json:"type" description:"name of the modifier"`
-	Args map[string]interface{} `json:"args" description:"modifier configuration"`
+	Type string         `json:"type" description:"name of the modifier"`
+	Args map[string]any `json:"args" description:"modifier configuration"`
 }
 
 type LinePatchConfig struct {

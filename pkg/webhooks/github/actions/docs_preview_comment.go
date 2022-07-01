@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	v3 "github.com/google/go-github/v43/github"
+	v3 "github.com/google/go-github/v45/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -24,7 +24,7 @@ type docsPreviewCommentParams struct {
 	PullRequestNumber int
 }
 
-func newDocsPreviewComment(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*docsPreviewComment, error) {
+func newDocsPreviewComment(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*docsPreviewComment, error) {
 	var (
 		commentTemplate = "#%d"
 	)
