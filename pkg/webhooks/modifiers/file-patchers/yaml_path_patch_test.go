@@ -30,7 +30,7 @@ func Test_setYAML(t *testing.T) {
 	type args struct {
 		data  []byte
 		path  string
-		value interface{}
+		value any
 	}
 	tests := []struct {
 		name    string

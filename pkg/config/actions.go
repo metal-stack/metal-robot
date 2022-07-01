@@ -3,9 +3,9 @@ package config
 type WebhookActions []WebhookAction
 
 type WebhookAction struct {
-	Type   string                 `json:"type" description:"name of the webhook action"`
-	Client string                 `json:"client" description:"client that this webhook action uses"`
-	Args   map[string]interface{} `json:"args" description:"action configuration"`
+	Type   string         `json:"type" description:"name of the webhook action"`
+	Client string         `json:"client" description:"client that this webhook action uses"`
+	Args   map[string]any `json:"args" description:"action configuration"`
 }
 type RepositoryMaintainersConfig struct {
 	Suffix *string `mapstructure:"suffix" description:"suffix for maintainers group"`
@@ -26,7 +26,7 @@ type AggregateReleasesConfig struct {
 }
 
 type IssuesCommentHandlerConfig struct {
-	TargetRepos map[string]interface{} `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
+	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
 }
 
 type DistributeReleasesConfig struct {
@@ -64,10 +64,10 @@ type TargetRepo struct {
 }
 
 type ReleaseDraftConfig struct {
-	Repos                map[string]interface{} `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
-	RepositoryName       string                 `mapstructure:"repository" description:"the name of the release repo"`
-	ReleaseTitleTemplate *string                `mapstructure:"title-template" description:"custom template for the release title"`
-	DraftHeadline        *string                `mapstructure:"draft-headline" description:"custom headline for the release draft"`
+	Repos                map[string]any `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
+	RepositoryName       string         `mapstructure:"repository" description:"the name of the release repo"`
+	ReleaseTitleTemplate *string        `mapstructure:"title-template" description:"custom template for the release title"`
+	DraftHeadline        *string        `mapstructure:"draft-headline" description:"custom headline for the release draft"`
 
 	MergedPRsHeadline    *string `mapstructure:"merged-prs-section-headline" description:"custom headline for the section of merged pull requests"`
 	MergedPRsDescription *string `mapstructure:"merged-prs-section-description" description:"description for the merged pull requests section"`

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	v3 "github.com/google/go-github/v43/github"
+	v3 "github.com/google/go-github/v45/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -23,7 +23,7 @@ type repositoryMaintainersParams struct {
 	Creator        string
 }
 
-func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*repositoryMaintainers, error) {
+func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*repositoryMaintainers, error) {
 	var (
 		suffix = "-maintainers"
 	)

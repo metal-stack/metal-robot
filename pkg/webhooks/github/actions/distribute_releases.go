@@ -10,7 +10,7 @@ import (
 	"errors"
 
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v43/github"
+	v3 "github.com/google/go-github/v45/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -41,7 +41,7 @@ type targetRepo struct {
 	url     string
 }
 
-func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*distributeReleases, error) {
+func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*distributeReleases, error) {
 	var (
 		commitMessageTemplate = "Bump %s to version %s"
 		branchTemplate        = "auto-generate/%s"

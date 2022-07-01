@@ -14,7 +14,7 @@ type LinePatch struct {
 	replaceTemplate *string
 }
 
-func newLinePatch(rawConfig map[string]interface{}) (*LinePatch, error) {
+func newLinePatch(rawConfig map[string]any) (*LinePatch, error) {
 	var typedConfig config.LinePatchConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {

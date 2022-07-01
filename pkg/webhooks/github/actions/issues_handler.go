@@ -48,7 +48,7 @@ type IssuesActionParams struct {
 	CommentID         int64
 }
 
-func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]interface{}) (*IssuesAction, error) {
+func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
 	var typedConfig config.IssuesCommentHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
