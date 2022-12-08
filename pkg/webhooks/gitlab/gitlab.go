@@ -63,7 +63,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	switch payload := payload.(type) {
 	case glwebhooks.TagEventPayload:
 		w.logger.Debugw("received tag push event")
-		w.a.ProcessTagEvent(&payload)
+		w.a.ProcessTagEvent(&payload) //nolint:contextcheck
 	default:
 		w.logger.Warnw("missing handler", "payload", payload)
 	}

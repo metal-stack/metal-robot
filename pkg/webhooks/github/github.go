@@ -66,21 +66,21 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	switch payload := payload.(type) {
 	case ghwebhooks.ReleasePayload:
 		w.logger.Debugw("received release event")
-		go w.a.ProcessReleaseEvent(&payload)
+		go w.a.ProcessReleaseEvent(&payload) //nolint:contextcheck
 	case ghwebhooks.PullRequestPayload:
 		w.logger.Debugw("received pull request event")
-		go w.a.ProcessPullRequestEvent(&payload)
+		go w.a.ProcessPullRequestEvent(&payload) //nolint:contextcheck
 	case ghwebhooks.PushPayload:
 		w.logger.Debugw("received push event")
-		go w.a.ProcessPushEvent(&payload)
+		go w.a.ProcessPushEvent(&payload) //nolint:contextcheck
 	case ghwebhooks.IssuesPayload:
 		w.logger.Debugw("received issues event")
 	case ghwebhooks.IssueCommentPayload:
 		w.logger.Debugw("received issue comment event")
-		go w.a.ProcessIssueCommentEvent(&payload)
+		go w.a.ProcessIssueCommentEvent(&payload) //nolint:contextcheck
 	case ghwebhooks.RepositoryPayload:
 		w.logger.Debugw("received repository event")
-		go w.a.ProcessRepositoryEvent(&payload)
+		go w.a.ProcessRepositoryEvent(&payload) //nolint:contextcheck
 	default:
 		w.logger.Warnw("missing handler", "payload", payload)
 	}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -172,7 +173,13 @@ func run(opts *Opts) error {
 
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
 	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)
-	err = http.ListenAndServe(addr, nil)
+
+	server := &http.Server{
+		Addr:              addr,
+		ReadHeaderTimeout: 1 * time.Minute,
+	}
+
+	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
