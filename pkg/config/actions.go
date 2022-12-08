@@ -20,6 +20,7 @@ type AggregateReleasesConfig struct {
 	TargetRepositoryName string                `mapstructure:"repository" description:"the name of the taget repo"`
 	TargetRepositoryURL  string                `mapstructure:"repository-url" description:"the url of the target repo"`
 	Branch               *string               `mapstructure:"branch" description:"the branch to push in the target repo"`
+	BranchBase           *string               `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
 	CommitMsgTemplate    *string               `mapstructure:"commit-tpl" description:"template of the commit message"`
 	PullRequestTitle     *string               `mapstructure:"pull-request-title" description:"title of the pull request"`
 	SourceRepos          map[string][]Modifier `mapstructure:"repos" description:"the source repositories to trigger this action"`
@@ -42,6 +43,7 @@ type YAMLTranslateReleasesConfig struct {
 	TargetRepositoryName string                       `mapstructure:"repository" description:"the name of the taget repo"`
 	TargetRepositoryURL  string                       `mapstructure:"repository-url" description:"the url of the target repo"`
 	Branch               *string                      `mapstructure:"branch" description:"the branch to push in the target repo"`
+	BranchBase           *string                      `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
 	CommitMsgTemplate    *string                      `mapstructure:"commit-tpl" description:"template of the commit message"`
 	PullRequestTitle     *string                      `mapstructure:"pull-request-title" description:"title of the pull request"`
 	SourceRepos          map[string][]YAMLTranslation `mapstructure:"repos" description:"the source repositories to trigger this action"`
