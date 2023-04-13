@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -150,6 +152,7 @@ func initLogging() {
 
 	cfg := zap.NewProductionConfig()
 	cfg.Level = zap.NewAtomicLevelAt(level)
+	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	l, err := cfg.Build()
 	if err != nil {
@@ -172,7 +175,11 @@ func run(opts *Opts) error {
 
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
 	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)
-	err = http.ListenAndServe(addr, nil)
+	server := http.Server{
+		Addr:              addr,
+		ReadHeaderTimeout: 1 * time.Minute,
+	}
+	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

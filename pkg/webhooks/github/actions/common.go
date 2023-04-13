@@ -106,8 +106,8 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 	return &actions, nil
 }
 
-func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghwebhooks.ReleasePayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -179,8 +179,8 @@ func (w *WebhookActions) ProcessReleaseEvent(payload *ghwebhooks.ReleasePayload)
 	}
 }
 
-func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequestPayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *ghwebhooks.PullRequestPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -235,8 +235,8 @@ func (w *WebhookActions) ProcessPullRequestEvent(payload *ghwebhooks.PullRequest
 	}
 }
 
-func (w *WebhookActions) ProcessPushEvent(payload *ghwebhooks.PushPayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhooks.PushPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -288,8 +288,8 @@ func (w *WebhookActions) ProcessPushEvent(payload *ghwebhooks.PushPayload) {
 	}
 }
 
-func (w *WebhookActions) ProcessRepositoryEvent(payload *ghwebhooks.RepositoryPayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *ghwebhooks.RepositoryPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -319,8 +319,8 @@ func (w *WebhookActions) ProcessRepositoryEvent(payload *ghwebhooks.RepositoryPa
 	}
 }
 
-func (w *WebhookActions) ProcessIssueCommentEvent(payload *ghwebhooks.IssueCommentPayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *ghwebhooks.IssueCommentPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 

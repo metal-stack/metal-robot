@@ -2,7 +2,7 @@ package git
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"errors"
@@ -205,7 +205,7 @@ func ReadRepoFile(r *git.Repository, path string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("error reading repository file %w", err)
 	}

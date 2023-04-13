@@ -1,7 +1,7 @@
 package config
 
 import (
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"sigs.k8s.io/yaml"
@@ -44,7 +44,7 @@ type Webhook struct {
 }
 
 func New(configPath string) (*Configuration, error) {
-	data, err := ioutil.ReadFile(configPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil, err
 	}

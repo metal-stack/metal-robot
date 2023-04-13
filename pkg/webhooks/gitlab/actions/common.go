@@ -52,8 +52,8 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 	return &actions, nil
 }
 
-func (w *WebhookActions) ProcessTagEvent(payload *glwebhooks.TagEventPayload) {
-	ctx, cancel := context.WithTimeout(context.Background(), constants.WebhookHandleTimeout)
+func (w *WebhookActions) ProcessTagEvent(ctx context.Context, payload *glwebhooks.TagEventPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
