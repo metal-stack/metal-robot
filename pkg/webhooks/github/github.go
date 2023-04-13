@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -63,24 +64,29 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	ctx := request.Context()
+	ctx := context.Background()
 	switch payload := payload.(type) {
 	case ghwebhooks.ReleasePayload:
 		w.logger.Debugw("received release event")
+		// nolint:contextcheck
 		go w.a.ProcessReleaseEvent(ctx, &payload)
 	case ghwebhooks.PullRequestPayload:
 		w.logger.Debugw("received pull request event")
+		// nolint:contextcheck
 		go w.a.ProcessPullRequestEvent(ctx, &payload)
 	case ghwebhooks.PushPayload:
 		w.logger.Debugw("received push event")
+		// nolint:contextcheck
 		go w.a.ProcessPushEvent(ctx, &payload)
 	case ghwebhooks.IssuesPayload:
 		w.logger.Debugw("received issues event")
 	case ghwebhooks.IssueCommentPayload:
 		w.logger.Debugw("received issue comment event")
+		// nolint:contextcheck
 		go w.a.ProcessIssueCommentEvent(ctx, &payload)
 	case ghwebhooks.RepositoryPayload:
 		w.logger.Debugw("received repository event")
+		// nolint:contextcheck
 		go w.a.ProcessRepositoryEvent(ctx, &payload)
 	default:
 		w.logger.Warnw("missing handler", "payload", payload)
