@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -151,6 +152,7 @@ func initLogging() {
 
 	cfg := zap.NewProductionConfig()
 	cfg.Level = zap.NewAtomicLevelAt(level)
+	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	l, err := cfg.Build()
 	if err != nil {
