@@ -1,6 +1,6 @@
-FROM metalstack/builder:latest as builder
+FROM ghcr.io/metal-stack/builder:latest as builder
 
-FROM alpine:3.16
-RUN apk add --no-cache tini ca-certificates
+FROM alpine:3.17
+RUN apk add --no-cache ca-certificates
 COPY --from=builder /work/bin/metal-robot /metal-robot
 CMD ["/metal-robot"]

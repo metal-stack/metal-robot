@@ -1,6 +1,7 @@
 package gitlab
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -60,10 +61,12 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	ctx := context.Background()
 	switch payload := payload.(type) {
 	case glwebhooks.TagEventPayload:
 		w.logger.Debugw("received tag push event")
-		w.a.ProcessTagEvent(&payload) //nolint:contextcheck
+		// nolint:contextcheck
+		w.a.ProcessTagEvent(ctx, &payload)
 	default:
 		w.logger.Warnw("missing handler", "payload", payload)
 	}
