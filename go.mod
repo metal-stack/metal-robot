@@ -7,6 +7,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
 	github.com/go-git/go-billy/v5 v5.4.1
+	// IMPORTANT: keep this version as long as https://github.com/go-git/go-git/issues/328 is open
 	github.com/go-git/go-git/v5 v5.3.0
 	github.com/go-playground/validator/v10 v10.13.0
 	github.com/go-playground/webhooks/v6 v6.0.1
