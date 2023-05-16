@@ -1,6 +1,6 @@
 FROM ghcr.io/metal-stack/builder:latest as builder
 
-FROM alpine:3.17
+FROM alpine:3.18
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /work/bin/metal-robot /metal-robot
 CMD ["/metal-robot"]

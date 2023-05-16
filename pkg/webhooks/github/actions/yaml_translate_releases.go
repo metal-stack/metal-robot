@@ -24,6 +24,7 @@ type yamlTranslateReleases struct {
 	logger                *zap.SugaredLogger
 	client                *clients.Github
 	branch                string
+	branchBase            string
 	commitMessageTemplate string
 	translationMap        map[string][]yamlTranslation
 	repoURL               string
@@ -52,6 +53,7 @@ type yamlTranslateReleaseParams struct {
 func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*yamlTranslateReleases, error) {
 	var (
 		branch                = "develop"
+		branchBase            = "master"
 		commitMessageTemplate = "Bump %s to version %s"
 		pullRequestTitle      = "Next release"
 	)
@@ -70,6 +72,9 @@ func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github,
 	}
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
+	}
+	if typedConfig.BranchBase != nil {
+		branchBase = *typedConfig.BranchBase
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
@@ -114,6 +119,7 @@ func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github,
 		logger:                logger,
 		client:                client,
 		branch:                branch,
+		branchBase:            branchBase,
 		commitMessageTemplate: commitMessageTemplate,
 		translationMap:        translationMap,
 		repoURL:               typedConfig.TargetRepositoryURL,
@@ -215,7 +221,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),
 		Head:                v3.String(r.branch),
-		Base:                v3.String("master"),
+		Base:                v3.String(r.branchBase),
 		Body:                v3.String(r.pullRequestTitle),
 		MaintainerCanModify: v3.Bool(true),
 	})

@@ -24,6 +24,7 @@ type AggregateReleases struct {
 	logger                *zap.SugaredLogger
 	client                *clients.Github
 	branch                string
+	branchBase            string
 	commitMessageTemplate string
 	patchMap              map[string][]filepatchers.Patcher
 	repoURL               string
@@ -41,6 +42,7 @@ type AggregateReleaseParams struct {
 func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
 	var (
 		branch                = "develop"
+		branchBase            = "master"
 		commitMessageTemplate = "Bump %s to version %s"
 		pullRequestTitle      = "Next release"
 	)
@@ -59,6 +61,9 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 	}
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
+	}
+	if typedConfig.BranchBase != nil {
+		branchBase = *typedConfig.BranchBase
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
@@ -88,6 +93,7 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 		logger:                logger,
 		client:                client,
 		branch:                branch,
+		branchBase:            branchBase,
 		commitMessageTemplate: commitMessageTemplate,
 		patchMap:              patchMap,
 		repoURL:               typedConfig.TargetRepositoryURL,
@@ -166,7 +172,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),
 		Head:                v3.String(r.branch),
-		Base:                v3.String("master"),
+		Base:                v3.String(r.branchBase),
 		Body:                v3.String(r.pullRequestTitle),
 		MaintainerCanModify: v3.Bool(true),
 	})
