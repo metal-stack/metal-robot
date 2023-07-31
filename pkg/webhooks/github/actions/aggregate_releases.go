@@ -160,14 +160,14 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	if err != nil {
 		if errors.Is(err, git.NoChangesError) {
 			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
-			return nil
+		} else {
+			return fmt.Errorf("error pushing to target repository %w", err)
 		}
-		return fmt.Errorf("error pushing to target repository %w", err)
+	} else {
+		r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
+
+		once.Do(func() { r.lock.Unlock() })
 	}
-
-	r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
-
-	once.Do(func() { r.lock.Unlock() })
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
 		Title:               v3.String("Next release"),
