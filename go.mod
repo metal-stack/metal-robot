@@ -5,22 +5,22 @@ go 1.20
 require (
 	github.com/atedja/go-multilock v0.0.0-20170315063113-31d195f255fb
 	github.com/blang/semver/v4 v4.0.0
-	github.com/bradleyfalzon/ghinstallation/v2 v2.4.0
+	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 	github.com/go-git/go-billy/v5 v5.4.1
 	// IMPORTANT: keep this version as long as https://github.com/go-git/go-git/issues/328 is open
 	github.com/go-git/go-git/v5 v5.3.0
-	github.com/go-playground/validator/v10 v10.13.0
-	github.com/go-playground/webhooks/v6 v6.0.1
+	github.com/go-playground/validator/v10 v10.14.1
+	github.com/go-playground/webhooks/v6 v6.2.0
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-github/v51 v51.0.0
+	github.com/google/go-github/v53 v53.2.0
 	github.com/metal-stack/v v1.0.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.7.0
-	github.com/spf13/viper v1.15.0
-	github.com/tidwall/gjson v1.14.4
+	github.com/spf13/viper v1.16.0
+	github.com/tidwall/gjson v1.15.0
 	github.com/tidwall/sjson v1.2.5
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	sigs.k8s.io/yaml v1.3.0
 )
 
@@ -31,6 +31,7 @@ require (
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/go-git/gcfg v1.5.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -46,7 +47,7 @@ require (
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
-	github.com/pelletier/go-toml/v2 v2.0.7 // indirect
+	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
