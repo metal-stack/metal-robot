@@ -62,13 +62,13 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
 	}
-	if typedConfig.BranchBase != nil {
+	if typedConfig.BranchBase != nil && *typedConfig.BranchBase != "" {
 		branchBase = *typedConfig.BranchBase
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
 	}
-	if typedConfig.PullRequestTitle != nil {
+	if typedConfig.PullRequestTitle != nil && *typedConfig.PullRequestTitle != "" {
 		pullRequestTitle = *typedConfig.PullRequestTitle
 	}
 
