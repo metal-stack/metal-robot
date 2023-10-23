@@ -5,7 +5,7 @@ import (
 
 	"github.com/blang/semver/v4"
 	"github.com/google/go-cmp/cmp"
-	v3 "github.com/google/go-github/v53/github"
+	v3 "github.com/google/go-github/v56/github"
 	"go.uber.org/zap/zaptest"
 )
 

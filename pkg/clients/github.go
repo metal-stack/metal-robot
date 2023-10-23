@@ -9,7 +9,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v53/github"
+	v3 "github.com/google/go-github/v56/github"
 )
 
 type Github struct {
