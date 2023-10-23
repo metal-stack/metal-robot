@@ -3,8 +3,8 @@ module github.com/metal-stack/metal-robot
 go 1.21
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/atedja/go-multilock v0.0.0-20170315063113-31d195f255fb
-	github.com/blang/semver/v4 v4.0.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.8.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	// IMPORTANT: keep this version as long as https://github.com/go-git/go-git/issues/328 is open

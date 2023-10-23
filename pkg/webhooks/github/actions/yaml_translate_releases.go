@@ -9,8 +9,8 @@ import (
 
 	"errors"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	"github.com/blang/semver/v4"
 	v3 "github.com/google/go-github/v56/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -139,7 +139,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 
 	tag := p.TagName
 	trimmed := strings.TrimPrefix(tag, "v")
-	_, err := semver.Make(trimmed)
+	_, err := semver.NewVersion(trimmed)
 	if err != nil {
 		r.logger.Infow("skip applying translate release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr

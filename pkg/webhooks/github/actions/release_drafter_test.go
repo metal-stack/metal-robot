@@ -3,7 +3,7 @@ package actions
 import (
 	"testing"
 
-	"github.com/blang/semver/v4"
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 	v3 "github.com/google/go-github/v56/github"
 	"go.uber.org/zap/zaptest"
@@ -16,7 +16,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 		headline         string
 		priorBody        string
 		component        string
-		componentVersion semver.Version
+		componentVersion *semver.Version
 		componentBody    *string
 		releaseURL       string
 
