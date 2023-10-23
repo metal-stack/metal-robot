@@ -124,7 +124,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	}
 	lock := multilock.New(targetRepos...)
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	for targetRepoName, targetRepo := range d.targetRepos {
 		targetRepoName := targetRepoName
 		targetRepo := targetRepo
