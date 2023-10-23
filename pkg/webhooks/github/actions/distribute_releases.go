@@ -60,13 +60,13 @@ func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, ra
 	if typedConfig.SourceRepositoryURL == "" {
 		return nil, fmt.Errorf("source repository-url must be specified")
 	}
-	if typedConfig.BranchTemplate != nil {
+	if typedConfig.BranchTemplate != nil && *typedConfig.BranchTemplate != "" {
 		branchTemplate = *typedConfig.BranchTemplate
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
 	}
-	if typedConfig.PullRequestTitle != nil {
+	if typedConfig.PullRequestTitle != nil && *typedConfig.PullRequestTitle != "" {
 		pullRequestTitle = *typedConfig.PullRequestTitle
 	}
 
