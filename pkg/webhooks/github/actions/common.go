@@ -109,7 +109,7 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghwebhooks.ReleasePayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
 		a := a
@@ -182,7 +182,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *ghwebhooks.PullRequestPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.dp {
 		a := a
@@ -238,7 +238,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhooks.PushPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
 		a := a
@@ -291,7 +291,7 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *ghwebhooks.RepositoryPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.rm {
 		a := a
@@ -322,7 +322,7 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *ghwebhooks.IssueCommentPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, i := range w.ih {
 		i := i

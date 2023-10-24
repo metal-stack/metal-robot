@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blang/semver/v4"
+	"github.com/Masterminds/semver/v3"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
@@ -57,7 +57,7 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 	if p.versionCompare {
 		trimmedValue := strings.TrimPrefix(newValue, "v")
 
-		newVersion, err := semver.Parse(trimmedValue)
+		newVersion, err := semver.NewVersion(trimmedValue)
 		if err != nil {
 			return err
 		}
@@ -73,9 +73,9 @@ func (p YAMLPathPatch) Apply(cn ContentReader, cw ContentWriter, newValue string
 		}
 
 		old = strings.TrimPrefix(old, "v")
-		oldVersion, err := semver.Parse(old)
+		oldVersion, err := semver.NewVersion(old)
 		if err == nil {
-			if !newVersion.GT(oldVersion) {
+			if !newVersion.GreaterThan(oldVersion) {
 				return nil
 			}
 		}

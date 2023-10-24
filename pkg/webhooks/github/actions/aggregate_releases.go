@@ -9,9 +9,9 @@ import (
 
 	"errors"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	"github.com/blang/semver/v4"
-	v3 "github.com/google/go-github/v53/github"
+	v3 "github.com/google/go-github/v56/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -62,13 +62,13 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
 	}
-	if typedConfig.BranchBase != nil {
+	if typedConfig.BranchBase != nil && *typedConfig.BranchBase != "" {
 		branchBase = *typedConfig.BranchBase
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
 	}
-	if typedConfig.PullRequestTitle != nil {
+	if typedConfig.PullRequestTitle != nil && *typedConfig.PullRequestTitle != "" {
 		pullRequestTitle = *typedConfig.PullRequestTitle
 	}
 
@@ -113,9 +113,14 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 
 	tag := p.TagName
 	trimmed := strings.TrimPrefix(tag, "v")
-	_, err := semver.Make(trimmed)
+	parsedVersion, err := semver.NewVersion(trimmed)
 	if err != nil {
 		r.logger.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		return nil //nolint:nilerr
+	}
+
+	if parsedVersion.Prerelease() != "" {
+		r.logger.Infow("skip applying release actions to aggregation repo because is a pre-release", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr
 	}
 

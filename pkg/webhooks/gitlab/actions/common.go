@@ -55,7 +55,7 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 func (w *WebhookActions) ProcessTagEvent(ctx context.Context, payload *glwebhooks.TagEventPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
 		a := a

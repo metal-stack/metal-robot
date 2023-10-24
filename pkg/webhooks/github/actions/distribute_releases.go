@@ -10,7 +10,7 @@ import (
 	"errors"
 
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v53/github"
+	v3 "github.com/google/go-github/v56/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -60,13 +60,13 @@ func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, ra
 	if typedConfig.SourceRepositoryURL == "" {
 		return nil, fmt.Errorf("source repository-url must be specified")
 	}
-	if typedConfig.BranchTemplate != nil {
+	if typedConfig.BranchTemplate != nil && *typedConfig.BranchTemplate != "" {
 		branchTemplate = *typedConfig.BranchTemplate
 	}
 	if typedConfig.CommitMsgTemplate != nil {
 		commitMessageTemplate = *typedConfig.CommitMsgTemplate
 	}
-	if typedConfig.PullRequestTitle != nil {
+	if typedConfig.PullRequestTitle != nil && *typedConfig.PullRequestTitle != "" {
 		pullRequestTitle = *typedConfig.PullRequestTitle
 	}
 
@@ -124,7 +124,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	}
 	lock := multilock.New(targetRepos...)
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	for targetRepoName, targetRepo := range d.targetRepos {
 		targetRepoName := targetRepoName
 		targetRepo := targetRepo

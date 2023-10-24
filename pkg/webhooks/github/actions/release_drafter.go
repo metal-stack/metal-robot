@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/blang/semver/v4"
-	"github.com/google/go-github/v53/github"
+	"github.com/Masterminds/semver/v3"
+	"github.com/google/go-github/v56/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
@@ -15,7 +15,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v53/github"
+	v3 "github.com/google/go-github/v56/github"
 )
 
 var (
@@ -142,7 +142,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return nil
 	}
 	trimmedVersion := strings.TrimPrefix(componentTag, "v")
-	componentSemver, err := semver.Parse(trimmedVersion)
+	componentSemver, err := semver.NewVersion(trimmedVersion)
 	if err != nil {
 		r.logger.Debugw("skip adding release draft because tag is not semver compatible", "repo", p.RepositoryName, "release", componentTag)
 		return nil //nolint:nilerr
@@ -158,7 +158,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 	return r.createOrUpdateRelease(ctx, infos, body, p)
 }
 
-func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion semver.Version, componentBody *string, releaseURL string) string {
+func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion *semver.Version, componentBody *string, releaseURL string) string {
 	m := markdown.Parse(priorBody)
 
 	releaseSection := ensureReleaseSection(m, r.draftHeadline)
@@ -213,8 +213,8 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, section.Heading)
 		old := groups["full_match"]
 		old = strings.TrimPrefix(old, "v")
-		oldVersion, err := semver.Parse(old)
-		if err == nil && componentVersion.GT(oldVersion) {
+		oldVersion, err := semver.NewVersion(old)
+		if err == nil && componentVersion.GreaterThan(oldVersion) {
 			// in this case we need to merge contents together and update the headline
 			section.Heading = heading
 			section.AppendContent(body)
@@ -404,12 +404,11 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
 		t := groups["full_match"]
 		t = strings.TrimPrefix(t, "v")
-		latestTag, err := semver.Parse(t)
+		latestTag, err := semver.NewVersion(t)
 		if err != nil {
 			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
 		} else {
-			latestTag.Patch = latestTag.Patch + 1
-			return "v" + latestTag.String(), nil
+			return "v" + latestTag.IncPatch().String(), nil
 		}
 	}
 	return "v0.0.1", nil
