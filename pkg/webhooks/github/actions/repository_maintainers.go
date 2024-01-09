@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	v3 "github.com/google/go-github/v56/github"
+	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -88,7 +88,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	for _, additionalTeam := range r.additionalTeams {
 		additionalTeam := additionalTeam
 
-		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Owner(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
 			Permission: additionalTeam.permission,
 		})
 		if err != nil {
