@@ -77,8 +77,9 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		Privacy:     v3.String("closed"),
 	})
 	if err != nil {
-		// Could be that team already exists...
 		if !strings.Contains(err.Error(), "Name must be unique for this org") {
+			r.logger.Infow("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
+		} else {
 			return fmt.Errorf("error creating maintainers team %w", err)
 		}
 	} else {
