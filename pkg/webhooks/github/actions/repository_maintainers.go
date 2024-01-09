@@ -77,7 +77,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		Privacy:     v3.String("closed"),
 	})
 	if err != nil {
-		if !strings.Contains(err.Error(), "Name must be unique for this org") {
+		if strings.Contains(err.Error(), "Name must be unique for this org") {
 			r.logger.Infow("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
 		} else {
 			return fmt.Errorf("error creating maintainers team %w", err)
@@ -89,7 +89,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	for _, additionalTeam := range r.additionalTeams {
 		additionalTeam := additionalTeam
 
-		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Owner(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, p.Creator, p.RepositoryName, &v3.TeamAddTeamRepoOptions{
 			Permission: additionalTeam.permission,
 		})
 		if err != nil {
