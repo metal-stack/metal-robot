@@ -13,9 +13,17 @@ import (
 )
 
 type repositoryMaintainers struct {
-	logger *zap.SugaredLogger
-	client *clients.Github
-	suffix string
+	logger          *zap.SugaredLogger
+	client          *clients.Github
+	suffix          string
+	additionalTeams repositoryAdditionalMemberships
+}
+
+type repositoryAdditionalMemberships []repositoryAdditionalMembership
+
+type repositoryAdditionalMembership struct {
+	teamSlug   string
+	permission string
 }
 
 type repositoryMaintainersParams struct {
@@ -38,10 +46,20 @@ func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.G
 		suffix = *typedConfig.Suffix
 	}
 
+	var additionalTeams repositoryAdditionalMemberships
+	for _, team := range typedConfig.AdditionalMemberships {
+		team := team
+		additionalTeams = append(additionalTeams, repositoryAdditionalMembership{
+			teamSlug:   team.TeamSlug,
+			permission: team.Permission,
+		})
+	}
+
 	return &repositoryMaintainers{
-		logger: logger,
-		client: client,
-		suffix: suffix,
+		logger:          logger,
+		client:          client,
+		suffix:          suffix,
+		additionalTeams: additionalTeams,
 	}, nil
 }
 
@@ -65,6 +83,17 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		}
 	} else {
 		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
+	}
+
+	for _, additionalTeam := range r.additionalTeams {
+		additionalTeam := additionalTeam
+
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+			Permission: additionalTeam.permission,
+		})
+		if err != nil {
+			return fmt.Errorf("error adding additional team membership: %w", err)
+		}
 	}
 
 	return nil
