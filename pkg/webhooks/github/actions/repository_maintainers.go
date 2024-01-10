@@ -89,7 +89,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	for _, additionalTeam := range r.additionalTeams {
 		additionalTeam := additionalTeam
 
-		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, p.Creator, r.client.Owner(), &v3.TeamAddTeamRepoOptions{
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
 			Permission: additionalTeam.permission,
 		})
 		if err != nil {
