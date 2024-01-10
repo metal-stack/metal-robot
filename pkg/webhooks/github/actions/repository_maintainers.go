@@ -86,6 +86,13 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
 	}
 
+	r.additionalTeams = append([]repositoryAdditionalMembership{
+		{
+			teamSlug:   name,
+			permission: "maintain",
+		},
+	}, r.additionalTeams...)
+
 	for _, additionalTeam := range r.additionalTeams {
 		additionalTeam := additionalTeam
 
