@@ -19,9 +19,9 @@ type repositoryMaintainers struct {
 	additionalTeams repositoryAdditionalMemberships
 }
 
-type repositoryAdditionalMemberships []repositoryAdditionalMembership
+type repositoryAdditionalMemberships []repositoryTeamMembership
 
-type repositoryAdditionalMembership struct {
+type repositoryTeamMembership struct {
 	teamSlug   string
 	permission string
 }
@@ -49,7 +49,7 @@ func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.G
 	var additionalTeams repositoryAdditionalMemberships
 	for _, team := range typedConfig.AdditionalMemberships {
 		team := team
-		additionalTeams = append(additionalTeams, repositoryAdditionalMembership{
+		additionalTeams = append(additionalTeams, repositoryTeamMembership{
 			teamSlug:   team.TeamSlug,
 			permission: team.Permission,
 		})
@@ -86,21 +86,22 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
 	}
 
-	r.additionalTeams = append([]repositoryAdditionalMembership{
+	memberships := []repositoryTeamMembership{
 		{
 			teamSlug:   name,
 			permission: "maintain",
 		},
-	}, r.additionalTeams...)
+	}
+	memberships = append(memberships, r.additionalTeams...)
 
-	for _, additionalTeam := range r.additionalTeams {
-		additionalTeam := additionalTeam
+	for _, team := range memberships {
+		team := team
 
-		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), additionalTeam.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
-			Permission: additionalTeam.permission,
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), team.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+			Permission: team.permission,
 		})
 		if err != nil {
-			return fmt.Errorf("error adding additional team membership: %w", err)
+			return fmt.Errorf("error adding team membership: %w", err)
 		}
 	}
 
