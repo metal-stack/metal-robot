@@ -102,6 +102,8 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		})
 		if err != nil {
 			return fmt.Errorf("error adding team membership: %w", err)
+		} else {
+			r.logger.Infow("added team to repository", "repository", p.RepositoryName, "team", team.teamSlug, "permission", team.permission)
 		}
 	}
 
