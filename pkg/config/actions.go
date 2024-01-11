@@ -8,7 +8,11 @@ type WebhookAction struct {
 	Args   map[string]any `json:"args" description:"action configuration"`
 }
 type RepositoryMaintainersConfig struct {
-	Suffix *string `mapstructure:"suffix" description:"suffix for maintainers group"`
+	Suffix                *string `mapstructure:"suffix" description:"suffix for maintainers group"`
+	AdditionalMemberships []struct {
+		TeamSlug   string `mapstructure:"team" description:"the slug of the team"`
+		Permission string `mapstructure:"permission" description:"the permission for the team, must be one of "`
+	} `mapstructure:"additional-teams" description:"adds additional teams to this repository"`
 }
 
 type DocsPreviewCommentConfig struct {

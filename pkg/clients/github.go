@@ -9,7 +9,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"go.uber.org/zap"
 
-	v3 "github.com/google/go-github/v56/github"
+	v3 "github.com/google/go-github/v57/github"
 )
 
 type Github struct {
@@ -18,6 +18,7 @@ type Github struct {
 	appID          int64
 	installationID int64
 	organizationID string
+	owner          string
 	atr            *ghinstallation.AppsTransport
 	itr            *ghinstallation.Transport
 }
@@ -48,6 +49,8 @@ func (a *Github) initClients() error {
 	if err != nil {
 		return fmt.Errorf("error finding organization installation %w", err)
 	}
+
+	a.owner = *installation.Account.Login
 
 	a.installationID = installation.GetID()
 
@@ -83,4 +86,8 @@ func (a *Github) GitToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("error creating installation token %w", err)
 	}
 	return t.GetToken(), nil
+}
+
+func (a *Github) Owner() string {
+	return a.owner
 }

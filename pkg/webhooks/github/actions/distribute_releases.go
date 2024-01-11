@@ -9,8 +9,9 @@ import (
 
 	"errors"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v56/github"
+	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -111,6 +112,19 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	if !strings.HasPrefix(tag, "v") {
 		d.logger.Debugw("skip applying release actions to target repos because release tag not starting with v", "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
+	}
+
+	trimmed := strings.TrimPrefix(tag, "v")
+
+	parsedVersion, err := semver.NewVersion(trimmed)
+	if err != nil {
+		d.logger.Infow("skip applying release actions to target repos because not a valid semver release tag", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+		return nil //nolint:nilerr
+	}
+
+	if parsedVersion.Prerelease() != "" {
+		d.logger.Infow("skip applying release actions to target repos because is a pre-release", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+		return nil //nolint:nilerr
 	}
 
 	token, err := d.client.GitToken(ctx)

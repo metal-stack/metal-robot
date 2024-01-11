@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	v3 "github.com/google/go-github/v56/github"
+	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -13,9 +13,17 @@ import (
 )
 
 type repositoryMaintainers struct {
-	logger *zap.SugaredLogger
-	client *clients.Github
-	suffix string
+	logger          *zap.SugaredLogger
+	client          *clients.Github
+	suffix          string
+	additionalTeams repositoryAdditionalMemberships
+}
+
+type repositoryAdditionalMemberships []repositoryTeamMembership
+
+type repositoryTeamMembership struct {
+	teamSlug   string
+	permission string
 }
 
 type repositoryMaintainersParams struct {
@@ -38,10 +46,20 @@ func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.G
 		suffix = *typedConfig.Suffix
 	}
 
+	var additionalTeams repositoryAdditionalMemberships
+	for _, team := range typedConfig.AdditionalMemberships {
+		team := team
+		additionalTeams = append(additionalTeams, repositoryTeamMembership{
+			teamSlug:   team.TeamSlug,
+			permission: team.Permission,
+		})
+	}
+
 	return &repositoryMaintainers{
-		logger: logger,
-		client: client,
-		suffix: suffix,
+		logger:          logger,
+		client:          client,
+		suffix:          suffix,
+		additionalTeams: additionalTeams,
 	}, nil
 }
 
@@ -59,12 +77,34 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		Privacy:     v3.String("closed"),
 	})
 	if err != nil {
-		// Could be that team already exists...
-		if !strings.Contains(err.Error(), "Name must be unique for this org") {
+		if strings.Contains(err.Error(), "Name must be unique for this org") {
+			r.logger.Infow("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
+		} else {
 			return fmt.Errorf("error creating maintainers team %w", err)
 		}
 	} else {
 		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
+	}
+
+	memberships := []repositoryTeamMembership{
+		{
+			teamSlug:   name,
+			permission: "maintain",
+		},
+	}
+	memberships = append(memberships, r.additionalTeams...)
+
+	for _, team := range memberships {
+		team := team
+
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), team.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+			Permission: team.permission,
+		})
+		if err != nil {
+			return fmt.Errorf("error adding team membership: %w", err)
+		} else {
+			r.logger.Infow("added team to repository", "repository", p.RepositoryName, "team", team.teamSlug, "permission", team.permission)
+		}
 	}
 
 	return nil
