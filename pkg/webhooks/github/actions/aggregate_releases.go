@@ -11,7 +11,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	"github.com/davecgh/go-spew/spew"
 	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
@@ -246,12 +245,8 @@ func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest,
 		return true, fmt.Errorf("unable to list pull request comments: %w", err)
 	}
 
-	spew.Dump(comments)
-
 	for _, comment := range comments {
 		comment := comment
-
-		spew.Dump(comment)
 
 		if ok := searchForCommandInComment(pointer.SafeDeref(comment.Body), IssueCommentReleaseFreeze); ok {
 			return true, nil
