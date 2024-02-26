@@ -123,13 +123,13 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 		return nil
 	}
 
-	openPR, err := findOpenReleasePR(ctx, r.client, r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
 		return err
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client, openPR)
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR)
 		if err != nil {
 			return err
 		}
@@ -220,8 +220,8 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	return nil
 }
 
-func findOpenReleasePR(ctx context.Context, client *clients.Github, owner, repo, branch, base string) (*v3.PullRequest, error) {
-	prs, _, err := client.GetV3AppClient().PullRequests.List(ctx, owner, repo, &v3.PullRequestListOptions{
+func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, branch, base string) (*v3.PullRequest, error) {
+	prs, _, err := client.PullRequests.List(ctx, owner, repo, &v3.PullRequestListOptions{
 		State: "open",
 		Head:  branch,
 		Base:  base,
@@ -237,8 +237,8 @@ func findOpenReleasePR(ctx context.Context, client *clients.Github, owner, repo,
 	return nil, nil
 }
 
-func isReleaseFreeze(ctx context.Context, client *clients.Github, pr *v3.PullRequest) (bool, error) {
-	comments, _, err := client.GetV3AppClient().PullRequests.ListComments(ctx, *pr.Base.Repo.Owner.Name, *pr.Base.Repo.Name, pointer.SafeDeref(pr.Number), &v3.PullRequestListCommentsOptions{
+func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest) (bool, error) {
+	comments, _, err := client.PullRequests.ListComments(ctx, *pr.Base.Repo.Owner.Name, *pr.Base.Repo.Name, pointer.SafeDeref(pr.Number), &v3.PullRequestListCommentsOptions{
 		Direction: "desc",
 	})
 	if err != nil {

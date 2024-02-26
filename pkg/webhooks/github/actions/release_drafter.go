@@ -162,13 +162,13 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return nil //nolint:nilerr
 	}
 
-	openPR, err := findOpenReleasePR(ctx, r.client, r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
 		return err
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client, openPR)
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR)
 		if err != nil {
 			return err
 		}
