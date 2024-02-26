@@ -137,7 +137,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 		if frozen {
 			log.Infow("skip applying release actions to aggregation repo because release is currently frozen")
 
-			_, _, err = r.client.GetV3Client().PullRequests.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.PullRequestComment{
+			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.IssueComment{
 				Body: v3.String(fmt.Sprintf("Release `%v` in repository %q (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
 					p.TagName,
 					p.RepositoryName,
