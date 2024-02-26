@@ -168,7 +168,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR)
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR, r.client.Organization(), r.repoName)
 		if err != nil {
 			return err
 		}

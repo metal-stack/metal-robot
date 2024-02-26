@@ -129,7 +129,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR)
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR, r.client.Organization(), r.repoName)
 		if err != nil {
 			return err
 		}
@@ -237,8 +237,8 @@ func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, bran
 	return nil, nil
 }
 
-func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest) (bool, error) {
-	comments, _, err := client.PullRequests.ListComments(ctx, *pr.Base.Repo.Owner.Name, *pr.Base.Repo.Name, pointer.SafeDeref(pr.Number), &v3.PullRequestListCommentsOptions{
+func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest, owner, repo string) (bool, error) {
+	comments, _, err := client.PullRequests.ListComments(ctx, owner, repo, pointer.SafeDeref(pr.Number), &v3.PullRequestListCommentsOptions{
 		Direction: "desc",
 	})
 	if err != nil {
