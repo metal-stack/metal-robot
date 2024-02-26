@@ -120,6 +120,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        payload.Release.TagName,
+				Sender:         payload.Sender.Login,
 			}
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {
@@ -249,6 +250,7 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
 				TagName:        extractTag(payload),
+				Sender:         payload.Sender.Login,
 			}
 
 			err := a.AggregateRelease(ctx, params)

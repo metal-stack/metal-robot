@@ -16,13 +16,17 @@ import (
 type IssueCommentCommand string
 
 const (
-	IssueCommentCommandPrefix                     = "/"
-	IssueCommentBuildFork     IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
+	IssueCommentCommandPrefix                       = "/"
+	IssueCommentBuildFork       IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
+	IssueCommentReleaseFreeze   IssueCommentCommand = IssueCommentCommandPrefix + "freeze"
+	IssueCommentReleaseUnfreeze IssueCommentCommand = IssueCommentCommandPrefix + "unfreeze"
 )
 
 var (
 	IssueCommentCommands = map[IssueCommentCommand]bool{
-		IssueCommentBuildFork: true,
+		IssueCommentBuildFork:       true,
+		IssueCommentReleaseFreeze:   true,
+		IssueCommentReleaseUnfreeze: true,
 	}
 
 	AllowedAuthorAssociations = map[string]bool{
@@ -80,21 +84,14 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	comment := strings.TrimSpace(p.Comment)
-
-	_, ok = IssueCommentCommands[IssueCommentCommand(comment)]
-	if !ok {
-		r.logger.Debugw("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
-		return nil
+	if ok := searchForCommandInComment(p.Comment, IssueCommentBuildFork); ok {
+		err := r.buildForkPR(ctx, p)
+		if err != nil {
+			return err
+		}
 	}
 
-	switch IssueCommentCommand(comment) {
-	case IssueCommentBuildFork:
-		return r.buildForkPR(ctx, p)
-	default:
-		r.logger.Debugw("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
-		return nil
-	}
+	return nil
 }
 
 func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) error {
@@ -139,4 +136,23 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	return nil
+}
+
+func searchForCommandInComment(comment string, want IssueCommentCommand) bool {
+	for _, line := range strings.Split(comment, "\n") {
+		line = strings.TrimSpace(line)
+
+		cmd := IssueCommentCommand(line)
+
+		_, ok := IssueCommentCommands[cmd]
+		if !ok {
+			continue
+		}
+
+		if cmd == want {
+			return true
+		}
+	}
+
+	return false
 }
