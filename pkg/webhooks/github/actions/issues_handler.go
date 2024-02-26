@@ -84,7 +84,7 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	if ok := searchForCommandInComment(p.Comment, IssueCommentBuildFork); ok {
+	if ok := searchForCommandInBody(p.Comment, IssueCommentBuildFork); ok {
 		err := r.buildForkPR(ctx, p)
 		if err != nil {
 			return err
@@ -138,7 +138,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	return nil
 }
 
-func searchForCommandInComment(comment string, want IssueCommentCommand) bool {
+func searchForCommandInBody(comment string, want IssueCommentCommand) bool {
 	for _, line := range strings.Split(comment, "\n") {
 		line = strings.TrimSpace(line)
 
