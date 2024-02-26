@@ -239,8 +239,8 @@ func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, bran
 }
 
 func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest, owner, repo string) (bool, error) {
-	comments, _, err := client.PullRequests.ListComments(ctx, owner, repo, pointer.SafeDeref(pr.Number), &v3.PullRequestListCommentsOptions{
-		Direction: "desc",
+	comments, _, err := client.Issues.ListComments(ctx, owner, repo, *pr.Number, &v3.IssueListCommentsOptions{
+		Direction: v3.String("desc"),
 	})
 	if err != nil {
 		return true, fmt.Errorf("unable to list pull request comments: %w", err)
