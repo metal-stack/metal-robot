@@ -25,6 +25,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
+require github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
