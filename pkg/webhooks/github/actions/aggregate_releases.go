@@ -37,6 +37,7 @@ type AggregateReleases struct {
 
 type AggregateReleaseParams struct {
 	RepositoryName string
+	RepositoryURL  string
 	TagName        string
 	Sender         string
 }
@@ -129,7 +130,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), openPR, r.client.Organization(), r.repoName)
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
 			return err
 		}
@@ -138,9 +139,9 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			log.Infow("skip applying release actions to aggregation repo because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.IssueComment{
-				Body: v3.String(fmt.Sprintf("Release `%v` in repository %q (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
+				Body: v3.String(fmt.Sprintf("Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
 					p.TagName,
-					p.RepositoryName,
+					p.RepositoryURL,
 					p.Sender,
 				)),
 			})
@@ -237,8 +238,8 @@ func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, bran
 	return nil, nil
 }
 
-func isReleaseFreeze(ctx context.Context, client *v3.Client, pr *v3.PullRequest, owner, repo string) (bool, error) {
-	comments, _, err := client.Issues.ListComments(ctx, owner, repo, *pr.Number, &v3.IssueListCommentsOptions{
+func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, repo string) (bool, error) {
+	comments, _, err := client.Issues.ListComments(ctx, owner, repo, number, &v3.IssueListCommentsOptions{
 		Direction: v3.String("desc"),
 	})
 	if err != nil {
