@@ -30,12 +30,6 @@ var (
 		IssueCommentReleaseUnfreeze: true,
 		IssueCommentTag:             true,
 	}
-
-	AllowedAuthorAssociations = map[string]bool{
-		"COLLABORATOR": true,
-		"MEMBER":       true,
-		"OWNER":        true,
-	}
 )
 
 type IssuesAction struct {
@@ -47,11 +41,11 @@ type IssuesAction struct {
 
 type IssuesActionParams struct {
 	PullRequestNumber int
-	AuthorAssociation string
 	RepositoryName    string
 	RepositoryURL     string
 	Comment           string
 	CommentID         int64
+	User              string
 }
 
 func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
@@ -80,9 +74,13 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	_, ok = AllowedAuthorAssociations[p.AuthorAssociation]
-	if !ok {
-		r.logger.Debugw("skip handling issues comment action, author is not allowed", "source-repo", p.RepositoryName, "association", p.AuthorAssociation)
+	allowed, _, err := r.client.GetV3Client().Repositories.IsCollaborator(ctx, r.client.Organization(), p.RepositoryName, p.User)
+	if err != nil {
+		return fmt.Errorf("error determining collaborator status: %w", err)
+	}
+
+	if !allowed {
+		r.logger.Debugw("skip handling issues comment action, author is not allowed", "source-repo", p.RepositoryName, "author", p.User)
 		return nil
 	}
 

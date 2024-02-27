@@ -350,7 +350,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 				RepositoryURL:     payload.Repository.CloneURL,
 				Comment:           payload.Comment.Body,
 				CommentID:         payload.Comment.ID,
-				AuthorAssociation: payload.Comment.AuthorAssociation,
+				User:              payload.Comment.User.Login,
 				PullRequestNumber: int(pullRequestNumber),
 			}
 
