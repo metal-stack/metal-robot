@@ -172,7 +172,7 @@ func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []st
 	targetRepoURL.User = url.UserPassword("x-access-token", token)
 
 	headRef := *pullRequest.Head.Ref
-	err = git.CreateTag(p.RepositoryURL, headRef, tag, p.User)
+	err = git.CreateTag(targetRepoURL.String(), headRef, tag, p.User)
 	if err != nil {
 		return err
 	}
