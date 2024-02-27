@@ -20,6 +20,7 @@ const (
 	IssueCommentBuildFork       IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
 	IssueCommentReleaseFreeze   IssueCommentCommand = IssueCommentCommandPrefix + "freeze"
 	IssueCommentReleaseUnfreeze IssueCommentCommand = IssueCommentCommandPrefix + "unfreeze"
+	IssueCommentTag             IssueCommentCommand = IssueCommentCommandPrefix + "tag"
 )
 
 var (
@@ -27,6 +28,7 @@ var (
 		IssueCommentBuildFork:       true,
 		IssueCommentReleaseFreeze:   true,
 		IssueCommentReleaseUnfreeze: true,
+		IssueCommentTag:             true,
 	}
 
 	AllowedAuthorAssociations = map[string]bool{
@@ -84,8 +86,15 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	if ok := searchForCommandInBody(p.Comment, IssueCommentBuildFork); ok {
+	if _, ok := searchForCommandInBody(p.Comment, IssueCommentBuildFork); ok {
 		err := r.buildForkPR(ctx, p)
+		if err != nil {
+			return err
+		}
+	}
+
+	if args, ok := searchForCommandInBody(p.Comment, IssueCommentTag); ok {
+		err := r.tag(ctx, p, args)
 		if err != nil {
 			return err
 		}
@@ -138,11 +147,50 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	return nil
 }
 
-func searchForCommandInBody(comment string, want IssueCommentCommand) bool {
+func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no tag name given, skipping")
+	}
+
+	tag := args[0]
+
+	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
+	if err != nil {
+		return fmt.Errorf("error finding issue related pull request %w", err)
+	}
+
+	token, err := r.client.GitToken(ctx)
+	if err != nil {
+		return fmt.Errorf("error creating git token %w", err)
+	}
+
+	targetRepoURL, err := url.Parse(p.RepositoryURL)
+	if err != nil {
+		return err
+	}
+	targetRepoURL.User = url.UserPassword("x-access-token", token)
+
+	headRef := *pullRequest.Head.Ref
+	err = git.CreateTag(p.RepositoryURL, headRef, tag)
+	if err != nil {
+		return err
+	}
+
+	r.logger.Infow("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
+
+	return nil
+}
+
+func searchForCommandInBody(comment string, want IssueCommentCommand) ([]string, bool) {
 	for _, line := range strings.Split(comment, "\n") {
 		line = strings.TrimSpace(line)
 
-		cmd := IssueCommentCommand(line)
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+
+		cmd, args := IssueCommentCommand(fields[0]), fields[1:]
 
 		_, ok := IssueCommentCommands[cmd]
 		if !ok {
@@ -150,9 +198,9 @@ func searchForCommandInBody(comment string, want IssueCommentCommand) bool {
 		}
 
 		if cmd == want {
-			return true
+			return args, true
 		}
 	}
 
-	return false
+	return nil, false
 }

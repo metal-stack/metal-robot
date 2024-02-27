@@ -116,6 +116,51 @@ func DeleteBranch(repoURL, branch string) error {
 	return nil
 }
 
+func CreateTag(repoURL, branch, tag string) error {
+	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+		URL:   repoURL,
+		Depth: 1,
+	})
+	if err != nil {
+		return fmt.Errorf("error cloning git repo %w", err)
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return fmt.Errorf("error retrieving git worktree %w", err)
+	}
+
+	err = w.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.ReferenceName(defaultLocalRef + "/" + branch),
+		Force:  true,
+	})
+	if err != nil {
+		return fmt.Errorf("error during git checkout %w", err)
+	}
+
+	head, err := r.Head()
+	if err != nil {
+		return fmt.Errorf("error finding head %w", err)
+	}
+
+	_, err = r.CreateTag(tag, head.Hash(), &git.CreateTagOptions{})
+	if err != nil {
+		return fmt.Errorf("error creating tag %w", err)
+	}
+
+	err = r.Push(&git.PushOptions{
+		RemoteName: "origin",
+		RefSpecs: []config.RefSpec{
+			config.RefSpec("refs/tags/*:refs/tags/*"),
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("error pushing to repo %w", err)
+	}
+
+	return nil
+}
+
 func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	w, err := r.Worktree()
 	if err != nil {

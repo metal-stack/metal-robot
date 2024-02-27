@@ -249,11 +249,11 @@ func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, 
 	for _, comment := range comments {
 		comment := comment
 
-		if ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseFreeze); ok {
+		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseFreeze); ok {
 			return true, nil
 		}
 
-		if ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseUnfreeze); ok {
+		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseUnfreeze); ok {
 			return false, nil
 		}
 	}
