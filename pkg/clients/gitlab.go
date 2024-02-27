@@ -1,17 +1,18 @@
 package clients
 
 import (
+	"log/slog"
+
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"go.uber.org/zap"
 )
 
 type Gitlab struct {
-	logger         *zap.SugaredLogger
+	logger         *slog.Logger
 	token          string
 	organizationID string
 }
 
-func NewGitlab(logger *zap.SugaredLogger, token string) (*Gitlab, error) {
+func NewGitlab(logger *slog.Logger, token string) (*Gitlab, error) {
 	a := &Gitlab{
 		logger: logger,
 		token:  token,

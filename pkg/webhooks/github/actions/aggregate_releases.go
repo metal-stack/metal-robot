@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
@@ -17,11 +18,10 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 type AggregateReleases struct {
-	logger                *zap.SugaredLogger
+	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -39,7 +39,7 @@ type AggregateReleaseParams struct {
 	TagName        string
 }
 
-func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
+func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -107,7 +107,7 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip applying release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		r.logger.Debug("skip applying release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
@@ -115,7 +115,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	trimmed := strings.TrimPrefix(tag, "v")
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		r.logger.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		r.logger.Info("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr
 	}
 
@@ -159,12 +159,12 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
 		if errors.Is(err, git.NoChangesError) {
-			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
+			r.logger.Debug("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 		} else {
 			return fmt.Errorf("error pushing to target repository %w", err)
 		}
 	} else {
-		r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
+		r.logger.Info("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
 
 		once.Do(func() { r.lock.Unlock() })
 	}
@@ -181,7 +181,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			return err
 		}
 	} else {
-		r.logger.Infow("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
+		r.logger.Info("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
@@ -17,11 +18,10 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 type yamlTranslateReleases struct {
-	logger                *zap.SugaredLogger
+	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -50,7 +50,7 @@ type yamlTranslateReleaseParams struct {
 	TagName        string
 }
 
-func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*yamlTranslateReleases, error) {
+func newYAMLTranslateReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*yamlTranslateReleases, error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -133,7 +133,7 @@ func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github,
 func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTranslateReleaseParams) error {
 	translations, ok := r.translationMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip applying translate release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		r.logger.Debug("skip applying translate release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
@@ -141,7 +141,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 	trimmed := strings.TrimPrefix(tag, "v")
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		r.logger.Infow("skip applying translate release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		r.logger.Info("skip applying translate release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr
 	}
 
@@ -208,13 +208,13 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 	hash, err := git.CommitAndPush(targetRepository, commitMessage)
 	if err != nil {
 		if errors.Is(err, git.NoChangesError) {
-			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
+			r.logger.Debug("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 			return nil
 		}
 		return fmt.Errorf("error pushing to target repository %w", err)
 	}
 
-	r.logger.Infow("pushed to translate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
+	r.logger.Info("pushed to translate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
 
 	once.Do(func() { r.lock.Unlock() })
 
@@ -230,7 +230,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 			return err
 		}
 	} else {
-		r.logger.Infow("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
+		r.logger.Info("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
 	}
 
 	return nil

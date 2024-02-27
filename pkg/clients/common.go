@@ -2,9 +2,9 @@ package clients
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"go.uber.org/zap"
 )
 
 type ClientMap map[string]Client
@@ -14,7 +14,7 @@ type Client interface {
 	Organization() string
 }
 
-func InitClients(logger *zap.SugaredLogger, config []config.Client) (ClientMap, error) {
+func InitClients(logger *slog.Logger, config []config.Client) (ClientMap, error) {
 	cs := ClientMap{}
 	for _, clientConfig := range config {
 		ghConfig := clientConfig.GithubAuthConfig
@@ -25,7 +25,7 @@ func InitClients(logger *zap.SugaredLogger, config []config.Client) (ClientMap, 
 		}
 
 		if ghConfig != nil {
-			client, err := NewGithub(logger.Named(clientConfig.Name), clientConfig.OrganizationName, ghConfig)
+			client, err := NewGithub(logger.WithGroup(clientConfig.Name), clientConfig.OrganizationName, ghConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -34,7 +34,7 @@ func InitClients(logger *zap.SugaredLogger, config []config.Client) (ClientMap, 
 		}
 
 		if glConfig != nil {
-			client, err := NewGitlab(logger.Named(clientConfig.Name), glConfig.Token)
+			client, err := NewGitlab(logger.WithGroup(clientConfig.Name), glConfig.Token)
 			if err != nil {
 				return nil, err
 			}

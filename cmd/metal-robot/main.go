@@ -4,12 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -28,7 +27,7 @@ const (
 
 var (
 	cfgFile string
-	logger  *zap.SugaredLogger
+	logger  *slog.Logger
 
 	c *config.Configuration
 )
@@ -62,7 +61,7 @@ var cmd = &cobra.Command{
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		logger.Fatalw("an error occurred", "error", err)
+		log.Fatalf("an error occurred %s", err)
 	}
 }
 
@@ -141,25 +140,19 @@ func loadRobotConfig() error {
 }
 
 func initLogging() {
-	level := zap.InfoLevel
+	level := slog.LevelInfo
 
+	var lvlvar slog.LevelVar
 	if viper.IsSet("log-level") {
-		err := level.UnmarshalText([]byte(viper.GetString("log-level")))
+		err := lvlvar.UnmarshalText([]byte(viper.GetString("log-level")))
 		if err != nil {
 			log.Fatalf("can't initialize zap logger: %v", err)
 		}
+		level = lvlvar.Level()
 	}
 
-	cfg := zap.NewProductionConfig()
-	cfg.Level = zap.NewAtomicLevelAt(level)
-	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	l, err := cfg.Build()
-	if err != nil {
-		log.Fatalf("can't initialize zap logger: %v", err)
-	}
-
-	logger = l.Sugar()
+	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+	logger = slog.New(jsonHandler)
 }
 
 func run(opts *Opts) error {
@@ -174,7 +167,7 @@ func run(opts *Opts) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", opts.BindAddr, opts.Port)
-	logger.Infow("starting metal-robot server", "version", v.V.String(), "address", addr)
+	logger.Info("starting metal-robot server", "version", v.V.String(), "address", addr)
 	server := http.Server{
 		Addr:              addr,
 		ReadHeaderTimeout: 1 * time.Minute,

@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
@@ -17,7 +18,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -27,7 +27,7 @@ type distributeReleaseParams struct {
 }
 
 type distributeReleases struct {
-	logger                *zap.SugaredLogger
+	logger                *slog.Logger
 	client                *clients.Github
 	commitMessageTemplate string
 	branchTemplate        string
@@ -42,7 +42,7 @@ type targetRepo struct {
 	url     string
 }
 
-func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*distributeReleases, error) {
+func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*distributeReleases, error) {
 	var (
 		commitMessageTemplate = "Bump %s to version %s"
 		branchTemplate        = "auto-generate/%s"
@@ -104,13 +104,13 @@ func newDistributeReleases(logger *zap.SugaredLogger, client *clients.Github, ra
 // DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
 func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distributeReleaseParams) error {
 	if p.RepositoryName != d.repoName {
-		d.logger.Debugw("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+		d.logger.Debug("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
 	tag := p.TagName
 	if !strings.HasPrefix(tag, "v") {
-		d.logger.Debugw("skip applying release actions to target repos because release tag not starting with v", "source-repo", p.RepositoryName, "tag", p.TagName)
+		d.logger.Debug("skip applying release actions to target repos because release tag not starting with v", "source-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
 	}
 
@@ -118,12 +118,12 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 
 	parsedVersion, err := semver.NewVersion(trimmed)
 	if err != nil {
-		d.logger.Infow("skip applying release actions to target repos because not a valid semver release tag", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+		d.logger.Info("skip applying release actions to target repos because not a valid semver release tag", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr
 	}
 
 	if parsedVersion.Prerelease() != "" {
-		d.logger.Infow("skip applying release actions to target repos because is a pre-release", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+		d.logger.Info("skip applying release actions to target repos because is a pre-release", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil //nolint:nilerr
 	}
 
@@ -180,13 +180,13 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			hash, err := git.CommitAndPush(r, commitMessage)
 			if err != nil {
 				if errors.Is(err, git.NoChangesError) {
-					d.logger.Debugw("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
+					d.logger.Debug("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
 					return nil
 				}
 				return fmt.Errorf("error applying release updates %w", err)
 			}
 
-			d.logger.Infow("pushed to target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "branch", prBranch, "hash", hash)
+			d.logger.Info("pushed to target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "branch", prBranch, "hash", hash)
 
 			once.Do(func() { lock.Unlock() })
 
@@ -202,7 +202,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 					return err
 				}
 			} else {
-				d.logger.Infow("created pull request for target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "url", pr.GetURL())
+				d.logger.Info("created pull request for target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "url", pr.GetURL())
 			}
 
 			return nil
@@ -210,7 +210,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	}
 
 	if err := g.Wait(); err != nil {
-		d.logger.Errorw("errors occurred while applying release actions to target repos", "error", err)
+		d.logger.Error("errors occurred while applying release actions to target repos", "error", err)
 	}
 
 	return nil

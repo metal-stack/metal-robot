@@ -3,17 +3,17 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 type repositoryMaintainers struct {
-	logger          *zap.SugaredLogger
+	logger          *slog.Logger
 	client          *clients.Github
 	suffix          string
 	additionalTeams repositoryAdditionalMemberships
@@ -31,7 +31,7 @@ type repositoryMaintainersParams struct {
 	Creator        string
 }
 
-func newCreateRepositoryMaintainers(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*repositoryMaintainers, error) {
+func newCreateRepositoryMaintainers(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*repositoryMaintainers, error) {
 	var (
 		suffix = "-maintainers"
 	)
@@ -78,12 +78,12 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Name must be unique for this org") {
-			r.logger.Infow("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
+			r.logger.Info("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
 		} else {
 			return fmt.Errorf("error creating maintainers team %w", err)
 		}
 	} else {
-		r.logger.Infow("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
+		r.logger.Info("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
 	}
 
 	memberships := []repositoryTeamMembership{
@@ -103,7 +103,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("error adding team membership: %w", err)
 		} else {
-			r.logger.Infow("added team to repository", "repository", p.RepositoryName, "team", team.teamSlug, "permission", team.permission)
+			r.logger.Info("added team to repository", "repository", p.RepositoryName, "team", team.teamSlug, "permission", team.permission)
 		}
 	}
 

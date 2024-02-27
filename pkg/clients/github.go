@@ -3,17 +3,17 @@ package clients
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v57/github"
 )
 
 type Github struct {
-	logger         *zap.SugaredLogger
+	logger         *slog.Logger
 	keyPath        string
 	appID          int64
 	installationID int64
@@ -23,7 +23,7 @@ type Github struct {
 	itr            *ghinstallation.Transport
 }
 
-func NewGithub(logger *zap.SugaredLogger, organizationID string, config *config.GithubClient) (*Github, error) {
+func NewGithub(logger *slog.Logger, organizationID string, config *config.GithubClient) (*Github, error) {
 	a := &Github{
 		logger:         logger,
 		keyPath:        config.PrivateKeyCertPath,
@@ -59,7 +59,7 @@ func (a *Github) initClients() error {
 	a.atr = atr
 	a.itr = itr
 
-	a.logger.Infow("successfully initalized github app client", "organization-id", a.organizationID, "installation-id", a.installationID, "expected-events", installation.Events)
+	a.logger.Info("successfully initalized github app client", "organization-id", a.organizationID, "installation-id", a.installationID, "expected-events", installation.Events)
 
 	return nil
 }
