@@ -116,7 +116,7 @@ func DeleteBranch(repoURL, branch string) error {
 	return nil
 }
 
-func CreateTag(repoURL, branch, tag string) error {
+func CreateTag(repoURL, branch, tag, user string) error {
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:   repoURL,
 		Depth: 1,
@@ -155,6 +155,7 @@ func CreateTag(repoURL, branch, tag string) error {
 			Name:  defaultAuthor,
 			Email: defaultAuthorMail,
 		},
+		Message: "Bumped through metal-robot by " + user,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating tag: %w", err)
