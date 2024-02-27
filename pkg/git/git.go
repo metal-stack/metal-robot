@@ -150,7 +150,12 @@ func CreateTag(repoURL, branch, tag string) error {
 		return fmt.Errorf("error finding head: %w", err)
 	}
 
-	_, err = r.CreateTag(tag, head.Hash(), &git.CreateTagOptions{})
+	_, err = r.CreateTag(tag, head.Hash(), &git.CreateTagOptions{
+		Tagger: &object.Signature{
+			Name:  defaultAuthor,
+			Email: defaultAuthorMail,
+		},
+	})
 	if err != nil {
 		return fmt.Errorf("error creating tag: %w", err)
 	}
