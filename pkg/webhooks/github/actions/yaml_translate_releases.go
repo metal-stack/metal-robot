@@ -99,12 +99,10 @@ func newYAMLTranslateReleases(logger *zap.SugaredLogger, client *clients.Github,
 			for _, m := range t.To {
 				to, err := filepatchers.InitPatcher(m)
 				if err != nil {
-					fmt.Println("1")
 					return nil, err
 				}
 				yt.to = append(yt.to, to)
 			}
-			fmt.Println("2")
 
 			ts, ok := translationMap[n]
 			if !ok {
