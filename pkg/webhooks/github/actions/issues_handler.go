@@ -74,13 +74,16 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	allowed, _, err := r.client.GetV3Client().Repositories.IsCollaborator(ctx, r.client.Organization(), p.RepositoryName, p.User)
+	level, _, err := r.client.GetV3Client().Repositories.GetPermissionLevel(ctx, r.client.Organization(), p.RepositoryName, p.User)
 	if err != nil {
 		return fmt.Errorf("error determining collaborator status: %w", err)
 	}
 
-	if !allowed {
-		r.logger.Debugw("skip handling issues comment action, author is not allowed", "source-repo", p.RepositoryName, "author", p.User)
+	switch *level.Permission {
+	case "admin":
+		// fallthrough
+	default:
+		r.logger.Debugw("skip handling issues comment action, author does not have admin permissions on this repo", "source-repo", p.RepositoryName, "author", p.User)
 		return nil
 	}
 
