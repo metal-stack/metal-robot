@@ -182,7 +182,7 @@ func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []st
 }
 
 func searchForCommandInBody(comment string, want IssueCommentCommand) ([]string, bool) {
-	for _, line := range strings.Split(comment, "\n") {
+	for _, line := range strings.Split(strings.ReplaceAll(comment, "\r\n", "\n"), "\n") {
 		line = strings.TrimSpace(line)
 
 		fields := strings.Fields(line)
