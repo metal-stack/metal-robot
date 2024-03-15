@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 
 	v3 "github.com/google/go-github/v57/github"
 )
@@ -38,7 +38,7 @@ type codeBlock struct {
 }
 
 type releaseDrafter struct {
-	logger        *zap.SugaredLogger
+	logger        *slog.Logger
 	client        *clients.Github
 	branch        string
 	branchBase    string
@@ -57,7 +57,7 @@ type releaseDrafterParams struct {
 	ReleaseURL           string
 }
 
-func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*releaseDrafter, error) {
+func newReleaseDrafter(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*releaseDrafter, error) {
 	var (
 		releaseTitleTemplate = "%s"
 		draftHeadline        = "General"
@@ -123,7 +123,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's not a release vector repository)
 
 		if p.ComponentReleaseInfo == nil {
-			log.Debugw("skip adding release draft because not a release vector repo and no special sections")
+			log.Debug("skip adding release draft because not a release vector repo and no special sections")
 			return nil
 		}
 
@@ -141,7 +141,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		}
 		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, releaseSuffix)
 		if err != nil {
-			log.Debugw("skip adding release draft", "reason", err)
+			log.Debug("skip adding release draft", "reason", err)
 			return nil
 		}
 
@@ -152,13 +152,13 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 
 	componentTag := p.TagName
 	if !strings.HasPrefix(componentTag, "v") {
-		log.Debugw("skip adding release draft because tag not starting with v")
+		log.Debug("skip adding release draft because tag not starting with v")
 		return nil
 	}
 	trimmedVersion := strings.TrimPrefix(componentTag, "v")
 	componentSemver, err := semver.NewVersion(trimmedVersion)
 	if err != nil {
-		log.Debugw("skip adding release draft because tag is not semver compatible")
+		log.Debug("skip adding release draft because tag is not semver compatible")
 		return nil //nolint:nilerr
 	}
 
@@ -174,7 +174,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		}
 
 		if frozen {
-			log.Infow("skip adding release draft because release is currently frozen")
+			log.Info("skip adding release draft because release is currently frozen")
 			return nil
 		}
 	}
@@ -262,7 +262,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
 
 		if p.ComponentReleaseInfo == nil {
-			r.logger.Debugw("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
+			r.logger.Debug("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
 			return nil
 		}
 
@@ -276,7 +276,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.client.Organization(), p.RepositoryName, number)
 		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, &issueSuffix)
 		if err != nil {
-			r.logger.Debugw("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
+			r.logger.Debug("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
 			return nil
 		}
 
@@ -437,7 +437,7 @@ func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context) 
 		t = strings.TrimPrefix(t, "v")
 		latestTag, err := semver.NewVersion(t)
 		if err != nil {
-			r.logger.Warnw("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
+			r.logger.Warn("latest release of repository was not a semver tag", "repository", r.repoName, "latest-tag", *latest.TagName)
 		} else {
 			return "v" + latestTag.IncPatch().String(), nil
 		}
@@ -478,7 +478,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		if err != nil {
 			return fmt.Errorf("unable to update release draft %w", err)
 		}
-		r.logger.Infow("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
+		r.logger.Info("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	} else {
 		newDraft := &github.RepositoryRelease{
 			TagName: v3.String(infos.releaseTag),
@@ -490,7 +490,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		if err != nil {
 			return fmt.Errorf("unable to create release draft %w", err)
 		}
-		r.logger.Infow("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
+		r.logger.Info("new release draft created", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	}
 
 	return nil

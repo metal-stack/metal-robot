@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"sync"
@@ -18,11 +19,10 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 type AggregateReleases struct {
-	logger                *zap.SugaredLogger
+	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -42,7 +42,7 @@ type AggregateReleaseParams struct {
 	Sender         string
 }
 
-func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
+func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -112,7 +112,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		log.Debugw("skip applying release actions to aggregation repo, not in list of source repositories")
+		log.Debug("skip applying release actions to aggregation repo, not in list of source repositories")
 		return nil
 	}
 
@@ -120,7 +120,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	trimmed := strings.TrimPrefix(tag, "v")
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
+		log.Info("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
 		return nil
 	}
 
@@ -136,7 +136,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 		}
 
 		if frozen {
-			log.Infow("skip applying release actions to aggregation repo because release is currently frozen")
+			log.Info("skip applying release actions to aggregation repo because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.IssueComment{
 				Body: v3.String(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
@@ -193,12 +193,12 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
 		if errors.Is(err, git.NoChangesError) {
-			log.Debugw("skip push to target repository because nothing changed")
+			log.Debug("skip push to target repository because nothing changed")
 		} else {
 			return fmt.Errorf("error pushing to target repository %w", err)
 		}
 	} else {
-		log.Infow("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
+		log.Info("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
 
 		once.Do(func() { r.lock.Unlock() })
 	}
@@ -215,7 +215,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			return err
 		}
 	} else {
-		log.Infow("created pull request", "url", pr.GetURL())
+		log.Info("created pull request", "url", pr.GetURL())
 	}
 
 	return nil

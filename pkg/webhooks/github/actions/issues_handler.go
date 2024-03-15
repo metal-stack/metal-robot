@@ -3,6 +3,7 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 type IssueCommentCommand string
@@ -33,7 +33,7 @@ var (
 )
 
 type IssuesAction struct {
-	logger *zap.SugaredLogger
+	logger *slog.Logger
 	client *clients.Github
 
 	targetRepos map[string]bool
@@ -48,7 +48,7 @@ type IssuesActionParams struct {
 	User              string
 }
 
-func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
+func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
 	var typedConfig config.IssuesCommentHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -70,7 +70,7 @@ func NewIssuesAction(logger *zap.SugaredLogger, client *clients.Github, rawConfi
 func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionParams) error {
 	_, ok := r.targetRepos[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
+		r.logger.Debug("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
 		return nil
 	}
 
@@ -83,7 +83,7 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 	case "admin":
 		// fallthrough
 	default:
-		r.logger.Debugw("skip handling issues comment action, author does not have admin permissions on this repo", "source-repo", p.RepositoryName, "author", p.User)
+		r.logger.Debug("skip handling issues comment action, author does not have admin permissions on this repo", "source-repo", p.RepositoryName, "author", p.User)
 		return nil
 	}
 
@@ -111,7 +111,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	if pullRequest.Head.Repo.Fork == nil || !*pullRequest.Head.Repo.Fork {
-		r.logger.Debugw("skip handling issues comment action, pull request is not from a fork", "source-repo", p.RepositoryName)
+		r.logger.Debug("skip handling issues comment action, pull request is not from a fork", "source-repo", p.RepositoryName)
 		return nil
 	}
 
@@ -133,7 +133,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 		return fmt.Errorf("error pushing to target remote repository %w", err)
 	}
 
-	r.logger.Infow("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
+	r.logger.Info("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
 
 	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []st
 		return err
 	}
 
-	r.logger.Infow("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
+	r.logger.Info("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
 
 	return nil
 }

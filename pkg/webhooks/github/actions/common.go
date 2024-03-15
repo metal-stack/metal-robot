@@ -3,13 +3,13 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/constants"
-	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
 	ghwebhooks "github.com/go-playground/webhooks/v6/github"
@@ -26,7 +26,7 @@ const (
 )
 
 type WebhookActions struct {
-	logger *zap.SugaredLogger
+	logger *slog.Logger
 	rm     []*repositoryMaintainers
 	dp     []*docsPreviewComment
 	ar     []*AggregateReleases
@@ -36,7 +36,7 @@ type WebhookActions struct {
 	yr     []*yamlTranslateReleases
 }
 
-func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
+func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
 	actions := WebhookActions{
 		logger: logger,
 	}
@@ -100,7 +100,7 @@ func InitActions(logger *zap.SugaredLogger, cs clients.ClientMap, config config.
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
 
-		logger.Debugw("initialized github webhook action", "name", spec.Type)
+		logger.Debug("initialized github webhook action", "name", spec.Type)
 	}
 
 	return &actions, nil
@@ -125,7 +125,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 			}
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -147,7 +147,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 			}
 			err := a.draft(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error creating release draft", "repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error creating release draft", "repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -168,7 +168,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 			}
 			err := a.translateRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error creating translating release", "repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error creating translating release", "repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -177,7 +177,7 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 	}
 
 	if err := g.Wait(); err != nil {
-		w.logger.Errorw("errors processing event", "error", err)
+		w.logger.Error("errors processing event", "error", err)
 	}
 }
 
@@ -197,7 +197,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 			}
 			err := a.AddDocsPreviewComment(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", params.PullRequestNumber, "error", err)
+				w.logger.Error("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", params.PullRequestNumber, "error", err)
 				return err
 			}
 
@@ -224,7 +224,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 			}
 			err := a.appendMergedPR(ctx, payload.PullRequest.Title, payload.PullRequest.Number, payload.PullRequest.User.Login, params)
 			if err != nil {
-				w.logger.Errorw("error append merged PR to release draft", "repo", a.repoName, "pr", payload.PullRequest.Title, "error", err)
+				w.logger.Error("error append merged PR to release draft", "repo", a.repoName, "pr", payload.PullRequest.Title, "error", err)
 				return err
 			}
 
@@ -233,7 +233,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 	}
 
 	if err := g.Wait(); err != nil {
-		w.logger.Errorw("errors processing event", "error", err)
+		w.logger.Error("errors processing event", "error", err)
 	}
 }
 
@@ -257,7 +257,7 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -279,7 +279,7 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 
 			err := a.DistributeRelease(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error in distribute release action", "source-repo", params.RepositoryName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in distribute release action", "source-repo", params.RepositoryName, "tag", params.TagName, "error", err)
 				return err
 			}
 
@@ -288,7 +288,7 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 	}
 
 	if err := g.Wait(); err != nil {
-		w.logger.Errorw("errors processing event", "error", err)
+		w.logger.Error("errors processing event", "error", err)
 	}
 }
 
@@ -310,7 +310,7 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 			}
 			err := a.CreateRepositoryMaintainers(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error creating repository maintainers team", "repo", params.RepositoryName, "error", err)
+				w.logger.Error("error creating repository maintainers team", "repo", params.RepositoryName, "error", err)
 				return err
 			}
 
@@ -319,7 +319,7 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 	}
 
 	if err := g.Wait(); err != nil {
-		w.logger.Errorw("errors processing event", "error", err)
+		w.logger.Error("errors processing event", "error", err)
 	}
 }
 
@@ -356,7 +356,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 
 			err = i.HandleIssueComment(ctx, params)
 			if err != nil {
-				w.logger.Errorw("error in issue comment handler action", "source-repo", params.RepositoryName, "error", err)
+				w.logger.Error("error in issue comment handler action", "source-repo", params.RepositoryName, "error", err)
 				return err
 			}
 
@@ -365,7 +365,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 	}
 
 	if err := g.Wait(); err != nil {
-		w.logger.Errorw("errors processing event", "error", err)
+		w.logger.Error("errors processing event", "error", err)
 	}
 }
 

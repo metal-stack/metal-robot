@@ -1,12 +1,12 @@
 package actions
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 	v3 "github.com/google/go-github/v57/github"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
@@ -191,7 +191,7 @@ Some description
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			r := &releaseDrafter{
-				logger:        zaptest.NewLogger(t).Sugar(),
+				logger:        slog.Default(),
 				client:        nil,
 				draftHeadline: tt.headline,
 			}
@@ -319,7 +319,7 @@ Some description
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				r := &releaseDrafter{
-					logger:        zaptest.NewLogger(t).Sugar(),
+					logger:        slog.Default(),
 					client:        nil,
 					prHeadline:    "Merged Pull Requests",
 					draftHeadline: "General",

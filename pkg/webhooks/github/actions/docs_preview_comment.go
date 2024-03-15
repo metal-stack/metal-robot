@@ -3,18 +3,18 @@ package actions
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	v3 "github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
-	"go.uber.org/zap"
 )
 
 const ()
 
 type docsPreviewComment struct {
-	logger          *zap.SugaredLogger
+	logger          *slog.Logger
 	client          *clients.Github
 	commentTemplate string
 	repositoryName  string
@@ -24,7 +24,7 @@ type docsPreviewCommentParams struct {
 	PullRequestNumber int
 }
 
-func newDocsPreviewComment(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*docsPreviewComment, error) {
+func newDocsPreviewComment(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*docsPreviewComment, error) {
 	var (
 		commentTemplate = "#%d"
 	)
@@ -66,7 +66,7 @@ func (d *docsPreviewComment) AddDocsPreviewComment(ctx context.Context, p *docsP
 		return fmt.Errorf("error creating pull request comment in docs repo %w", err)
 	}
 
-	d.logger.Infow("added preview comment in docs repo", "url", c.GetURL())
+	d.logger.Info("added preview comment in docs repo", "url", c.GetURL())
 
 	return nil
 }
