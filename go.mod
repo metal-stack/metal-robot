@@ -9,10 +9,11 @@ require (
 	github.com/go-git/go-billy/v5 v5.5.0
 	// IMPORTANT: keep this version as long as https://github.com/go-git/go-git/issues/328 is open
 	github.com/go-git/go-git/v5 v5.3.0
-	github.com/go-playground/validator/v10 v10.18.0
+	github.com/go-playground/validator/v10 v10.19.0
 	github.com/go-playground/webhooks/v6 v6.3.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v57 v57.0.0
+	github.com/metal-stack/metal-lib v0.15.1
 	github.com/metal-stack/v v1.0.3
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/spf13/cobra v1.8.0
@@ -55,13 +56,13 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.20.0 // indirect
-	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
-	golang.org/x/mod v0.15.0 // indirect
-	golang.org/x/net v0.21.0 // indirect
-	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/exp v0.0.0-20240314144324-c7f7c6466f7f // indirect
+	golang.org/x/mod v0.16.0 // indirect
+	golang.org/x/net v0.22.0 // indirect
+	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	golang.org/x/tools v0.18.0 // indirect
+	golang.org/x/tools v0.19.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

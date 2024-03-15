@@ -62,7 +62,9 @@ func (w *WebhookActions) ProcessTagEvent(ctx context.Context, payload *glwebhook
 		g.Go(func() error {
 			params := &ghactions.AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.URL,
 				TagName:        extractTag(payload),
+				Sender:         payload.UserUsername,
 			}
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {

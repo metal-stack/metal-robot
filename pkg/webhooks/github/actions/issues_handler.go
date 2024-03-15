@@ -16,19 +16,19 @@ import (
 type IssueCommentCommand string
 
 const (
-	IssueCommentCommandPrefix                     = "/"
-	IssueCommentBuildFork     IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
+	IssueCommentCommandPrefix                       = "/"
+	IssueCommentBuildFork       IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
+	IssueCommentReleaseFreeze   IssueCommentCommand = IssueCommentCommandPrefix + "freeze"
+	IssueCommentReleaseUnfreeze IssueCommentCommand = IssueCommentCommandPrefix + "unfreeze"
+	IssueCommentTag             IssueCommentCommand = IssueCommentCommandPrefix + "tag"
 )
 
 var (
 	IssueCommentCommands = map[IssueCommentCommand]bool{
-		IssueCommentBuildFork: true,
-	}
-
-	AllowedAuthorAssociations = map[string]bool{
-		"COLLABORATOR": true,
-		"MEMBER":       true,
-		"OWNER":        true,
+		IssueCommentBuildFork:       true,
+		IssueCommentReleaseFreeze:   true,
+		IssueCommentReleaseUnfreeze: true,
+		IssueCommentTag:             true,
 	}
 )
 
@@ -41,11 +41,11 @@ type IssuesAction struct {
 
 type IssuesActionParams struct {
 	PullRequestNumber int
-	AuthorAssociation string
 	RepositoryName    string
 	RepositoryURL     string
 	Comment           string
 	CommentID         int64
+	User              string
 }
 
 func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
@@ -74,27 +74,34 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 		return nil
 	}
 
-	_, ok = AllowedAuthorAssociations[p.AuthorAssociation]
-	if !ok {
-		r.logger.Debug("skip handling issues comment action, author is not allowed", "source-repo", p.RepositoryName, "association", p.AuthorAssociation)
-		return nil
+	level, _, err := r.client.GetV3Client().Repositories.GetPermissionLevel(ctx, r.client.Organization(), p.RepositoryName, p.User)
+	if err != nil {
+		return fmt.Errorf("error determining collaborator status: %w", err)
 	}
 
-	comment := strings.TrimSpace(p.Comment)
-
-	_, ok = IssueCommentCommands[IssueCommentCommand(comment)]
-	if !ok {
-		r.logger.Debug("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
-		return nil
-	}
-
-	switch IssueCommentCommand(comment) {
-	case IssueCommentBuildFork:
-		return r.buildForkPR(ctx, p)
+	switch *level.Permission {
+	case "admin":
+		// fallthrough
 	default:
-		r.logger.Debug("skip handling issues comment action, message does not contain a valid command", "source-repo", p.RepositoryName)
+		r.logger.Debug("skip handling issues comment action, author does not have admin permissions on this repo", "source-repo", p.RepositoryName, "author", p.User)
 		return nil
 	}
+
+	if _, ok := searchForCommandInBody(p.Comment, IssueCommentBuildFork); ok {
+		err := r.buildForkPR(ctx, p)
+		if err != nil {
+			return err
+		}
+	}
+
+	if args, ok := searchForCommandInBody(p.Comment, IssueCommentTag); ok {
+		err := r.tag(ctx, p, args)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) error {
@@ -139,4 +146,62 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	return nil
+}
+
+func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no tag name given, skipping")
+	}
+
+	tag := args[0]
+
+	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
+	if err != nil {
+		return fmt.Errorf("error finding issue related pull request %w", err)
+	}
+
+	token, err := r.client.GitToken(ctx)
+	if err != nil {
+		return fmt.Errorf("error creating git token %w", err)
+	}
+
+	targetRepoURL, err := url.Parse(p.RepositoryURL)
+	if err != nil {
+		return err
+	}
+	targetRepoURL.User = url.UserPassword("x-access-token", token)
+
+	headRef := *pullRequest.Head.Ref
+	err = git.CreateTag(targetRepoURL.String(), headRef, tag, p.User)
+	if err != nil {
+		return err
+	}
+
+	r.logger.Info("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
+
+	return nil
+}
+
+func searchForCommandInBody(comment string, want IssueCommentCommand) ([]string, bool) {
+	for _, line := range strings.Split(strings.ReplaceAll(comment, "\r\n", "\n"), "\n") {
+		line = strings.TrimSpace(line)
+
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+
+		cmd, args := IssueCommentCommand(fields[0]), fields[1:]
+
+		_, ok := IssueCommentCommands[cmd]
+		if !ok {
+			continue
+		}
+
+		if cmd == want {
+			return args, true
+		}
+	}
+
+	return nil, false
 }

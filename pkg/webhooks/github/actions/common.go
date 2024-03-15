@@ -119,7 +119,9 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 			}
 			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.HTMLURL,
 				TagName:        payload.Release.TagName,
+				Sender:         payload.Sender.Login,
 			}
 			err := a.AggregateRelease(ctx, params)
 			if err != nil {
@@ -248,7 +250,9 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 			}
 			params := &AggregateReleaseParams{
 				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.HTMLURL,
 				TagName:        extractTag(payload),
+				Sender:         payload.Sender.Login,
 			}
 
 			err := a.AggregateRelease(ctx, params)
@@ -346,7 +350,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 				RepositoryURL:     payload.Repository.CloneURL,
 				Comment:           payload.Comment.Body,
 				CommentID:         payload.Comment.ID,
-				AuthorAssociation: payload.Comment.AuthorAssociation,
+				User:              payload.Comment.User.Login,
 				PullRequestNumber: int(pullRequestNumber),
 			}
 
