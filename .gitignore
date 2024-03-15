@@ -4,3 +4,5 @@ vendor/
 .vscode
 coverage.out
 *.pem
+.kubeconfig
+gke_gcloud_auth_plugin_cache

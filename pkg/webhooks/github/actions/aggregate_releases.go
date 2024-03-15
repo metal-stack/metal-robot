@@ -12,6 +12,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
 	v3 "github.com/google/go-github/v57/github"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -36,7 +37,9 @@ type AggregateReleases struct {
 
 type AggregateReleaseParams struct {
 	RepositoryName string
+	RepositoryURL  string
 	TagName        string
+	Sender         string
 }
 
 func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
@@ -105,9 +108,11 @@ func NewAggregateReleases(logger *zap.SugaredLogger, client *clients.Github, raw
 
 // AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
 func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
+	log := r.logger.With("target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debugw("skip applying release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		log.Debugw("skip applying release actions to aggregation repo, not in list of source repositories")
 		return nil
 	}
 
@@ -115,8 +120,37 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	trimmed := strings.TrimPrefix(tag, "v")
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		r.logger.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
-		return nil //nolint:nilerr
+		log.Infow("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
+		return nil
+	}
+
+	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	if err != nil {
+		return err
+	}
+
+	if openPR != nil {
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
+		if err != nil {
+			return err
+		}
+
+		if frozen {
+			log.Infow("skip applying release actions to aggregation repo because release is currently frozen")
+
+			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.IssueComment{
+				Body: v3.String(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
+					p.TagName,
+					p.RepositoryURL,
+					p.Sender,
+				)),
+			})
+			if err != nil {
+				return fmt.Errorf("unable to create comment for rejected release aggregation: %w", err)
+			}
+
+			return nil
+		}
 	}
 
 	// preventing concurrent git repo modifications
@@ -159,12 +193,12 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
 		if errors.Is(err, git.NoChangesError) {
-			r.logger.Debugw("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
+			log.Debugw("skip push to target repository because nothing changed")
 		} else {
 			return fmt.Errorf("error pushing to target repository %w", err)
 		}
 	} else {
-		r.logger.Infow("pushed to aggregate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
+		log.Infow("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
 
 		once.Do(func() { r.lock.Unlock() })
 	}
@@ -181,8 +215,48 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			return err
 		}
 	} else {
-		r.logger.Infow("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
+		log.Infow("created pull request", "url", pr.GetURL())
 	}
 
 	return nil
+}
+
+func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, branch, base string) (*v3.PullRequest, error) {
+	prs, _, err := client.PullRequests.List(ctx, owner, repo, &v3.PullRequestListOptions{
+		State: "open",
+		Head:  branch,
+		Base:  base,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to list pull requests: %w", err)
+	}
+
+	if len(prs) == 1 {
+		return prs[0], nil
+	}
+
+	return nil, nil
+}
+
+func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, repo string) (bool, error) {
+	comments, _, err := client.Issues.ListComments(ctx, owner, repo, number, &v3.IssueListCommentsOptions{
+		Direction: v3.String("desc"),
+	})
+	if err != nil {
+		return true, fmt.Errorf("unable to list pull request comments: %w", err)
+	}
+
+	for _, comment := range comments {
+		comment := comment
+
+		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseFreeze); ok {
+			return true, nil
+		}
+
+		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseUnfreeze); ok {
+			return false, nil
+		}
+	}
+
+	return false, nil
 }

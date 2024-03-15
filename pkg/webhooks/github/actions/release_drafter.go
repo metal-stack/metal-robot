@@ -40,6 +40,8 @@ type codeBlock struct {
 type releaseDrafter struct {
 	logger        *zap.SugaredLogger
 	client        *clients.Github
+	branch        string
+	branchBase    string
 	titleTemplate string
 	draftHeadline string
 	repoMap       map[string]bool
@@ -60,6 +62,8 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 		releaseTitleTemplate = "%s"
 		draftHeadline        = "General"
 		prHeadline           = "Merged Pull Requests"
+		branch               = "develop"
+		branchBase           = "master"
 	)
 
 	var typedConfig config.ReleaseDraftConfig
@@ -80,6 +84,12 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	if typedConfig.MergedPRsHeadline != nil {
 		prHeadline = *typedConfig.MergedPRsHeadline
 	}
+	if typedConfig.Branch != nil {
+		branch = *typedConfig.Branch
+	}
+	if typedConfig.BranchBase != nil && *typedConfig.BranchBase != "" {
+		branchBase = *typedConfig.BranchBase
+	}
 
 	repos := make(map[string]bool)
 	for name := range typedConfig.Repos {
@@ -93,6 +103,8 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 	return &releaseDrafter{
 		logger:        logger,
 		client:        client,
+		branch:        branch,
+		branchBase:    branchBase,
 		repoMap:       repos,
 		repoName:      typedConfig.RepositoryName,
 		titleTemplate: releaseTitleTemplate,
@@ -104,12 +116,14 @@ func newReleaseDrafter(logger *zap.SugaredLogger, client *clients.Github, rawCon
 
 // draft updates a release draft in a release repository
 func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) error {
+	log := r.logger.With("repo", p.RepositoryName, "release", p.TagName)
+
 	_, ok := r.repoMap[p.RepositoryName]
 	if !ok {
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's not a release vector repository)
 
 		if p.ComponentReleaseInfo == nil {
-			r.logger.Debugw("skip adding release draft because not a release vector repo and no special sections", "repo", p.RepositoryName, "release", p.TagName)
+			log.Debugw("skip adding release draft because not a release vector repo and no special sections")
 			return nil
 		}
 
@@ -127,7 +141,7 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		}
 		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, releaseSuffix)
 		if err != nil {
-			r.logger.Debugw("skip adding release draft", "reason", err, "repo", p.RepositoryName)
+			log.Debugw("skip adding release draft", "reason", err)
 			return nil
 		}
 
@@ -138,14 +152,31 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 
 	componentTag := p.TagName
 	if !strings.HasPrefix(componentTag, "v") {
-		r.logger.Debugw("skip adding release draft because tag not starting with v", "repo", p.RepositoryName, "release", componentTag)
+		log.Debugw("skip adding release draft because tag not starting with v")
 		return nil
 	}
 	trimmedVersion := strings.TrimPrefix(componentTag, "v")
 	componentSemver, err := semver.NewVersion(trimmedVersion)
 	if err != nil {
-		r.logger.Debugw("skip adding release draft because tag is not semver compatible", "repo", p.RepositoryName, "release", componentTag)
+		log.Debugw("skip adding release draft because tag is not semver compatible")
 		return nil //nolint:nilerr
+	}
+
+	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	if err != nil {
+		return err
+	}
+
+	if openPR != nil {
+		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
+		if err != nil {
+			return err
+		}
+
+		if frozen {
+			log.Infow("skip adding release draft because release is currently frozen")
+			return nil
+		}
 	}
 
 	infos, err := r.releaseInfos(ctx)

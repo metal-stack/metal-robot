@@ -72,6 +72,8 @@ type TargetRepo struct {
 type ReleaseDraftConfig struct {
 	Repos                map[string]any `mapstructure:"repos" description:"the repositories for that a release draft will be pushed"`
 	RepositoryName       string         `mapstructure:"repository" description:"the name of the release repo"`
+	Branch               *string        `mapstructure:"branch" description:"the branch considered for releases"`
+	BranchBase           *string        `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
 	ReleaseTitleTemplate *string        `mapstructure:"title-template" description:"custom template for the release title"`
 	DraftHeadline        *string        `mapstructure:"draft-headline" description:"custom headline for the release draft"`
 
