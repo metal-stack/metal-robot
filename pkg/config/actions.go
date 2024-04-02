@@ -21,7 +21,7 @@ type DocsPreviewCommentConfig struct {
 }
 
 type AggregateReleasesConfig struct {
-	TargetRepositoryName string                `mapstructure:"repository" description:"the name of the taget repo"`
+	TargetRepositoryName string                `mapstructure:"repository" description:"the name of the target repo"`
 	TargetRepositoryURL  string                `mapstructure:"repository-url" description:"the url of the target repo"`
 	Branch               *string               `mapstructure:"branch" description:"the branch to push in the target repo"`
 	BranchBase           *string               `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
@@ -44,7 +44,7 @@ type DistributeReleasesConfig struct {
 }
 
 type YAMLTranslateReleasesConfig struct {
-	TargetRepositoryName string                       `mapstructure:"repository" description:"the name of the taget repo"`
+	TargetRepositoryName string                       `mapstructure:"repository" description:"the name of the target repo"`
 	TargetRepositoryURL  string                       `mapstructure:"repository-url" description:"the url of the target repo"`
 	Branch               *string                      `mapstructure:"branch" description:"the branch to push in the target repo"`
 	BranchBase           *string                      `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
@@ -55,7 +55,7 @@ type YAMLTranslateReleasesConfig struct {
 
 type YAMLTranslation struct {
 	From YAMLTranslationRead `mapstructure:"from" description:"the yaml path from where to read the replacement value"`
-	To   []Modifier          `mapstructure:"to" description:"the actions to take on the traget repo with the read the replacement value"`
+	To   []Modifier          `mapstructure:"to" description:"the actions to take on the target repo with the read the replacement value"`
 }
 
 type YAMLTranslationRead struct {

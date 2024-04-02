@@ -52,7 +52,7 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 	)
 
 	var typedConfig config.AggregateReleasesConfig
-	err := mapstructure.Decode(rawConfig, &typedConfig)
+	err := mapstructure.Decode(rawConfig, &typedConfig) // nolint:musttag
 	if err != nil {
 		return nil, err
 	}
