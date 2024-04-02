@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 
@@ -246,6 +247,10 @@ func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, 
 		return true, fmt.Errorf("unable to list pull request comments: %w", err)
 	}
 
+	// somehow the direction parameter has no effect, it's always sorted in the same way?
+	// therefore sorting manually:
+	sort.Slice(comments, sortComments(comments))
+
 	for _, comment := range comments {
 		comment := comment
 
@@ -259,4 +264,10 @@ func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, 
 	}
 
 	return false, nil
+}
+
+func sortComments(comments []*v3.IssueComment) func(i, j int) bool {
+	return func(i, j int) bool {
+		return comments[j].CreatedAt.Before(comments[i].CreatedAt.Time)
+	}
 }
