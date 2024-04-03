@@ -50,7 +50,7 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 	)
 
 	var typedConfig config.DistributeReleasesConfig
-	err := mapstructure.Decode(rawConfig, &typedConfig)
+	err := mapstructure.Decode(rawConfig, &typedConfig) // nolint:musttag
 	if err != nil {
 		return nil, err
 	}

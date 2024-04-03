@@ -29,7 +29,7 @@ make swap
 # this requires:
 # - Ubuntu & Docker
 # - KUBECONFIG env var points to the cluster where the robot is deployed
-# - the deplyoment in the cluster needs to be called "metal-robot"
+# - the deployment in the cluster needs to be called "metal-robot"
 #
 # when you are done, exit the container shell
 # if your session was really long, telepresence sometimes does not swap

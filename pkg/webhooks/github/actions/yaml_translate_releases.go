@@ -59,7 +59,7 @@ func newYAMLTranslateReleases(logger *slog.Logger, client *clients.Github, rawCo
 	)
 
 	var typedConfig config.YAMLTranslateReleasesConfig
-	err := mapstructure.Decode(rawConfig, &typedConfig)
+	err := mapstructure.Decode(rawConfig, &typedConfig) // nolint:musttag
 	if err != nil {
 		return nil, err
 	}

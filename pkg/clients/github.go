@@ -59,7 +59,7 @@ func (a *Github) initClients() error {
 	a.atr = atr
 	a.itr = itr
 
-	a.logger.Info("successfully initalized github app client", "organization-id", a.organizationID, "installation-id", a.installationID, "expected-events", installation.Events)
+	a.logger.Info("successfully initialized github app client", "organization-id", a.organizationID, "installation-id", a.installationID, "expected-events", installation.Events)
 
 	return nil
 }
