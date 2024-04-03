@@ -14,8 +14,6 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/mitchellh/mapstructure"
-
-	v3 "github.com/google/go-github/v57/github"
 )
 
 var (
@@ -393,7 +391,7 @@ func ensureReleaseSection(m *markdown.Markdown, headline string) *markdown.Markd
 }
 
 type releaseInfos struct {
-	existing   *v3.RepositoryRelease
+	existing   *github.RepositoryRelease
 	releaseTag string
 	body       string
 }
@@ -481,10 +479,10 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		r.logger.Info("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	} else {
 		newDraft := &github.RepositoryRelease{
-			TagName: v3.String(infos.releaseTag),
-			Name:    v3.String(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
+			TagName: github.String(infos.releaseTag),
+			Name:    github.String(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
 			Body:    &body,
-			Draft:   v3.Bool(true),
+			Draft:   github.Bool(true),
 		}
 		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
 		if err != nil {
