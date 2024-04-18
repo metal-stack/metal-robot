@@ -133,7 +133,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 		headRef         = *pullRequest.Head.Ref
 		prNumber        = strconv.Itoa(*pullRequest.Number)
 		forkBuildBranch = "fork-build/" + prNumber
-		prTitle         = "Fork build for #" + prNumber
+		forkPrTitle     = "Fork build for #" + prNumber
 	)
 
 	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), forkBuildBranch, commitMessage)
@@ -142,7 +142,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), targetRepoURL.String(), &github.NewPullRequest{
-		Title:               github.String(prTitle),
+		Title:               github.String(forkPrTitle),
 		Head:                github.String(forkBuildBranch),
 		Base:                github.String(*pullRequest.Base.Ref),
 		Body:                github.String("Fork build for #" + prNumber + " triggered by @" + p.User),
@@ -167,6 +167,19 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
 	if err != nil {
 		return fmt.Errorf("error creating issue comment reaction %w", err)
+	}
+
+	_, _, err = r.client.GetV3Client().Issues.CreateComment(
+		ctx,
+		r.client.Organization(),
+		targetRepoURL.String(),
+		p.PullRequestNumber,
+		&github.IssueComment{
+			Body: github.String(fmt.Sprintf("Triggered build for this fork at #%d", *forkPr.Number)),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("error creating pull request comment: %w", err)
 	}
 
 	return nil
