@@ -141,7 +141,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 		return fmt.Errorf("error pushing to target remote repository %w", err)
 	}
 
-	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), targetRepoURL.String(), &github.NewPullRequest{
+	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), p.RepositoryName, &github.NewPullRequest{
 		Title:               github.String(forkPrTitle),
 		Head:                github.String(forkBuildBranch),
 		Base:                github.String(*pullRequest.Base.Ref),
@@ -157,7 +157,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	// and immediately close this PR again, it's just for building...
 	forkPr.State = github.String("closed")
 
-	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), targetRepoURL.String(), *forkPr.Number, forkPr)
+	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), p.RepositoryName, *forkPr.Number, forkPr)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	_, _, err = r.client.GetV3Client().Issues.CreateComment(
 		ctx,
 		r.client.Organization(),
-		targetRepoURL.String(),
+		p.RepositoryName,
 		p.PullRequestNumber,
 		&github.IssueComment{
 			Body: github.String(fmt.Sprintf("Triggered build for this fork at #%d", *forkPr.Number)),
