@@ -169,19 +169,6 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 		return fmt.Errorf("error creating issue comment reaction %w", err)
 	}
 
-	_, _, err = r.client.GetV3Client().Issues.CreateComment(
-		ctx,
-		r.client.Organization(),
-		p.RepositoryName,
-		p.PullRequestNumber,
-		&github.IssueComment{
-			Body: github.String(fmt.Sprintf("Triggered build for this fork at #%d", *forkPr.Number)),
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("error creating pull request comment: %w", err)
-	}
-
 	return nil
 }
 
