@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net/url"
+	"strconv"
 	"strings"
 
+	"github.com/google/go-github/v57/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -126,23 +128,45 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 	targetRepoURL.User = url.UserPassword("x-access-token", token)
 
-	headRef := *pullRequest.Head.Ref
-	commitMessage := "Triggering fork build approved by maintainer"
-	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), "fork-build/"+headRef, commitMessage)
+	var (
+		commitMessage   = "Triggering fork build approved by maintainer"
+		headRef         = *pullRequest.Head.Ref
+		prNumber        = strconv.Itoa(*pullRequest.Number)
+		forkBuildBranch = "fork-build/" + prNumber
+		forkPrTitle     = "Fork build for #" + prNumber
+	)
+
+	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), forkBuildBranch, commitMessage)
 	if err != nil {
 		return fmt.Errorf("error pushing to target remote repository %w", err)
 	}
 
-	r.logger.Info("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", headRef)
+	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), p.RepositoryName, &github.NewPullRequest{
+		Title:               github.String(forkPrTitle),
+		Head:                github.String(forkBuildBranch),
+		Base:                github.String(*pullRequest.Base.Ref),
+		Body:                github.String("Fork build for #" + prNumber + " triggered by @" + p.User),
+		MaintainerCanModify: github.Bool(true),
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "A pull request already exists") {
+			return err
+		}
+	}
+
+	// and immediately close this PR again, it's just for building...
+	forkPr.State = github.String("closed")
+
+	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), p.RepositoryName, *forkPr.Number, forkPr)
+	if err != nil {
+		return err
+	}
+
+	r.logger.Info("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", forkBuildBranch, "pull-request-url", forkPr.GetURL())
 
 	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
 	if err != nil {
 		return fmt.Errorf("error creating issue comment reaction %w", err)
-	}
-
-	err = git.DeleteBranch(targetRepoURL.String(), "fork-build/"+headRef)
-	if err != nil {
-		return err
 	}
 
 	return nil
