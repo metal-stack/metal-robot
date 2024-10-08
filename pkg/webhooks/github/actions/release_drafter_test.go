@@ -7,7 +7,12 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 	v3 "github.com/google/go-github/v57/github"
+
+	_ "embed"
 )
+
+//go:embed test/pr-template.md
+var prTemplate string
 
 func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 	tests := []struct {
@@ -186,6 +191,18 @@ Some description
 ### metal-robot v0.2.5
 * Fix (metal-stack/metal-robot#123) @Gerrit91`,
 		},
+		{
+			name:             "prevent pull request template with HTML body to be interpreted as release notes",
+			headline:         "General",
+			org:              "metal-stack",
+			component:        "metal-robot",
+			componentVersion: semver.MustParse("0.2.4"),
+			componentBody:    v3.String(prTemplate),
+			priorBody:        "",
+			want: `# General
+## Component Releases
+### metal-robot v0.2.4`,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -311,6 +328,18 @@ Some description
 ## Breaking Changes
 * API has changed (metal-stack/metal-robot#11)
 # Merged Pull Requests
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+		},
+		{
+			name:      "prevent pull request template with HTML body to be interpreted as release notes",
+			org:       "metal-stack",
+			repo:      "metal-robot",
+			title:     "Some new feature",
+			number:    11,
+			author:    "metal-robot",
+			priorBody: "",
+			prBody:    &prTemplate,
+			want: `# Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},
 	}
