@@ -347,7 +347,7 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 
 	if prBody != nil {
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", org, repo, number)
-		_ = r.prependCodeBlocks(m, stripHtmlComments(*prBody), &issueSuffix)
+		_ = r.prependCodeBlocks(m, *prBody, &issueSuffix)
 	}
 
 	return m.String()
@@ -355,6 +355,7 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 
 func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, issueSuffix *string) error {
 	changed := false
+	body = stripHtmlComments(body)
 
 	for _, b := range blocks {
 		actionBlock, err := markdown.ExtractAnnotatedBlock(b.identifier, body)
