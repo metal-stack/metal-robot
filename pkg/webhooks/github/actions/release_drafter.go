@@ -27,6 +27,10 @@ var (
 			identifier:      "BREAKING_CHANGE",
 			sectionHeadline: "Breaking Changes",
 		},
+		{
+			identifier:      "NOTEWORTHY",
+			sectionHeadline: "Noteworthy",
+		},
 	}
 )
 
