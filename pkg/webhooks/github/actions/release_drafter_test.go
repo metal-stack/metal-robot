@@ -313,6 +313,21 @@ Some description
 # Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},
+		{
+			name:      "creating fresh release draft with noteworthy code block",
+			org:       "metal-stack",
+			repo:      "metal-robot",
+			title:     "Some new feature",
+			number:    11,
+			author:    "metal-robot",
+			priorBody: "",
+			prBody:    v3.String("This is a new feature\r\n```NOTEWORTHY\r\nThis is important\r\n```"),
+			want: `# General
+## Noteworthy
+* This is important (metal-stack/metal-robot#11)
+# Merged Pull Requests
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+		},
 	}
 	for _, tt := range tests {
 		tt := tt
