@@ -208,7 +208,9 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 	// ensure component section
 	var body []string
 	if componentBody != nil {
-		for _, l := range markdown.SplitLines(*componentBody) {
+		strippedBody := stripHtmlComments(*componentBody)
+
+		for _, l := range markdown.SplitLines(strippedBody) {
 			l := strings.TrimSpace(l)
 
 			// TODO: we only add lines from bullet point list for now, but certainly we want to support more in the future.
@@ -230,7 +232,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			tmp := fmt.Sprintf("([release notes](%s))", releaseURL)
 			releaseSuffix = &tmp
 		}
-		_ = r.prependCodeBlocks(m, *componentBody, releaseSuffix)
+		_ = r.prependCodeBlocks(m, strippedBody, releaseSuffix)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -255,6 +257,26 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 	}
 
 	return m.String()
+}
+
+func stripHtmlComments(s string) string {
+	res := s
+
+	for {
+		before, afterCommentStart, ok := strings.Cut(res, "<!--")
+		if !ok {
+			break
+		}
+
+		_, after, ok := strings.Cut(afterCommentStart, "-->")
+		if !ok {
+			break
+		}
+
+		res = before + after
+	}
+
+	return res
 }
 
 // appends a merged pull request to the release draft
@@ -337,6 +359,7 @@ func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo st
 
 func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, issueSuffix *string) error {
 	changed := false
+	body = stripHtmlComments(body)
 
 	for _, b := range blocks {
 		actionBlock, err := markdown.ExtractAnnotatedBlock(b.identifier, body)
