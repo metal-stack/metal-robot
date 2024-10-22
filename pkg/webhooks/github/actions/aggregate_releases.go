@@ -111,26 +111,19 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
 	log := r.logger.With("target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 
-	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
+		Title:               v3.String("Next release"),
+		Head:                v3.String(r.branch),
+		Base:                v3.String(r.branchBase),
+		Body:                v3.String(r.pullRequestTitle),
+		MaintainerCanModify: v3.Bool(true),
+	})
 	if err != nil {
-		return err
-	}
-
-	if openPR == nil {
-		pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
-			Title:               v3.String("Next release"),
-			Head:                v3.String(r.branch),
-			Base:                v3.String(r.branchBase),
-			Body:                v3.String(r.pullRequestTitle),
-			MaintainerCanModify: v3.Bool(true),
-		})
-		if err != nil {
-			if !strings.Contains(err.Error(), "A pull request already exists") {
-				return err
-			}
-		} else {
-			log.Info("created pull request", "url", pr.GetURL())
+		if !strings.Contains(err.Error(), "A pull request already exists") {
+			return err
 		}
+	} else {
+		log.Info("created pull request", "url", pr.GetURL())
 	}
 
 	patches, ok := r.patchMap[p.RepositoryName]
@@ -145,6 +138,11 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	if err != nil {
 		log.Info("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
 		return nil
+	}
+
+	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	if err != nil {
+		return err
 	}
 
 	if openPR != nil {
