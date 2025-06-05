@@ -339,7 +339,7 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebh
 	for _, i := range w.ia {
 		i := i
 		g.Go(func() error {
-			if payload.Action != "created" {
+			if payload.Action != "opened" {
 				return nil
 			}
 
