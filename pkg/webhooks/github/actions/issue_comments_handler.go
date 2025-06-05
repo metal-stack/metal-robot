@@ -155,7 +155,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsA
 	}
 
 	// and immediately close this PR again, it's just for building...
-	forkPr.State = github.String("closed")
+	forkPr.State = github.Ptr("closed")
 
 	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), p.RepositoryName, *forkPr.Number, forkPr)
 	if err != nil {

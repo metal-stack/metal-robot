@@ -33,7 +33,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody: v3.String(`- Adding new feature
+			componentBody: v3.Ptr(`- Adding new feature
 - Fixed a bug`),
 			priorBody: "",
 			want: `# General
@@ -60,7 +60,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody:    v3.String(""),
+			componentBody:    v3.Ptr(""),
 			priorBody:        "",
 			want: `# General
 ## Component Releases
@@ -72,7 +72,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody: v3.String(`- Adding new feature
+			componentBody: v3.Ptr(`- Adding new feature
 - Fixed a bug`),
 			priorBody: `# General
 ## Component Releases
@@ -92,7 +92,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
+			componentBody:    v3.Ptr(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -115,7 +115,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
+			componentBody:    v3.Ptr(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -139,7 +139,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			componentBody:    v3.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -165,7 +165,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			componentBody:    v3.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			releaseURL:       "https://some-url",
 			want: `# General
 ## Required Actions
@@ -180,7 +180,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    v3.String("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			componentBody:    v3.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
 			releaseURL:       "https://some-url",
 			want: `# General
 ## Breaking Changes
@@ -197,7 +197,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody:    v3.String(prTemplate),
+			componentBody:    v3.Ptr(prTemplate),
 			priorBody:        "",
 			want: `# General
 ## Component Releases
@@ -308,7 +308,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    v3.String("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			prBody:    v3.Ptr("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Required Actions
 * API has changed (metal-stack/metal-robot#11)
@@ -323,7 +323,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    v3.String("This is a new feature\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			prBody:    v3.Ptr("This is a new feature\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Breaking Changes
 * API has changed (metal-stack/metal-robot#11)
@@ -350,7 +350,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    v3.String("This is a new feature\r\n```NOTEWORTHY\r\nThis is important\r\n```"),
+			prBody:    v3.Ptr("This is a new feature\r\n```NOTEWORTHY\r\nThis is important\r\n```"),
 			want: `# General
 ## Noteworthy
 * This is important (metal-stack/metal-robot#11)

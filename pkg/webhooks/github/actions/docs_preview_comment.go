@@ -59,7 +59,7 @@ func (d *docsPreviewComment) AddDocsPreviewComment(ctx context.Context, p *docsP
 		d.repositoryName,
 		p.PullRequestNumber,
 		&v3.IssueComment{
-			Body: v3.String(b),
+			Body: v3.Ptr(b),
 		},
 	)
 	if err != nil {

@@ -221,7 +221,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			groups := utils.RegexCapture(githubIssueRef, l)
 			issue, ok := groups["issue"]
 			if ok {
-				l = strings.Replace(l, groups["full_match"], fmt.Sprintf("(%s/%s#%s)", org, component, issue), -1)
+				l = strings.ReplaceAll(l, groups["full_match"], fmt.Sprintf("(%s/%s#%s)", org, component, issue))
 			}
 
 			body = append(body, l)
@@ -506,10 +506,10 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *relea
 		r.logger.Info("release draft updated", "repository", r.repoName, "trigger-component", p.RepositoryName, "version", p.TagName)
 	} else {
 		newDraft := &github.RepositoryRelease{
-			TagName: github.String(infos.releaseTag),
-			Name:    github.String(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
+			TagName: github.Ptr(infos.releaseTag),
+			Name:    github.Ptr(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
 			Body:    &body,
-			Draft:   github.Bool(true),
+			Draft:   github.Ptr(true),
 		}
 		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
 		if err != nil {

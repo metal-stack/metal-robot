@@ -71,10 +71,10 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 
 	_, _, err := r.client.GetV3Client().Teams.CreateTeam(ctx, r.client.Organization(), v3.NewTeam{
 		Name:        name,
-		Description: v3.String(description),
+		Description: v3.Ptr(description),
 		Maintainers: []string{p.Creator},
 		RepoNames:   []string{p.RepositoryName},
-		Privacy:     v3.String("closed"),
+		Privacy:     v3.Ptr("closed"),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Name must be unique for this org") {

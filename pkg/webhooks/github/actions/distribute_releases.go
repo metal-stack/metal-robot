@@ -12,7 +12,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	v3 "github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -179,7 +179,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			commitMessage := fmt.Sprintf(d.commitMessageTemplate, p.RepositoryName, tag)
 			hash, err := git.CommitAndPush(r, commitMessage)
 			if err != nil {
-				if errors.Is(err, git.NoChangesError) {
+				if errors.Is(err, git.ErrNoChanges) {
 					d.logger.Debug("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
 					return nil
 				}
@@ -190,12 +190,12 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 
 			once.Do(func() { lock.Unlock() })
 
-			pr, _, err := d.client.GetV3Client().PullRequests.Create(ctx, d.client.Organization(), targetRepoName, &v3.NewPullRequest{
-				Title:               v3.String(commitMessage),
-				Head:                v3.String(prBranch),
-				Base:                v3.String("master"),
-				Body:                v3.String(d.pullRequestTitle),
-				MaintainerCanModify: v3.Bool(true),
+			pr, _, err := d.client.GetV3Client().PullRequests.Create(ctx, d.client.Organization(), targetRepoName, &github.NewPullRequest{
+				Title:               github.Ptr(commitMessage),
+				Head:                github.Ptr(prBranch),
+				Base:                github.Ptr("master"),
+				Body:                github.Ptr(d.pullRequestTitle),
+				MaintainerCanModify: github.Ptr(true),
 			})
 			if err != nil {
 				if !strings.Contains(err.Error(), "A pull request already exists") {

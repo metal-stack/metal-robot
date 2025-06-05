@@ -16,7 +16,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 )
 
-var NoChangesError = fmt.Errorf("no changes")
+var ErrNoChanges = fmt.Errorf("no changes")
 
 const (
 	defaultLocalRef   = "refs/heads"
@@ -191,7 +191,7 @@ func CommitAndPush(r *git.Repository, msg string) (string, error) {
 	}
 
 	if status.IsClean() {
-		return "", NoChangesError
+		return "", ErrNoChanges
 	}
 
 	hash, err := w.Commit(msg, &git.CommitOptions{
@@ -261,7 +261,9 @@ func ReadRepoFile(r *git.Repository, path string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening repository file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
@@ -281,7 +283,9 @@ func WriteRepoFile(r *git.Repository, path string, data []byte) error {
 	if err != nil {
 		return fmt.Errorf("error opening repository file: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 
 	err = util.WriteFile(w.Filesystem, path, data, 0755)
 	if err != nil {

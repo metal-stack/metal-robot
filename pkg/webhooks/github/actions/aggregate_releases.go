@@ -140,7 +140,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 			log.Info("skip applying release actions to aggregation repo because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &v3.IssueComment{
-				Body: v3.String(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
+				Body: v3.Ptr(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
 					p.TagName,
 					p.RepositoryURL,
 					p.Sender,
@@ -193,7 +193,7 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	commitMessage := fmt.Sprintf(r.commitMessageTemplate, p.RepositoryName, tag)
 	hash, err := git.CommitAndPush(repository, commitMessage)
 	if err != nil {
-		if errors.Is(err, git.NoChangesError) {
+		if errors.Is(err, git.ErrNoChanges) {
 			log.Debug("skip push to target repository because nothing changed")
 		} else {
 			return fmt.Errorf("error pushing to target repository %w", err)
@@ -205,11 +205,11 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	}
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
-		Title:               v3.String("Next release"),
-		Head:                v3.String(r.branch),
-		Base:                v3.String(r.branchBase),
-		Body:                v3.String(r.pullRequestTitle),
-		MaintainerCanModify: v3.Bool(true),
+		Title:               v3.Ptr("Next release"),
+		Head:                v3.Ptr(r.branch),
+		Base:                v3.Ptr(r.branchBase),
+		Body:                v3.Ptr(r.pullRequestTitle),
+		MaintainerCanModify: v3.Ptr(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
@@ -241,7 +241,7 @@ func findOpenReleasePR(ctx context.Context, client *v3.Client, owner, repo, bran
 
 func isReleaseFreeze(ctx context.Context, client *v3.Client, number int, owner, repo string) (bool, error) {
 	comments, _, err := client.Issues.ListComments(ctx, owner, repo, number, &v3.IssueListCommentsOptions{
-		Direction: v3.String("desc"),
+		Direction: v3.Ptr("desc"),
 	})
 	if err != nil {
 		return true, fmt.Errorf("unable to list pull request comments: %w", err)

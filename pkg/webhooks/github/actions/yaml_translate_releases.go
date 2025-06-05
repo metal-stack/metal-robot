@@ -205,7 +205,7 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 	commitMessage := fmt.Sprintf(r.commitMessageTemplate, p.RepositoryName, tag)
 	hash, err := git.CommitAndPush(targetRepository, commitMessage)
 	if err != nil {
-		if errors.Is(err, git.NoChangesError) {
+		if errors.Is(err, git.ErrNoChanges) {
 			r.logger.Debug("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
 			return nil
 		}
@@ -217,11 +217,11 @@ func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTra
 	once.Do(func() { r.lock.Unlock() })
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &v3.NewPullRequest{
-		Title:               v3.String("Next release"),
-		Head:                v3.String(r.branch),
-		Base:                v3.String(r.branchBase),
-		Body:                v3.String(r.pullRequestTitle),
-		MaintainerCanModify: v3.Bool(true),
+		Title:               v3.Ptr("Next release"),
+		Head:                v3.Ptr(r.branch),
+		Base:                v3.Ptr(r.branchBase),
+		Body:                v3.Ptr(r.pullRequestTitle),
+		MaintainerCanModify: v3.Ptr(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
