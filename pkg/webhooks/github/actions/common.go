@@ -22,8 +22,8 @@ const (
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
-	ActionIssueCommentsHandler        string = "issue-comments"
-	ActionIssuesHandler               string = "issue"
+	ActionIssueCommentsHandler        string = "issue-handling"
+	ActionIssuesHandler               string = "issues"
 )
 
 type WebhookActions struct {
