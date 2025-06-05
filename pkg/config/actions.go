@@ -30,8 +30,11 @@ type AggregateReleasesConfig struct {
 	SourceRepos          map[string][]Modifier `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
-type IssuesCommentHandlerConfig struct {
+type IssueCommentsHandlerConfig struct {
 	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
+}
+
+type IssueHandlerConfig struct {
 }
 
 type DistributeReleasesConfig struct {

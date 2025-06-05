@@ -1,6 +1,8 @@
 module github.com/metal-stack/metal-robot
 
-go 1.22
+go 1.23.0
+
+toolchain go1.24.3
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
@@ -11,11 +13,12 @@ require (
 	github.com/go-git/go-git/v5 v5.3.0
 	github.com/go-playground/validator/v10 v10.19.0
 	github.com/go-playground/webhooks/v6 v6.3.0
-	github.com/google/go-cmp v0.6.0
-	github.com/google/go-github/v57 v57.0.0
+	github.com/google/go-cmp v0.7.0
+	github.com/google/go-github/v72 v72.0.0
 	github.com/metal-stack/metal-lib v0.15.1
 	github.com/metal-stack/v v1.0.3
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
 	github.com/tidwall/gjson v1.17.1
@@ -34,6 +37,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
+	github.com/google/go-github/v57 v57.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
@@ -47,6 +51,7 @@ require (
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
+	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect

@@ -22,7 +22,8 @@ const (
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
-	ActionIssuesHandler               string = "issue-handling"
+	ActionIssueCommentsHandler        string = "issue-comments"
+	ActionIssuesHandler               string = "issue"
 )
 
 type WebhookActions struct {
@@ -32,7 +33,8 @@ type WebhookActions struct {
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
-	ih     []*IssuesAction
+	ia     []*IssuesAction
+	ih     []*IssueCommentsAction
 	yr     []*yamlTranslateReleases
 }
 
@@ -92,6 +94,12 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 			actions.yr = append(actions.yr, h)
 		case ActionIssuesHandler:
 			h, err := NewIssuesAction(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.ia = append(actions.ia, h)
+		case ActionIssueCommentsHandler:
+			h, err := NewIssueCommentsAction(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -323,6 +331,39 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 	}
 }
 
+func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebhooks.IssuesPayload) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
+	defer cancel()
+	g, _ := errgroup.WithContext(ctx)
+
+	for _, i := range w.ia {
+		i := i
+		g.Go(func() error {
+			if payload.Action != "created" {
+				return nil
+			}
+
+			params := &IssuesActionParams{
+				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.CloneURL,
+				URL:            payload.Issue.URL,
+			}
+
+			err := i.HandleIssue(ctx, params)
+			if err != nil {
+				w.logger.Error("error in issue handler action", "source-repo", params.RepositoryName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		w.logger.Error("errors processing event", "error", err)
+	}
+}
+
 func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *ghwebhooks.IssueCommentPayload) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
@@ -345,7 +386,7 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 				return err
 			}
 
-			params := &IssuesActionParams{
+			params := &IssueCommentsActionParams{
 				RepositoryName:    payload.Repository.Name,
 				RepositoryURL:     payload.Repository.CloneURL,
 				Comment:           payload.Comment.Body,

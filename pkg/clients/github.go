@@ -9,7 +9,9 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/metal-stack/metal-robot/pkg/config"
 
-	v3 "github.com/google/go-github/v57/github"
+	v3 "github.com/google/go-github/v72/github"
+
+	"github.com/shurcooL/githubv4"
 )
 
 type Github struct {
@@ -78,6 +80,10 @@ func (a *Github) GetV3Client() *v3.Client {
 
 func (a *Github) GetV3AppClient() *v3.Client {
 	return v3.NewClient(&http.Client{Transport: a.atr})
+}
+
+func (a *Github) GetGraphQLClient() *githubv4.Client {
+	return githubv4.NewClient(&http.Client{Transport: a.itr})
 }
 
 func (a *Github) GitToken(ctx context.Context) (string, error) {
