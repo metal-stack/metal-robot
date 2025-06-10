@@ -15,7 +15,7 @@ type IssuesAction struct {
 	logger    *slog.Logger
 	client    *clients.Github
 	graphql   *githubv4.Client
-	projectID int
+	projectID string
 }
 
 type IssuesActionParams struct {

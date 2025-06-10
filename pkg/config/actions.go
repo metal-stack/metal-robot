@@ -35,7 +35,7 @@ type IssueCommentsHandlerConfig struct {
 }
 
 type IssueHandlerConfig struct {
-	ProjectID int `mapstructure:"project-id" description:"the project in which to move newly created issues"`
+	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues"`
 }
 
 type DistributeReleasesConfig struct {
