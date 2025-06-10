@@ -22,6 +22,8 @@ type IssuesActionParams struct {
 	RepositoryName string
 	RepositoryURL  string
 	NodeID         string
+	ID             int64
+	URL            string
 }
 
 func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
@@ -51,7 +53,11 @@ func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) 
 	var m struct {
 		AddProjectV2ItemById struct {
 			Item struct {
-				ID githubv4.ID
+				ID      githubv4.ID
+				Project struct {
+					Title  githubv4.String
+					Number githubv4.Int
+				}
 			}
 		} `graphql:"addProjectV2ItemById(input: $input)"`
 	}
@@ -65,6 +71,8 @@ func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) 
 	if err != nil {
 		return fmt.Errorf("error mutating graphql: %w", err)
 	}
+
+	r.logger.Info("added issue to project", "project-number", m.AddProjectV2ItemById.Item.Project.Number, "project-title", m.AddProjectV2ItemById.Item.Project.Title, "issue-url", p.URL)
 
 	return nil
 }
