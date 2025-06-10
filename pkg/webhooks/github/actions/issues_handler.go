@@ -12,15 +12,16 @@ import (
 )
 
 type IssuesAction struct {
-	logger  *slog.Logger
-	client  *clients.Github
-	graphql *githubv4.Client
+	logger    *slog.Logger
+	client    *clients.Github
+	graphql   *githubv4.Client
+	projectID int
 }
 
 type IssuesActionParams struct {
 	RepositoryName string
 	RepositoryURL  string
-	URL            string
+	ID             int64
 }
 
 func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
@@ -31,9 +32,10 @@ func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[
 	}
 
 	return &IssuesAction{
-		logger:  logger,
-		client:  client,
-		graphql: client.GetGraphQLClient(),
+		logger:    logger,
+		client:    client,
+		graphql:   client.GetGraphQLClient(),
+		projectID: typedConfig.ProjectID,
 	}, nil
 }
 
@@ -46,20 +48,21 @@ func (r *IssuesAction) HandleIssue(ctx context.Context, p *IssuesActionParams) e
 }
 
 func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) error {
-	var query struct {
-		Viewer struct {
-			Login     githubv4.String
-			CreatedAt githubv4.DateTime
-		}
+	var m struct {
+		Item struct {
+			ID githubv4.ID
+		} `graphql:"addProjectV2ItemById(input: $input)"`
 	}
 
-	err := r.graphql.Query(ctx, &query, nil)
+	input := githubv4.AddProjectV2ItemByIdInput{
+		ProjectID: r.projectID,
+		ContentID: p.ID,
+	}
+
+	err := r.graphql.Mutate(ctx, &m, input, nil)
 	if err != nil {
-		return fmt.Errorf("error querying graphql: %w", err)
+		return fmt.Errorf("error mutating graphql: %w", err)
 	}
-
-	fmt.Println("    Login:", query.Viewer.Login)
-	fmt.Println("CreatedAt:", query.Viewer.CreatedAt)
 
 	return nil
 }
