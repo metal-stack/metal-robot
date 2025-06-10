@@ -11,14 +11,14 @@ import (
 	"github.com/shurcooL/githubv4"
 )
 
-type IssuesAction struct {
+type projectItemAdd struct {
 	logger    *slog.Logger
 	client    *clients.Github
 	graphql   *githubv4.Client
 	projectID string
 }
 
-type IssuesActionParams struct {
+type projectItemAddParams struct {
 	RepositoryName string
 	RepositoryURL  string
 	NodeID         string
@@ -26,14 +26,14 @@ type IssuesActionParams struct {
 	URL            string
 }
 
-func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
-	var typedConfig config.IssueHandlerConfig
+func newProjectItemAdd(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*projectItemAdd, error) {
+	var typedConfig config.ProjectItemAddHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return &IssuesAction{
+	return &projectItemAdd{
 		logger:    logger,
 		client:    client,
 		graphql:   client.GetGraphQLClient(),
@@ -41,15 +41,15 @@ func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[
 	}, nil
 }
 
-func (r *IssuesAction) HandleIssue(ctx context.Context, p *IssuesActionParams) error {
+func (r *projectItemAdd) Handle(ctx context.Context, p *projectItemAddParams) error {
 	if err := r.addToProject(ctx, p); err != nil {
-		return fmt.Errorf("unable to add issue to project: %w", err)
+		return fmt.Errorf("unable to add item to project: %w", err)
 	}
 
 	return nil
 }
 
-func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) error {
+func (r *projectItemAdd) addToProject(ctx context.Context, p *projectItemAddParams) error {
 	var m struct {
 		AddProjectV2ItemById struct {
 			Item struct {
@@ -72,7 +72,7 @@ func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) 
 		return fmt.Errorf("error mutating graphql: %w", err)
 	}
 
-	r.logger.Info("added issue to project", "project-number", m.AddProjectV2ItemById.Item.Project.Number, "project-title", m.AddProjectV2ItemById.Item.Project.Title, "issue-url", p.URL)
+	r.logger.Info("added item to project", "project-number", m.AddProjectV2ItemById.Item.Project.Number, "project-title", m.AddProjectV2ItemById.Item.Project.Title, "url", p.URL)
 
 	return nil
 }

@@ -11,8 +11,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const ()
-
 type docsPreviewComment struct {
 	logger          *slog.Logger
 	client          *clients.Github

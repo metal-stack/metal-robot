@@ -23,7 +23,7 @@ const (
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
 	ActionIssueCommentsHandler        string = "issue-handling"
-	ActionIssuesHandler               string = "issues"
+	ActionProjectItemAddHandler       string = "add-items-to-project"
 )
 
 type WebhookActions struct {
@@ -33,7 +33,7 @@ type WebhookActions struct {
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
-	ia     []*IssuesAction
+	pa     []*projectItemAdd
 	ih     []*IssueCommentsAction
 	yr     []*yamlTranslateReleases
 }
@@ -92,14 +92,14 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 				return nil, err
 			}
 			actions.yr = append(actions.yr, h)
-		case ActionIssuesHandler:
-			h, err := NewIssuesAction(logger, c.(*clients.Github), spec.Args)
+		case ActionProjectItemAddHandler:
+			h, err := newProjectItemAdd(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.ia = append(actions.ia, h)
+			actions.pa = append(actions.pa, h)
 		case ActionIssueCommentsHandler:
-			h, err := NewIssueCommentsAction(logger, c.(*clients.Github), spec.Args)
+			h, err := newIssueCommentsAction(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +120,6 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "released" {
 				return nil
@@ -142,7 +141,6 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 	}
 
 	for _, a := range w.rd {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "released" {
 				return nil
@@ -164,7 +162,6 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 	}
 
 	for _, a := range w.yr {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "released" {
 				return nil
@@ -195,7 +192,6 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.dp {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "opened" || payload.Repository.Name != "docs" {
 				return nil
@@ -203,6 +199,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 			params := &docsPreviewCommentParams{
 				PullRequestNumber: int(payload.PullRequest.Number),
 			}
+
 			err := a.AddDocsPreviewComment(ctx, params)
 			if err != nil {
 				w.logger.Error("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", params.PullRequestNumber, "error", err)
@@ -214,7 +211,6 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 	}
 
 	for _, a := range w.rd {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "closed" {
 				return nil
@@ -240,6 +236,30 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 		})
 	}
 
+	for _, i := range w.pa {
+		g.Go(func() error {
+			if payload.Action != "opened" {
+				return nil
+			}
+
+			params := &projectItemAddParams{
+				RepositoryName: payload.Repository.Name,
+				RepositoryURL:  payload.Repository.CloneURL,
+				NodeID:         payload.PullRequest.NodeID,
+				ID:             payload.PullRequest.ID,
+				URL:            payload.PullRequest.URL,
+			}
+
+			err := i.Handle(ctx, params)
+			if err != nil {
+				w.logger.Error("error in project item add handler action", "source-repo", params.RepositoryName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
 	if err := g.Wait(); err != nil {
 		w.logger.Error("errors processing event", "error", err)
 	}
@@ -251,7 +271,6 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
-		a := a
 		g.Go(func() error {
 			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
 				return nil
@@ -274,7 +293,6 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 	}
 
 	for _, a := range w.dr {
-		a := a
 		g.Go(func() error {
 			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
 				return nil
@@ -306,7 +324,6 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.rm {
-		a := a
 		g.Go(func() error {
 			if payload.Action != "created" {
 				return nil
@@ -336,14 +353,13 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebh
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
-	for _, i := range w.ia {
-		i := i
+	for _, i := range w.pa {
 		g.Go(func() error {
 			if payload.Action != "opened" {
 				return nil
 			}
 
-			params := &IssuesActionParams{
+			params := &projectItemAddParams{
 				RepositoryName: payload.Repository.Name,
 				RepositoryURL:  payload.Repository.CloneURL,
 				NodeID:         payload.Issue.NodeID,
@@ -351,9 +367,9 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebh
 				URL:            payload.Issue.URL,
 			}
 
-			err := i.HandleIssue(ctx, params)
+			err := i.Handle(ctx, params)
 			if err != nil {
-				w.logger.Error("error in issue handler action", "source-repo", params.RepositoryName, "error", err)
+				w.logger.Error("error in project item add handler action", "source-repo", params.RepositoryName, "error", err)
 				return err
 			}
 
@@ -372,7 +388,6 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, i := range w.ih {
-		i := i
 		g.Go(func() error {
 			if payload.Action != "created" {
 				return nil

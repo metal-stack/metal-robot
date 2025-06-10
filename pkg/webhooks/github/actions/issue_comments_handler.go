@@ -50,7 +50,7 @@ type IssueCommentsActionParams struct {
 	User              string
 }
 
-func NewIssueCommentsAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssueCommentsAction, error) {
+func newIssueCommentsAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssueCommentsAction, error) {
 	var typedConfig config.IssueCommentsHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {

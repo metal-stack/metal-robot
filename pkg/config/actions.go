@@ -34,8 +34,8 @@ type IssueCommentsHandlerConfig struct {
 	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
 }
 
-type IssueHandlerConfig struct {
-	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues"`
+type ProjectItemAddHandlerConfig struct {
+	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
 }
 
 type DistributeReleasesConfig struct {
