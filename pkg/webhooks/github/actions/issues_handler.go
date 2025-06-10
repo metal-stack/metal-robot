@@ -21,7 +21,7 @@ type IssuesAction struct {
 type IssuesActionParams struct {
 	RepositoryName string
 	RepositoryURL  string
-	ID             int64
+	NodeID         string
 }
 
 func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
@@ -58,7 +58,7 @@ func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) 
 
 	input := githubv4.AddProjectV2ItemByIdInput{
 		ProjectID: r.projectID,
-		ContentID: p.ID,
+		ContentID: p.NodeID,
 	}
 
 	err := r.graphql.Mutate(ctx, &m, input, nil)

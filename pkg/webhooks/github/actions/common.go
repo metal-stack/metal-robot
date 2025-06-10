@@ -346,7 +346,7 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebh
 			params := &IssuesActionParams{
 				RepositoryName: payload.Repository.Name,
 				RepositoryURL:  payload.Repository.CloneURL,
-				ID:             payload.Issue.ID,
+				NodeID:         payload.Issue.NodeID,
 			}
 
 			err := i.HandleIssue(ctx, params)
