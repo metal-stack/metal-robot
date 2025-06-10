@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	v3 "github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -58,8 +58,8 @@ func (d *docsPreviewComment) AddDocsPreviewComment(ctx context.Context, p *docsP
 		d.client.Organization(),
 		d.repositoryName,
 		p.PullRequestNumber,
-		&v3.IssueComment{
-			Body: v3.Ptr(b),
+		&github.IssueComment{
+			Body: github.Ptr(b),
 		},
 	)
 	if err != nil {

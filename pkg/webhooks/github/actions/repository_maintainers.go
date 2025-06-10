@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	v3 "github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/mitchellh/mapstructure"
@@ -69,12 +69,12 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 		description = fmt.Sprintf("Maintainers of %s", p.RepositoryName)
 	)
 
-	_, _, err := r.client.GetV3Client().Teams.CreateTeam(ctx, r.client.Organization(), v3.NewTeam{
+	_, _, err := r.client.GetV3Client().Teams.CreateTeam(ctx, r.client.Organization(), github.NewTeam{
 		Name:        name,
-		Description: v3.Ptr(description),
+		Description: github.Ptr(description),
 		Maintainers: []string{p.Creator},
 		RepoNames:   []string{p.RepositoryName},
-		Privacy:     v3.Ptr("closed"),
+		Privacy:     github.Ptr("closed"),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Name must be unique for this org") {
@@ -97,7 +97,7 @@ func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context,
 	for _, team := range memberships {
 		team := team
 
-		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), team.teamSlug, r.client.Organization(), p.RepositoryName, &v3.TeamAddTeamRepoOptions{
+		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), team.teamSlug, r.client.Organization(), p.RepositoryName, &github.TeamAddTeamRepoOptions{
 			Permission: team.permission,
 		})
 		if err != nil {
