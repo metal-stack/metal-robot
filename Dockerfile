@@ -1,4 +1,4 @@
-FROM ghcr.io/metal-stack/builder:latest as builder
+FROM ghcr.io/metal-stack/builder:latest AS builder
 
 FROM alpine:3.22
 RUN apk add --no-cache ca-certificates
