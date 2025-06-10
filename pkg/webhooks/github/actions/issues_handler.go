@@ -49,8 +49,10 @@ func (r *IssuesAction) HandleIssue(ctx context.Context, p *IssuesActionParams) e
 
 func (r *IssuesAction) addToProject(ctx context.Context, p *IssuesActionParams) error {
 	var m struct {
-		Item struct {
-			ID githubv4.ID
+		AddProjectV2ItemById struct {
+			Item struct {
+				ID githubv4.ID
+			}
 		} `graphql:"addProjectV2ItemById(input: $input)"`
 	}
 
