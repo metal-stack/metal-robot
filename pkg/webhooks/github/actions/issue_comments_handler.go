@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v72/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
@@ -34,14 +34,14 @@ var (
 	}
 )
 
-type IssuesAction struct {
+type IssueCommentsAction struct {
 	logger *slog.Logger
 	client *clients.Github
 
 	targetRepos map[string]bool
 }
 
-type IssuesActionParams struct {
+type IssueCommentsActionParams struct {
 	PullRequestNumber int
 	RepositoryName    string
 	RepositoryURL     string
@@ -50,8 +50,8 @@ type IssuesActionParams struct {
 	User              string
 }
 
-func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssuesAction, error) {
-	var typedConfig config.IssuesCommentHandlerConfig
+func newIssueCommentsAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssueCommentsAction, error) {
+	var typedConfig config.IssueCommentsHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
 		return nil, err
@@ -62,14 +62,14 @@ func NewIssuesAction(logger *slog.Logger, client *clients.Github, rawConfig map[
 		targetRepos[name] = true
 	}
 
-	return &IssuesAction{
+	return &IssueCommentsAction{
 		logger:      logger,
 		client:      client,
 		targetRepos: targetRepos,
 	}, nil
 }
 
-func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionParams) error {
+func (r *IssueCommentsAction) HandleIssueComment(ctx context.Context, p *IssueCommentsActionParams) error {
 	_, ok := r.targetRepos[p.RepositoryName]
 	if !ok {
 		r.logger.Debug("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
@@ -106,7 +106,7 @@ func (r *IssuesAction) HandleIssueComment(ctx context.Context, p *IssuesActionPa
 	return nil
 }
 
-func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) error {
+func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsActionParams) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
 		return fmt.Errorf("error finding issue related pull request %w", err)
@@ -142,11 +142,11 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), p.RepositoryName, &github.NewPullRequest{
-		Title:               github.String(forkPrTitle),
-		Head:                github.String(forkBuildBranch),
-		Base:                github.String(*pullRequest.Base.Ref),
-		Body:                github.String("Fork build for #" + prNumber + " triggered by @" + p.User),
-		MaintainerCanModify: github.Bool(true),
+		Title:               github.Ptr(forkPrTitle),
+		Head:                github.Ptr(forkBuildBranch),
+		Base:                pullRequest.Base.Ref,
+		Body:                github.Ptr("Fork build for #" + prNumber + " triggered by @" + p.User),
+		MaintainerCanModify: github.Ptr(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
@@ -155,7 +155,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	}
 
 	// and immediately close this PR again, it's just for building...
-	forkPr.State = github.String("closed")
+	forkPr.State = github.Ptr("closed")
 
 	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), p.RepositoryName, *forkPr.Number, forkPr)
 	if err != nil {
@@ -172,7 +172,7 @@ func (r *IssuesAction) buildForkPR(ctx context.Context, p *IssuesActionParams) e
 	return nil
 }
 
-func (r *IssuesAction) tag(ctx context.Context, p *IssuesActionParams, args []string) error {
+func (r *IssueCommentsAction) tag(ctx context.Context, p *IssueCommentsActionParams, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("no tag name given, skipping")
 	}

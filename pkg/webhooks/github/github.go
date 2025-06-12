@@ -80,6 +80,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		go w.a.ProcessPushEvent(ctx, &payload)
 	case ghwebhooks.IssuesPayload:
 		w.logger.Debug("received issues event")
+		// nolint:contextcheck
+		go w.a.ProcessIssuesEvent(ctx, &payload)
 	case ghwebhooks.IssueCommentPayload:
 		w.logger.Debug("received issue comment event")
 		// nolint:contextcheck

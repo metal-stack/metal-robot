@@ -9,7 +9,9 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/metal-stack/metal-robot/pkg/config"
 
-	v3 "github.com/google/go-github/v57/github"
+	"github.com/google/go-github/v72/github"
+
+	"github.com/shurcooL/githubv4"
 )
 
 type Github struct {
@@ -45,7 +47,7 @@ func (a *Github) initClients() error {
 		return fmt.Errorf("error creating github app client %w", err)
 	}
 
-	installation, _, err := v3.NewClient(&http.Client{Transport: atr}).Apps.FindOrganizationInstallation(context.TODO(), a.organizationID)
+	installation, _, err := github.NewClient(&http.Client{Transport: atr}).Apps.FindOrganizationInstallation(context.TODO(), a.organizationID)
 	if err != nil {
 		return fmt.Errorf("error finding organization installation %w", err)
 	}
@@ -72,16 +74,20 @@ func (a *Github) Organization() string {
 	return a.organizationID
 }
 
-func (a *Github) GetV3Client() *v3.Client {
-	return v3.NewClient(&http.Client{Transport: a.itr})
+func (a *Github) GetV3Client() *github.Client {
+	return github.NewClient(&http.Client{Transport: a.itr})
 }
 
-func (a *Github) GetV3AppClient() *v3.Client {
-	return v3.NewClient(&http.Client{Transport: a.atr})
+func (a *Github) GetV3AppClient() *github.Client {
+	return github.NewClient(&http.Client{Transport: a.atr})
+}
+
+func (a *Github) GetGraphQLClient() *githubv4.Client {
+	return githubv4.NewClient(&http.Client{Transport: a.itr})
 }
 
 func (a *Github) GitToken(ctx context.Context) (string, error) {
-	t, _, err := a.GetV3AppClient().Apps.CreateInstallationToken(ctx, a.installationID, &v3.InstallationTokenOptions{})
+	t, _, err := a.GetV3AppClient().Apps.CreateInstallationToken(ctx, a.installationID, &github.InstallationTokenOptions{})
 	if err != nil {
 		return "", fmt.Errorf("error creating installation token %w", err)
 	}

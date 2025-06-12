@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var NoSuchBlockError = fmt.Errorf("no such block")
+var ErrNoSuchBlock = fmt.Errorf("no such block")
 
 func isHeading(l string) bool {
 	return strings.HasPrefix(l, "#")
@@ -25,12 +25,12 @@ func headingLevel(l string) int {
 func ExtractAnnotatedBlock(annotation string, s string) (string, error) {
 	_, contentWithTicks, found := strings.Cut(s, "```"+annotation)
 	if !found {
-		return "", NoSuchBlockError
+		return "", ErrNoSuchBlock
 	}
 
 	content, _, found := strings.Cut(contentWithTicks, "```")
 	if !found {
-		return "", NoSuchBlockError
+		return "", ErrNoSuchBlock
 	}
 
 	return strings.TrimSpace(content), nil
@@ -52,5 +52,5 @@ func ToListItem(lines string) []string {
 }
 
 func SplitLines(s string) []string {
-	return strings.Split(strings.Replace(s, `\r\n`, "\n", -1), "\n")
+	return strings.Split(strings.ReplaceAll(s, `\r\n`, "\n"), "\n")
 }

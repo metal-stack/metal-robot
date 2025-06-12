@@ -30,8 +30,12 @@ type AggregateReleasesConfig struct {
 	SourceRepos          map[string][]Modifier `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
-type IssuesCommentHandlerConfig struct {
+type IssueCommentsHandlerConfig struct {
 	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
+}
+
+type ProjectItemAddHandlerConfig struct {
+	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
 }
 
 type DistributeReleasesConfig struct {
