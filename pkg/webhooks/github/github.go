@@ -80,7 +80,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		// nolint:contextcheck
 		go w.a.ProcessProjectV2ItemEvent(ctx, &event)
 	default:
-		w.logger.Warn("missing handler", "payload", string(payload))
+		w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))
 	}
 
 	response.WriteHeader(http.StatusOK)
