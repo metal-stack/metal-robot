@@ -25,7 +25,7 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250724215748-5548f0b3dc65
+replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250725122512-42bbaeb22e64
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
