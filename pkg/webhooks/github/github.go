@@ -51,34 +51,34 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 
 	ctx := context.Background()
 	switch event := event.(type) {
-	case github.ReleaseEvent:
+	case *github.ReleaseEvent:
 		w.logger.Debug("received release event")
 		// nolint:contextcheck
-		go w.a.ProcessReleaseEvent(ctx, &event)
-	case github.PullRequestEvent:
+		go w.a.ProcessReleaseEvent(ctx, event)
+	case *github.PullRequestEvent:
 		w.logger.Debug("received pull request event")
 		// nolint:contextcheck
-		go w.a.ProcessPullRequestEvent(ctx, &event)
-	case github.PushEvent:
+		go w.a.ProcessPullRequestEvent(ctx, event)
+	case *github.PushEvent:
 		w.logger.Debug("received push event")
 		// nolint:contextcheck
-		go w.a.ProcessPushEvent(ctx, &event)
-	case github.IssuesEvent:
+		go w.a.ProcessPushEvent(ctx, event)
+	case *github.IssuesEvent:
 		w.logger.Debug("received issues event")
 		// nolint:contextcheck
-		go w.a.ProcessIssuesEvent(ctx, &event)
-	case github.IssueCommentEvent:
+		go w.a.ProcessIssuesEvent(ctx, event)
+	case *github.IssueCommentEvent:
 		w.logger.Debug("received issue comment event")
 		// nolint:contextcheck
-		go w.a.ProcessIssueCommentEvent(ctx, &event)
-	case github.RepositoryEvent:
+		go w.a.ProcessIssueCommentEvent(ctx, event)
+	case *github.RepositoryEvent:
 		w.logger.Debug("received repository event")
 		// nolint:contextcheck
-		go w.a.ProcessRepositoryEvent(ctx, &event)
-	case github.ProjectV2ItemEvent:
+		go w.a.ProcessRepositoryEvent(ctx, event)
+	case *github.ProjectV2ItemEvent:
 		w.logger.Debug("received project v2 item event")
 		// nolint:contextcheck
-		go w.a.ProcessProjectV2ItemEvent(ctx, &event)
+		go w.a.ProcessProjectV2ItemEvent(ctx, event)
 	default:
 		w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))
 	}
