@@ -370,7 +370,7 @@ func (w *WebhookActions) ProcessProjectV2ItemEvent(ctx context.Context, payload 
 
 	for _, a := range w.p2 {
 		g.Go(func() error {
-			if pointer.SafeDeref(payload.Action) != "edit" {
+			if pointer.SafeDeref(payload.Action) != "edited" {
 				return nil
 			}
 			if payload.Changes == nil ||
