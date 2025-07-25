@@ -38,6 +38,11 @@ type ProjectItemAddHandlerConfig struct {
 	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
 }
 
+type ProjectV2ItemHandlerConfig struct {
+	ProjectID    string   `mapstructure:"project-id" description:"the project on which to handle item events"`
+	RemoveLabels []string `mapstructure:"remove-labels" description:"labels to remove if a project v2 item changes its field status from null to something"`
+}
+
 type DistributeReleasesConfig struct {
 	SourceRepositoryName string       `mapstructure:"repository" description:"the name of the source repo"`
 	SourceRepositoryURL  string       `mapstructure:"repository-url" description:"the url of the source repo"`

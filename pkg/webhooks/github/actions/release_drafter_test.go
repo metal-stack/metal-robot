@@ -6,7 +6,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v74/github"
 
 	_ "embed"
 )
@@ -232,7 +232,7 @@ func Test_releaseDrafter_appendPullRequest(t *testing.T) {
 		org         string
 		repo        string
 		title       string
-		number      int64
+		number      int
 		author      string
 		prBody      *string
 		priorBody   string

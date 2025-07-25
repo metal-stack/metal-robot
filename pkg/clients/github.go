@@ -9,7 +9,7 @@ import (
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/metal-stack/metal-robot/pkg/config"
 
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v74/github"
 
 	"github.com/shurcooL/githubv4"
 )
