@@ -2,11 +2,13 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/constants"
@@ -373,11 +375,40 @@ func (w *WebhookActions) ProcessProjectV2ItemEvent(ctx context.Context, payload 
 			if pointer.SafeDeref(payload.Action) != "edited" {
 				return nil
 			}
+
+			// 			  "changes": {
+			//     "field_value": {
+			//       "field_node_id": "PVTSSF_lADOA4BFWM4A6z3RzgvS5v4",
+			//       "field_type": "single_select",
+			//       "field_name": "Status",
+			//       "project_number": 34,
+			//       "from": null,
+			//       "to": {
+			//         "id": "98236657",
+			//         "name": "Done",
+			//         "color": "RED",
+			//         "description": "This has been completed"
+			//       }
+			//     }
+			//   },
+
+			spew.Dump(payload)
+
 			if payload.Changes == nil ||
 				payload.Changes.FieldValue == nil ||
 				pointer.SafeDeref(payload.Changes.FieldValue.FieldName) != "Status" ||
-				payload.Changes.FieldValue.From != nil ||
 				len(payload.Changes.FieldValue.To) == 0 {
+				return nil
+			}
+
+			var from any
+			err := json.Unmarshal(payload.Changes.FieldValue.From, &from)
+			if err != nil {
+				w.logger.Error("unable to parse from", "error", err)
+				return err
+			}
+
+			if from != nil {
 				return nil
 			}
 
@@ -386,7 +417,7 @@ func (w *WebhookActions) ProcessProjectV2ItemEvent(ctx context.Context, payload 
 				ProjectID:     ActionProjectItemAddHandler,
 				ContentNodeID: pointer.SafeDeref(payload.ProjectV2Item.ContentNodeID),
 			}
-			err := a.Handle(ctx, params)
+			err = a.Handle(ctx, params)
 			if err != nil {
 				w.logger.Error("error removing labels from project v2 item", "project-number", params.ProjectNumber, "error", err)
 				return err
