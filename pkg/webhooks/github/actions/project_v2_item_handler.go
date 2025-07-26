@@ -117,7 +117,7 @@ func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandl
 
 		r.logger.Info("removed labels from project v2 item", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	} else {
-		r.logger.Info("no need to removed labels from project v2 item, none of them are attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
+		r.logger.Info("no need to remove labels from project v2 item, none of them are attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	}
 
 	return nil
