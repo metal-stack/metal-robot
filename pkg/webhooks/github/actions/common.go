@@ -22,6 +22,7 @@ const (
 	ActionAggregateReleases           string = "aggregate-releases"
 	ActionYAMLTranslateReleases       string = "yaml-translate-releases"
 	ActionDocsPreviewComment          string = "docs-preview-comment"
+	ActionLabelOnCreationComment      string = "labels-on-issue-creation"
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
@@ -34,6 +35,7 @@ type WebhookActions struct {
 	logger *slog.Logger
 	rm     []*repositoryMaintainers
 	dp     []*docsPreviewComment
+	lc     []*labelsOnCreationHandler
 	ar     []*AggregateReleases
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
@@ -73,6 +75,12 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 				return nil, err
 			}
 			actions.dp = append(actions.dp, h)
+		case ActionLabelOnCreationComment:
+			h, err := newLabelsOnCreationHandler(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.lc = append(actions.lc, h)
 		case ActionAggregateReleases:
 			h, err := NewAggregateReleases(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
@@ -276,6 +284,28 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 		})
 	}
 
+	for _, i := range w.lc {
+		g.Go(func() error {
+			if pointer.SafeDeref(payload.Action) != "created" {
+				return nil
+			}
+
+			params := &labelsOnCreationHandlerParams{
+				RepositoryName: pointer.SafeDeref(payload.Repo.Name),
+				URL:            pointer.SafeDeref(payload.PullRequest.URL),
+				ContentNodeID:  pointer.SafeDeref(payload.PullRequest.NodeID),
+			}
+
+			err := i.Handle(ctx, params)
+			if err != nil {
+				w.logger.Error("error in label pull request on creation handler action", "source-repo", params.RepositoryName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
 	if err := g.Wait(); err != nil {
 		w.logger.Error("errors processing event", "error", err)
 	}
@@ -435,6 +465,28 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *github
 			err := i.Handle(ctx, params)
 			if err != nil {
 				w.logger.Error("error in project item add handler action", "source-repo", params.RepositoryName, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	for _, i := range w.lc {
+		g.Go(func() error {
+			if pointer.SafeDeref(payload.Action) != "created" {
+				return nil
+			}
+
+			params := &labelsOnCreationHandlerParams{
+				RepositoryName: pointer.SafeDeref(payload.Repo.Name),
+				URL:            pointer.SafeDeref(payload.Issue.URL),
+				ContentNodeID:  pointer.SafeDeref(payload.Issue.NodeID),
+			}
+
+			err := i.Handle(ctx, params)
+			if err != nil {
+				w.logger.Error("error in label issue on creation handler action", "source-repo", params.RepositoryName, "error", err)
 				return err
 			}
 

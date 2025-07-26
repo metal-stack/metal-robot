@@ -21,17 +21,21 @@ type DocsPreviewCommentConfig struct {
 }
 
 type AggregateReleasesConfig struct {
-	TargetRepositoryName string                `mapstructure:"repository" description:"the name of the target repo"`
-	TargetRepositoryURL  string                `mapstructure:"repository-url" description:"the url of the target repo"`
-	Branch               *string               `mapstructure:"branch" description:"the branch to push in the target repo"`
-	BranchBase           *string               `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
-	CommitMsgTemplate    *string               `mapstructure:"commit-tpl" description:"template of the commit message"`
-	PullRequestTitle     *string               `mapstructure:"pull-request-title" description:"title of the pull request"`
-	SourceRepos          map[string][]Modifier `mapstructure:"repos" description:"the source repositories to trigger this action"`
+	TargetRepositoryName string                 `mapstructure:"repository" description:"the name of the target repo"`
+	TargetRepositoryURL  string                 `mapstructure:"repository-url" description:"the url of the target repo"`
+	Branch               *string                `mapstructure:"branch" description:"the branch to push in the target repo"`
+	BranchBase           *string                `mapstructure:"branch-base" description:"the base branch to raise the pull request against"`
+	CommitMsgTemplate    *string                `mapstructure:"commit-tpl" description:"template of the commit message"`
+	PullRequestTitle     *string                `mapstructure:"pull-request-title" description:"title of the pull request"`
+	SourceRepos          map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
 type IssueCommentsHandlerConfig struct {
 	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
+}
+
+type LabelsOnCreation struct {
+	SourceRepos map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
 type ProjectItemAddHandlerConfig struct {
@@ -88,4 +92,9 @@ type ReleaseDraftConfig struct {
 
 	MergedPRsHeadline    *string `mapstructure:"merged-prs-section-headline" description:"custom headline for the section of merged pull requests"`
 	MergedPRsDescription *string `mapstructure:"merged-prs-section-description" description:"description for the merged pull requests section"`
+}
+
+type RepoActions struct {
+	Modifiers []Modifier `mapstructure:"modifiers" description:"the modifiers of this repo action"`
+	Labels    []string   `mapstructure:"labels" description:"the labels to act on with this repo action"`
 }

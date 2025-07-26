@@ -77,8 +77,8 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 	}
 
 	patchMap := make(map[string][]filepatchers.Patcher)
-	for n, modifiers := range typedConfig.SourceRepos {
-		for _, m := range modifiers {
+	for n, actions := range typedConfig.SourceRepos {
+		for _, m := range actions.Modifiers {
 			patcher, err := filepatchers.InitPatcher(m)
 			if err != nil {
 				return nil, err
