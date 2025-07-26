@@ -14,7 +14,6 @@ import (
 
 type projectV2ItemHandler struct {
 	logger       *slog.Logger
-	client       *clients.Github
 	graphql      *githubv4.Client
 	projectID    string
 	removeLabels []string
@@ -35,7 +34,6 @@ func newProjectV2ItemHandler(logger *slog.Logger, client *clients.Github, rawCon
 
 	return &projectV2ItemHandler{
 		logger:       logger,
-		client:       client,
 		graphql:      client.GetGraphQLClient(),
 		projectID:    typedConfig.ProjectID,
 		removeLabels: typedConfig.RemoveLabels,

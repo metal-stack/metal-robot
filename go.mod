@@ -27,6 +27,8 @@ require (
 
 replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250725122512-42bbaeb22e64
 
+require github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
