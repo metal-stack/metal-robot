@@ -25,6 +25,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
+// TODO: Hope this can be removed in a future release
+// https://github.com/google/go-github/pull/3650
 replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250725122512-42bbaeb22e64
 
 require (
