@@ -42,7 +42,7 @@ func newProjectV2ItemHandler(logger *slog.Logger, client *clients.Github, rawCon
 
 func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandlerParams) error {
 	if p.ProjectID != r.projectID {
-		r.logger.Info("skip removing labels from project v2 item, not acting on specified project")
+		r.logger.Info("skip removing labels from project v2 item, wrong project-id")
 		return nil
 	}
 
@@ -117,7 +117,7 @@ func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandl
 
 		r.logger.Info("removed labels from project v2 item", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	} else {
-		r.logger.Info("no need to removed labels from project v2 item, none of them attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
+		r.logger.Info("no need to removed labels from project v2 item, none of them are attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	}
 
 	return nil
