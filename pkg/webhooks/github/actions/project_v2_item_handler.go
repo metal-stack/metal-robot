@@ -70,7 +70,7 @@ func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandl
 	}
 
 	variables := map[string]any{
-		"node_id": githubv4.String(p.ContentNodeID),
+		"node_id": githubv4.ID(p.ContentNodeID),
 	}
 
 	err := r.graphql.Query(ctx, &q, variables)
