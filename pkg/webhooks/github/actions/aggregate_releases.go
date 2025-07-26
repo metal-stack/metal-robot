@@ -13,7 +13,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -77,8 +77,8 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 	}
 
 	patchMap := make(map[string][]filepatchers.Patcher)
-	for n, modifiers := range typedConfig.SourceRepos {
-		for _, m := range modifiers {
+	for n, actions := range typedConfig.SourceRepos {
+		for _, m := range actions.Modifiers {
 			patcher, err := filepatchers.InitPatcher(m)
 			if err != nil {
 				return nil, err
