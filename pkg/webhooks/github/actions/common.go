@@ -286,7 +286,7 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 
 	for _, i := range w.lc {
 		g.Go(func() error {
-			if pointer.SafeDeref(payload.Action) != "created" {
+			if pointer.SafeDeref(payload.Action) != "opened" {
 				return nil
 			}
 
@@ -474,7 +474,7 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *github
 
 	for _, i := range w.lc {
 		g.Go(func() error {
-			if pointer.SafeDeref(payload.Action) != "created" {
+			if pointer.SafeDeref(payload.Action) != "opened" {
 				return nil
 			}
 
