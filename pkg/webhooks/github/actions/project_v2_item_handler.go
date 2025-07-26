@@ -42,7 +42,7 @@ func newProjectV2ItemHandler(logger *slog.Logger, client *clients.Github, rawCon
 
 func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandlerParams) error {
 	if p.ProjectID != r.projectID {
-		r.logger.Info("skip removing labels from project v2 item, wrong project-id")
+		r.logger.Debug("skip removing labels from project v2 item, wrong project-id")
 		return nil
 	}
 
