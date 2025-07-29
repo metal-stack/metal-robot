@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/google/go-github/v72/github"
+	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
@@ -280,7 +280,7 @@ func stripHtmlComments(s string) string {
 }
 
 // appends a merged pull request to the release draft
-func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, number int64, author string, p *releaseDrafterParams) error {
+func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, number int, author string, p *releaseDrafterParams) error {
 	_, ok := r.repoMap[p.RepositoryName]
 	if ok {
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
@@ -319,7 +319,7 @@ func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, numbe
 	return r.createOrUpdateRelease(ctx, infos, body, p)
 }
 
-func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int64, author string, prBody *string) string {
+func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int, author string, prBody *string) string {
 	m := markdown.Parse(priorBody)
 
 	l := fmt.Sprintf("* %s (%s/%s#%d) @%s", title, org, repo, number, author)

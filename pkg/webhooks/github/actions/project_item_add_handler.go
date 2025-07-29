@@ -20,7 +20,6 @@ type projectItemAdd struct {
 
 type projectItemAddParams struct {
 	RepositoryName string
-	RepositoryURL  string
 	NodeID         string
 	ID             int64
 	URL            string

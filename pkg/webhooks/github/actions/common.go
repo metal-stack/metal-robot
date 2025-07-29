@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -12,7 +13,9 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/webhooks/constants"
 	"golang.org/x/sync/errgroup"
 
-	ghwebhooks "github.com/go-playground/webhooks/v6/github"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
+
+	"github.com/google/go-github/v74/github"
 )
 
 const (
@@ -24,6 +27,7 @@ const (
 	ActionReleaseDraft                string = "release-draft"
 	ActionIssueCommentsHandler        string = "issue-handling"
 	ActionProjectItemAddHandler       string = "add-items-to-project"
+	ActionProjectV2ItemHandler        string = "project-v2-item"
 )
 
 type WebhookActions struct {
@@ -34,6 +38,7 @@ type WebhookActions struct {
 	dr     []*distributeReleases
 	rd     []*releaseDrafter
 	pa     []*projectItemAdd
+	p2     []*projectV2ItemHandler
 	ih     []*IssueCommentsAction
 	yr     []*yamlTranslateReleases
 }
@@ -98,6 +103,12 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 				return nil, err
 			}
 			actions.pa = append(actions.pa, h)
+		case ActionProjectV2ItemHandler:
+			h, err := newProjectV2ItemHandler(logger, c.(*clients.Github), spec.Args)
+			if err != nil {
+				return nil, err
+			}
+			actions.p2 = append(actions.p2, h)
 		case ActionIssueCommentsHandler:
 			h, err := newIssueCommentsAction(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
@@ -114,25 +125,37 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 	return &actions, nil
 }
 
-func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghwebhooks.ReleasePayload) {
+func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *github.ReleaseEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
 		g.Go(func() error {
-			if payload.Action != "released" {
+			var (
+				action  = pointer.SafeDeref(payload.Action)
+				repo    = pointer.SafeDeref(payload.Repo)
+				sender  = pointer.SafeDeref(payload.Sender)
+				release = pointer.SafeDeref(payload.Release)
+
+				repoName = pointer.SafeDeref(repo.Name)
+				repoURL  = pointer.SafeDeref(repo.HTMLURL)
+				tagName  = pointer.SafeDeref(release.TagName)
+				login    = pointer.SafeDeref(sender.Login)
+			)
+
+			if action != "released" {
 				return nil
 			}
-			params := &AggregateReleaseParams{
-				RepositoryName: payload.Repository.Name,
-				RepositoryURL:  payload.Repository.HTMLURL,
-				TagName:        payload.Release.TagName,
-				Sender:         payload.Sender.Login,
-			}
-			err := a.AggregateRelease(ctx, params)
+
+			err := a.AggregateRelease(ctx, &AggregateReleaseParams{
+				RepositoryName: repoName,
+				RepositoryURL:  repoURL,
+				TagName:        tagName,
+				Sender:         login,
+			})
 			if err != nil {
-				w.logger.Error("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in aggregate release action", "source-repo", repoName, "target-repo", a.repoName, "tag", tagName, "error", err)
 				return err
 			}
 
@@ -142,18 +165,29 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 
 	for _, a := range w.rd {
 		g.Go(func() error {
-			if payload.Action != "released" {
+			var (
+				action  = pointer.SafeDeref(payload.Action)
+				repo    = pointer.SafeDeref(payload.Repo)
+				release = pointer.SafeDeref(payload.Release)
+
+				repoName    = pointer.SafeDeref(repo.Name)
+				tagName     = pointer.SafeDeref(release.TagName)
+				releaseURL  = pointer.SafeDeref(release.HTMLURL)
+				releaseBody = release.Body
+			)
+
+			if action != "released" {
 				return nil
 			}
-			params := &releaseDrafterParams{
-				RepositoryName:       payload.Repository.Name,
-				TagName:              payload.Release.TagName,
-				ComponentReleaseInfo: payload.Release.Body,
-				ReleaseURL:           payload.Release.HTMLURL,
-			}
-			err := a.draft(ctx, params)
+
+			err := a.draft(ctx, &releaseDrafterParams{
+				RepositoryName:       repoName,
+				TagName:              tagName,
+				ComponentReleaseInfo: releaseBody,
+				ReleaseURL:           releaseURL,
+			})
 			if err != nil {
-				w.logger.Error("error creating release draft", "repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error creating release draft", "repo", a.repoName, "tag", tagName, "error", err)
 				return err
 			}
 
@@ -163,17 +197,27 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 
 	for _, a := range w.yr {
 		g.Go(func() error {
-			if payload.Action != "released" {
+			var (
+				action  = pointer.SafeDeref(payload.Action)
+				repo    = pointer.SafeDeref(payload.Repo)
+				release = pointer.SafeDeref(payload.Release)
+
+				repoName = pointer.SafeDeref(repo.Name)
+				cloneURL = pointer.SafeDeref(repo.CloneURL)
+				tagName  = pointer.SafeDeref(release.TagName)
+			)
+
+			if action != "released" {
 				return nil
 			}
-			params := &yamlTranslateReleaseParams{
-				RepositoryName: payload.Repository.Name,
-				RepositoryURL:  payload.Repository.CloneURL,
-				TagName:        payload.Release.TagName,
-			}
-			err := a.translateRelease(ctx, params)
+
+			err := a.translateRelease(ctx, &yamlTranslateReleaseParams{
+				RepositoryName: repoName,
+				RepositoryURL:  cloneURL,
+				TagName:        tagName,
+			})
 			if err != nil {
-				w.logger.Error("error creating translating release", "repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error creating translating release", "repo", a.repoName, "tag", tagName, "error", err)
 				return err
 			}
 
@@ -186,23 +230,34 @@ func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *ghweb
 	}
 }
 
-func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *ghwebhooks.PullRequestPayload) {
+func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *github.PullRequestEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.dp {
 		g.Go(func() error {
-			if payload.Action != "opened" || payload.Repository.Name != "docs" {
+			var (
+				action      = pointer.SafeDeref(payload.Action)
+				repo        = pointer.SafeDeref(payload.Repo)
+				pullRequest = pointer.SafeDeref(payload.PullRequest)
+
+				repoName          = pointer.SafeDeref(repo.Name)
+				pullRequestNumber = pointer.SafeDeref(pullRequest.Number)
+			)
+
+			if action != "opened" {
 				return nil
 			}
-			params := &docsPreviewCommentParams{
-				PullRequestNumber: int(payload.PullRequest.Number),
+			if repoName != "docs" { // FIXME: this is a weird convention, this should come from configuration
+				return nil
 			}
 
-			err := a.AddDocsPreviewComment(ctx, params)
+			err := a.AddDocsPreviewComment(ctx, &docsPreviewCommentParams{
+				PullRequestNumber: int(pullRequestNumber),
+			})
 			if err != nil {
-				w.logger.Error("error adding docs preview comment to docs", "repo", payload.Repository.Name, "pull_request", params.PullRequestNumber, "error", err)
+				w.logger.Error("error adding docs preview comment to docs", "repo", repoName, "pull_request", pullRequestNumber, "error", err)
 				return err
 			}
 
@@ -212,23 +267,42 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 
 	for _, a := range w.rd {
 		g.Go(func() error {
-			if payload.Action != "closed" {
+			var (
+				action      = pointer.SafeDeref(payload.Action)
+				repo        = pointer.SafeDeref(payload.Repo)
+				pullRequest = pointer.SafeDeref(payload.PullRequest)
+
+				repoName    = pointer.SafeDeref(repo.Name)
+				privateRepo = pointer.SafeDeref(repo.Private)
+				merged      = pointer.SafeDeref(pullRequest.Merged)
+
+				pullRequestBody   = payload.PullRequest.Body
+				pullRequestTitle  = pointer.SafeDeref(payload.PullRequest.Title)
+				pullRequestNumber = pointer.SafeDeref(payload.PullRequest.Number)
+				pullRequestLogin  = pointer.SafeDeref(payload.PullRequest.User.Login)
+			)
+
+			if action != "closed" {
 				return nil
 			}
-			if payload.Repository.Private {
+			if privateRepo {
 				return nil
 			}
-			if !payload.PullRequest.Merged {
+			if !merged {
 				return nil
 			}
 
-			params := &releaseDrafterParams{
-				RepositoryName:       payload.Repository.Name,
-				ComponentReleaseInfo: &payload.PullRequest.Body,
-			}
-			err := a.appendMergedPR(ctx, payload.PullRequest.Title, payload.PullRequest.Number, payload.PullRequest.User.Login, params)
+			err := a.appendMergedPR(ctx,
+				pullRequestTitle,
+				pullRequestNumber,
+				pullRequestLogin,
+				&releaseDrafterParams{
+					RepositoryName:       repoName,
+					ComponentReleaseInfo: pullRequestBody,
+				},
+			)
 			if err != nil {
-				w.logger.Error("error append merged PR to release draft", "repo", a.repoName, "pr", payload.PullRequest.Title, "error", err)
+				w.logger.Error("error append merged PR to release draft", "repo", a.repoName, "pr", pullRequestTitle, "error", err)
 				return err
 			}
 
@@ -238,21 +312,30 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 
 	for _, i := range w.pa {
 		g.Go(func() error {
-			if payload.Action != "opened" {
+			var (
+				action      = pointer.SafeDeref(payload.Action)
+				repo        = pointer.SafeDeref(payload.Repo)
+				pullRequest = pointer.SafeDeref(payload.PullRequest)
+
+				repoName = pointer.SafeDeref(repo.Name)
+
+				pullRequestNodeID = pointer.SafeDeref(pullRequest.NodeID)
+				pullRequestID     = pointer.SafeDeref(pullRequest.ID)
+				pullRequestURL    = pointer.SafeDeref(pullRequest.HTMLURL)
+			)
+
+			if action != "opened" {
 				return nil
 			}
 
-			params := &projectItemAddParams{
-				RepositoryName: payload.Repository.Name,
-				RepositoryURL:  payload.Repository.CloneURL,
-				NodeID:         payload.PullRequest.NodeID,
-				ID:             payload.PullRequest.ID,
-				URL:            payload.PullRequest.URL,
-			}
-
-			err := i.Handle(ctx, params)
+			err := i.Handle(ctx, &projectItemAddParams{
+				RepositoryName: repoName,
+				NodeID:         pullRequestNodeID,
+				ID:             pullRequestID,
+				URL:            pullRequestURL,
+			})
 			if err != nil {
-				w.logger.Error("error in project item add handler action", "source-repo", params.RepositoryName, "error", err)
+				w.logger.Error("error in project item add handler action", "source-repo", repoName, "error", err)
 				return err
 			}
 
@@ -265,26 +348,40 @@ func (w *WebhookActions) ProcessPullRequestEvent(ctx context.Context, payload *g
 	}
 }
 
-func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhooks.PushPayload) {
+func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *github.PushEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.ar {
 		g.Go(func() error {
-			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
+			var (
+				created = pointer.SafeDeref(payload.Created)
+				ref     = pointer.SafeDeref(payload.Ref)
+
+				repo   = pointer.SafeDeref(payload.Repo)
+				sender = pointer.SafeDeref(payload.Sender)
+
+				repoName = pointer.SafeDeref(repo.Name)
+				repoURL  = pointer.SafeDeref(repo.HTMLURL)
+
+				login = pointer.SafeDeref(sender.Login)
+
+				tagName = extractTag(payload)
+			)
+
+			if !created || !strings.HasPrefix(ref, "refs/tags/v") {
 				return nil
 			}
-			params := &AggregateReleaseParams{
-				RepositoryName: payload.Repository.Name,
-				RepositoryURL:  payload.Repository.HTMLURL,
-				TagName:        extractTag(payload),
-				Sender:         payload.Sender.Login,
-			}
 
-			err := a.AggregateRelease(ctx, params)
+			err := a.AggregateRelease(ctx, &AggregateReleaseParams{
+				RepositoryName: repoName,
+				RepositoryURL:  repoURL,
+				TagName:        tagName,
+				Sender:         login,
+			})
 			if err != nil {
-				w.logger.Error("error in aggregate release action", "source-repo", params.RepositoryName, "target-repo", a.repoName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in aggregate release action", "source-repo", repoName, "target-repo", a.repoName, "tag", tagName, "error", err)
 				return err
 			}
 
@@ -294,18 +391,29 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 
 	for _, a := range w.dr {
 		g.Go(func() error {
-			if !payload.Created || !strings.HasPrefix(payload.Ref, "refs/tags/v") {
+			var (
+				created = pointer.SafeDeref(payload.Created)
+				ref     = pointer.SafeDeref(payload.Ref)
+
+				repo = pointer.SafeDeref(payload.Repo)
+
+				repoName = pointer.SafeDeref(repo.Name)
+
+				tagName = extractTag(payload)
+			)
+
+			if !created || !strings.HasPrefix(ref, "refs/tags/v") {
 				return nil
 			}
 
 			params := &distributeReleaseParams{
-				RepositoryName: payload.Repository.Name,
-				TagName:        extractTag(payload),
+				RepositoryName: repoName,
+				TagName:        tagName,
 			}
 
 			err := a.DistributeRelease(ctx, params)
 			if err != nil {
-				w.logger.Error("error in distribute release action", "source-repo", params.RepositoryName, "tag", params.TagName, "error", err)
+				w.logger.Error("error in distribute release action", "source-repo", repoName, "tag", tagName, "error", err)
 				return err
 			}
 
@@ -318,24 +426,33 @@ func (w *WebhookActions) ProcessPushEvent(ctx context.Context, payload *ghwebhoo
 	}
 }
 
-func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *ghwebhooks.RepositoryPayload) {
+func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *github.RepositoryEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, a := range w.rm {
 		g.Go(func() error {
-			if payload.Action != "created" {
+			var (
+				action = pointer.SafeDeref(payload.Action)
+				repo   = pointer.SafeDeref(payload.Repo)
+				sender = pointer.SafeDeref(payload.Sender)
+
+				repoName = pointer.SafeDeref(repo.Name)
+				login    = pointer.SafeDeref(sender.Login)
+			)
+
+			if action != "created" {
 				return nil
 			}
 
 			params := &repositoryMaintainersParams{
-				RepositoryName: payload.Repository.Name,
-				Creator:        payload.Sender.Login,
+				RepositoryName: repoName,
+				Creator:        login,
 			}
 			err := a.CreateRepositoryMaintainers(ctx, params)
 			if err != nil {
-				w.logger.Error("error creating repository maintainers team", "repo", params.RepositoryName, "error", err)
+				w.logger.Error("error creating repository maintainers team", "repo", repoName, "error", err)
 				return err
 			}
 
@@ -348,28 +465,94 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gh
 	}
 }
 
-func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebhooks.IssuesPayload) {
+func (w *WebhookActions) ProcessProjectV2ItemEvent(ctx context.Context, payload *github.ProjectV2ItemEvent) {
+	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
+	defer cancel()
+	g, _ := errgroup.WithContext(ctx)
+
+	for _, a := range w.p2 {
+		g.Go(func() error {
+			var (
+				action  = pointer.SafeDeref(payload.Action)
+				changes = pointer.SafeDeref(payload.Changes)
+				project = pointer.SafeDeref(payload.ProjectV2Item)
+
+				fieldValue    = pointer.SafeDeref(changes.FieldValue)
+				fieldName     = pointer.SafeDeref(fieldValue.FieldName)
+				projectNumber = pointer.SafeDeref(fieldValue.ProjectNumber)
+
+				projectNodeID = pointer.SafeDeref(project.ProjectNodeID)
+				contentNodeID = pointer.SafeDeref(project.ContentNodeID)
+			)
+
+			if action != "edited" {
+				return nil
+			}
+
+			if fieldName != "Status" || len(fieldValue.To) == 0 || len(fieldValue.From) == 0 {
+				return nil
+			}
+
+			var from any
+			err := json.Unmarshal(fieldValue.From, &from)
+			if err != nil {
+				w.logger.Error("unable to parse from", "error", err)
+				return err
+			}
+
+			if from != nil {
+				return nil
+			}
+
+			err = a.Handle(ctx, &projectV2ItemHandlerParams{
+				ProjectNumber: projectNumber,
+				ProjectID:     projectNodeID,
+				ContentNodeID: contentNodeID,
+			})
+			if err != nil {
+				w.logger.Error("error handling project v2 item", "project-number", projectNumber, "error", err)
+				return err
+			}
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		w.logger.Error("errors processing event", "error", err)
+	}
+}
+
+func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *github.IssuesEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, i := range w.pa {
 		g.Go(func() error {
-			if payload.Action != "opened" {
+			var (
+				action = pointer.SafeDeref(payload.Action)
+				repo   = pointer.SafeDeref(payload.Repo)
+				issue  = pointer.SafeDeref(payload.Issue)
+
+				repoName = pointer.SafeDeref(repo.Name)
+				nodeID   = pointer.SafeDeref(issue.NodeID)
+				id       = pointer.SafeDeref(issue.ID)
+				url      = pointer.SafeDeref(issue.URL)
+			)
+
+			if action != "opened" {
 				return nil
 			}
 
-			params := &projectItemAddParams{
-				RepositoryName: payload.Repository.Name,
-				RepositoryURL:  payload.Repository.CloneURL,
-				NodeID:         payload.Issue.NodeID,
-				ID:             payload.Issue.ID,
-				URL:            payload.Issue.URL,
-			}
-
-			err := i.Handle(ctx, params)
+			err := i.Handle(ctx, &projectItemAddParams{
+				RepositoryName: repoName,
+				NodeID:         nodeID,
+				ID:             id,
+				URL:            url,
+			})
 			if err != nil {
-				w.logger.Error("error in project item add handler action", "source-repo", params.RepositoryName, "error", err)
+				w.logger.Error("error in project item add handler action", "source-repo", repoName, "error", err)
 				return err
 			}
 
@@ -382,39 +565,55 @@ func (w *WebhookActions) ProcessIssuesEvent(ctx context.Context, payload *ghwebh
 	}
 }
 
-func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *ghwebhooks.IssueCommentPayload) {
+func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *github.IssueCommentEvent) {
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
 
 	for _, i := range w.ih {
 		g.Go(func() error {
-			if payload.Action != "created" {
+			var (
+				action  = pointer.SafeDeref(payload.Action)
+				repo    = pointer.SafeDeref(payload.Repo)
+				comment = pointer.SafeDeref(payload.Comment)
+				user    = pointer.SafeDeref(payload.Comment.User)
+				issue   = pointer.SafeDeref(payload.Issue)
+
+				repoName     = pointer.SafeDeref(repo.Name)
+				repoCloneURL = pointer.SafeDeref(repo.CloneURL)
+
+				commentBody  = pointer.SafeDeref(comment.Body)
+				commentID    = pointer.SafeDeref(comment.ID)
+				commentlogin = pointer.SafeDeref(user.Login)
+
+				pullRequestLinks = pointer.SafeDeref(issue.PullRequestLinks)
+				pullRequestURL   = pointer.SafeDeref(pullRequestLinks.URL)
+			)
+
+			if action != "created" {
 				return nil
 			}
-			if payload.Issue.PullRequest == nil {
+			if payload.Issue.PullRequestLinks == nil {
 				return nil
 			}
 
-			parts := strings.Split(payload.Issue.PullRequest.URL, "/")
+			parts := strings.Split(pullRequestURL, "/")
 			pullRequestNumberString := parts[len(parts)-1]
 			pullRequestNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
 			if err != nil {
 				return err
 			}
 
-			params := &IssueCommentsActionParams{
-				RepositoryName:    payload.Repository.Name,
-				RepositoryURL:     payload.Repository.CloneURL,
-				Comment:           payload.Comment.Body,
-				CommentID:         payload.Comment.ID,
-				User:              payload.Comment.User.Login,
+			err = i.HandleIssueComment(ctx, &IssueCommentsActionParams{
+				RepositoryName:    repoName,
+				RepositoryURL:     repoCloneURL,
+				Comment:           commentBody,
+				CommentID:         commentID,
+				User:              commentlogin,
 				PullRequestNumber: int(pullRequestNumber),
-			}
-
-			err = i.HandleIssueComment(ctx, params)
+			})
 			if err != nil {
-				w.logger.Error("error in issue comment handler action", "source-repo", params.RepositoryName, "error", err)
+				w.logger.Error("error in issue comment handler action", "source-repo", repoName, "error", err)
 				return err
 			}
 
@@ -427,6 +626,6 @@ func (w *WebhookActions) ProcessIssueCommentEvent(ctx context.Context, payload *
 	}
 }
 
-func extractTag(payload *ghwebhooks.PushPayload) string {
-	return strings.Replace(payload.Ref, "refs/tags/", "", 1)
+func extractTag(payload *github.PushEvent) string {
+	return strings.Replace(pointer.SafeDeref(payload.Ref), "refs/tags/", "", 1)
 }
