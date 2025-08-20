@@ -147,6 +147,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsA
 		Base:                pullRequest.Base.Ref,
 		Body:                github.Ptr("Fork build for #" + prNumber + " triggered by @" + p.User),
 		MaintainerCanModify: github.Ptr(true),
+		Draft:               github.Ptr(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
