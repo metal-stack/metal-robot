@@ -361,9 +361,17 @@ func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, is
 	changed := false
 	body = stripHtmlComments(body)
 
+	if len(body) == 0 {
+		return fmt.Errorf("no changes")
+	}
+
 	for _, b := range blocks {
 		actionBlock, err := markdown.ExtractAnnotatedBlock(b.identifier, body)
 		if err != nil {
+			continue
+		}
+
+		if len(actionBlock) == 0 {
 			continue
 		}
 
@@ -371,14 +379,12 @@ func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, is
 			actionBlock += " " + *issueSuffix
 		}
 
-		actionBody := markdown.ToListItem(actionBlock)
-		if len(body) == 0 {
-			continue
-		}
+		var (
+			actionBody     = markdown.ToListItem(actionBlock)
+			releaseSection = ensureReleaseSection(m, r.draftHeadline)
+			section        = releaseSection.FindSectionByHeading(2, b.sectionHeadline)
+		)
 
-		releaseSection := ensureReleaseSection(m, r.draftHeadline)
-
-		section := releaseSection.FindSectionByHeading(2, b.sectionHeadline)
 		if section != nil {
 			if strings.Contains(strings.Join(section.ContentLines, ""), strings.Join(actionBody, "")) {
 				// idempotence check: hint was already added
