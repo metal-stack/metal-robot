@@ -24,6 +24,10 @@ var (
 			sectionHeadline: "Required Actions",
 		},
 		{
+			identifier:      "REQUIRED_ACTIONS",
+			sectionHeadline: "Required Actions",
+		},
+		{
 			identifier:      "BREAKING_CHANGE",
 			sectionHeadline: "Breaking Changes",
 		},
