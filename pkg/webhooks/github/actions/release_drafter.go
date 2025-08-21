@@ -236,7 +236,8 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
-	section := m.FindSectionByHeadingPrefix(3, component)
+	section := m.FindSectionByHeadingPrefix(3, component+" v")
+
 	if section == nil {
 		componentSection.AppendChild(&markdown.MarkdownSection{
 			Level:        3,

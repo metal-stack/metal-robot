@@ -203,9 +203,28 @@ Some description
 ## Component Releases
 ### metal-robot v0.2.4`,
 		},
+		{
+			name:             "similar namings of a repo",
+			headline:         "General",
+			org:              "metal-stack",
+			component:        "metal-api",
+			componentVersion: semver.MustParse("0.2.4"),
+			componentBody:    github.Ptr(`- Something`),
+			priorBody: `# General
+## Component Releases
+### metal-apiserver v0.11.7
+- Adding new feature
+- Fixed a bug`,
+			want: `# General
+## Component Releases
+### metal-apiserver v0.11.7
+- Adding new feature
+- Fixed a bug
+### metal-api v0.2.4
+- Something`,
+		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			r := &releaseDrafter{
 				logger:        slog.Default(),
@@ -359,7 +378,6 @@ Some description
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				r := &releaseDrafter{
