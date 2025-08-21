@@ -335,6 +335,18 @@ Some description
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},
 		{
+			name:      "ignore empty code blocks",
+			org:       "metal-stack",
+			repo:      "metal-robot",
+			title:     "Some new feature",
+			number:    11,
+			author:    "metal-robot",
+			priorBody: "",
+			prBody:    github.Ptr("This is a new feature\r\n```ACTIONS_REQUIRED\r\n\r\n```"),
+			want: `# Merged Pull Requests
+* Some new feature (metal-stack/metal-robot#11) @metal-robot`,
+		},
+		{
 			name:      "creating fresh release draft with breaking change",
 			org:       "metal-stack",
 			repo:      "metal-robot",
