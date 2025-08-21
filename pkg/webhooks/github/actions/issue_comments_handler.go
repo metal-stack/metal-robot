@@ -147,6 +147,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsA
 		Base:                pullRequest.Base.Ref,
 		Body:                github.Ptr("Fork build for #" + prNumber + " triggered by @" + p.User),
 		MaintainerCanModify: github.Ptr(true),
+		Draft:               github.Ptr(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
@@ -154,20 +155,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsA
 		}
 	}
 
-	// and immediately close this PR again, it's just for building...
-	forkPr.State = github.Ptr("closed")
-
-	_, _, err = r.client.GetV3Client().PullRequests.Edit(ctx, r.client.Organization(), p.RepositoryName, *forkPr.Number, forkPr)
-	if err != nil {
-		return err
-	}
-
 	r.logger.Info("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", forkBuildBranch, "pull-request-url", forkPr.GetURL())
-
-	_, _, err = r.client.GetV3Client().Reactions.CreateIssueCommentReaction(ctx, r.client.Organization(), p.RepositoryName, p.CommentID, "rocket")
-	if err != nil {
-		return fmt.Errorf("error creating issue comment reaction %w", err)
-	}
 
 	return nil
 }
