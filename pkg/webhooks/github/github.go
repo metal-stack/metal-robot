@@ -2,39 +2,24 @@ package github
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
-	ghwebhooks "github.com/go-playground/webhooks/v6/github"
+	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 )
 
-var listenEvents = []ghwebhooks.Event{
-	ghwebhooks.ReleaseEvent,
-	ghwebhooks.PullRequestEvent,
-	ghwebhooks.PushEvent,
-	ghwebhooks.IssuesEvent,
-	ghwebhooks.IssueCommentEvent,
-	ghwebhooks.RepositoryEvent,
-}
-
 type Webhook struct {
 	logger *slog.Logger
 	cs     clients.ClientMap
-	hook   *ghwebhooks.Webhook
 	a      *actions.WebhookActions
+	secret string
 }
 
 // NewGithubWebhook returns a new webhook controller
 func NewGithubWebhook(logger *slog.Logger, w config.Webhook, cs clients.ClientMap) (*Webhook, error) {
-	hook, err := ghwebhooks.New(ghwebhooks.Options.Secret(w.Secret))
-	if err != nil {
-		return nil, err
-	}
-
 	a, err := actions.InitActions(logger, cs, w.Actions)
 	if err != nil {
 		return nil, err
@@ -43,7 +28,7 @@ func NewGithubWebhook(logger *slog.Logger, w config.Webhook, cs clients.ClientMa
 	controller := &Webhook{
 		logger: logger,
 		cs:     cs,
-		hook:   hook,
+		secret: w.Secret,
 		a:      a,
 	}
 
@@ -52,46 +37,50 @@ func NewGithubWebhook(logger *slog.Logger, w config.Webhook, cs clients.ClientMa
 
 // Handle handles github webhook events
 func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
-	payload, err := w.hook.Parse(request, listenEvents...)
+	payload, err := github.ValidatePayload(request, []byte(w.secret))
 	if err != nil {
-		if errors.Is(err, ghwebhooks.ErrEventNotFound) {
-			w.logger.Warn("received unregistered github event", "error", err)
-			response.WriteHeader(http.StatusOK)
-		} else {
-			w.logger.Error("received malformed github event", "error", err)
-			response.WriteHeader(http.StatusInternalServerError)
-		}
-		return
+		w.logger.Error("received invalid github event", "error", err)
+		response.WriteHeader(http.StatusInternalServerError)
+	}
+
+	event, err := github.ParseWebHook(github.WebHookType(request), payload)
+	if err != nil {
+		w.logger.Error("received unrecognized github event type", "error", err)
+		response.WriteHeader(http.StatusInternalServerError)
 	}
 
 	ctx := context.Background()
-	switch payload := payload.(type) {
-	case ghwebhooks.ReleasePayload:
+	switch event := event.(type) {
+	case *github.ReleaseEvent:
 		w.logger.Debug("received release event")
 		// nolint:contextcheck
-		go w.a.ProcessReleaseEvent(ctx, &payload)
-	case ghwebhooks.PullRequestPayload:
+		go w.a.ProcessReleaseEvent(ctx, event)
+	case *github.PullRequestEvent:
 		w.logger.Debug("received pull request event")
 		// nolint:contextcheck
-		go w.a.ProcessPullRequestEvent(ctx, &payload)
-	case ghwebhooks.PushPayload:
+		go w.a.ProcessPullRequestEvent(ctx, event)
+	case *github.PushEvent:
 		w.logger.Debug("received push event")
 		// nolint:contextcheck
-		go w.a.ProcessPushEvent(ctx, &payload)
-	case ghwebhooks.IssuesPayload:
+		go w.a.ProcessPushEvent(ctx, event)
+	case *github.IssuesEvent:
 		w.logger.Debug("received issues event")
 		// nolint:contextcheck
-		go w.a.ProcessIssuesEvent(ctx, &payload)
-	case ghwebhooks.IssueCommentPayload:
+		go w.a.ProcessIssuesEvent(ctx, event)
+	case *github.IssueCommentEvent:
 		w.logger.Debug("received issue comment event")
 		// nolint:contextcheck
-		go w.a.ProcessIssueCommentEvent(ctx, &payload)
-	case ghwebhooks.RepositoryPayload:
+		go w.a.ProcessIssueCommentEvent(ctx, event)
+	case *github.RepositoryEvent:
 		w.logger.Debug("received repository event")
 		// nolint:contextcheck
-		go w.a.ProcessRepositoryEvent(ctx, &payload)
+		go w.a.ProcessRepositoryEvent(ctx, event)
+	case *github.ProjectV2ItemEvent:
+		w.logger.Debug("received project v2 item event")
+		// nolint:contextcheck
+		go w.a.ProcessProjectV2ItemEvent(ctx, event)
 	default:
-		w.logger.Warn("missing handler", "payload", payload)
+		w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))
 	}
 
 	response.WriteHeader(http.StatusOK)
