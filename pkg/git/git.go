@@ -25,8 +25,6 @@ const (
 )
 
 func ShallowClone(url string, branch string, depth int) (*git.Repository, error) {
-	fmt.Println("cloning " + url + " on branch " + branch)
-
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:   url,
 		Depth: depth,
@@ -65,21 +63,6 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 			return nil, fmt.Errorf("error during git checkout: %w", err)
 		}
 	}
-
-	// DEBUGGING:
-	tree, err := r.TreeObjects()
-	if err != nil {
-		return nil, fmt.Errorf("tree: %w", err)
-	}
-
-	fmt.Println("printing tree")
-	_ = tree.ForEach(func(t *object.Tree) error {
-		for _, e := range t.Entries {
-			fmt.Println(e.Name)
-		}
-
-		return nil
-	})
 
 	return r, nil
 }
