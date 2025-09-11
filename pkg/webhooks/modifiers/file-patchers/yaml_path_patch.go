@@ -124,9 +124,6 @@ func GetYAML(data []byte, path string) (string, error) {
 	}
 
 	res := gjson.Get(string(json), path)
-	if err != nil {
-		return "", err
-	}
 
 	if !res.Exists() {
 		return "", fmt.Errorf("path not found in json: %v", path)
