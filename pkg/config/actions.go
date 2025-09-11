@@ -79,6 +79,7 @@ type YAMLTranslationRead struct {
 type TargetRepo struct {
 	RepositoryName string     `mapstructure:"repository" description:"the name of the target repo"`
 	RepositoryURL  string     `mapstructure:"repository-url" description:"the name of the target repo"`
+	Branch         string     `mapstructure:"branch" description:"the branch of the target repo to act on, defaults to master"`
 	Patches        []Modifier `mapstructure:"modifiers" description:"the name of the target repo"`
 }
 

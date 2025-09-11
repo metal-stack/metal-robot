@@ -39,6 +39,7 @@ type distributeReleases struct {
 
 type targetRepo struct {
 	patches []filepatchers.Patcher
+	branch  string
 	url     string
 }
 
@@ -83,8 +84,14 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 			patches = append(patches, patcher)
 		}
 
+		branch := "master"
+		if t.Branch != "" {
+			branch = t.Branch
+		}
+
 		targetRepos[t.RepositoryName] = targetRepo{
 			url:     t.RepositoryURL,
+			branch:  branch,
 			patches: patches,
 		}
 	}
@@ -103,8 +110,6 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 
 // DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
 func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distributeReleaseParams) error {
-	d.logger.Info("distribute releases", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
-
 	if p.RepositoryName != d.repoName {
 		d.logger.Debug("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
@@ -196,7 +201,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			pr, _, err := d.client.GetV3Client().PullRequests.Create(ctx, d.client.Organization(), targetRepoName, &github.NewPullRequest{
 				Title:               github.Ptr(commitMessage),
 				Head:                github.Ptr(prBranch),
-				Base:                github.Ptr("master"),
+				Base:                github.Ptr(targetRepo.branch),
 				Body:                github.Ptr(d.pullRequestTitle),
 				MaintainerCanModify: github.Ptr(true),
 			})
