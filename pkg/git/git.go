@@ -64,6 +64,21 @@ func ShallowClone(url string, branch string, depth int) (*git.Repository, error)
 		}
 	}
 
+	// DEBUGGING:
+	tree, err := r.TreeObjects()
+	if err != nil {
+		return nil, fmt.Errorf("tree: %w", err)
+	}
+
+	fmt.Println("printing tree")
+	_ = tree.ForEach(func(t *object.Tree) error {
+		for _, e := range t.Entries {
+			fmt.Println(e.Name)
+		}
+
+		return nil
+	})
+
 	return r, nil
 }
 
