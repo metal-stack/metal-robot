@@ -103,6 +103,8 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 
 // DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
 func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distributeReleaseParams) error {
+	d.logger.Info("distribute releases", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
+
 	if p.RepositoryName != d.repoName {
 		d.logger.Debug("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil
