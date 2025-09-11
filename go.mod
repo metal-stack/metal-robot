@@ -30,6 +30,8 @@ require (
 // https://github.com/google/go-github/pull/3650
 replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250725122512-42bbaeb22e64
 
+require github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
+
 require (
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect

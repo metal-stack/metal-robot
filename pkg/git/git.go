@@ -25,6 +25,8 @@ const (
 )
 
 func ShallowClone(url string, branch string, depth int) (*git.Repository, error) {
+	fmt.Println("cloning " + url + " on branch " + branch)
+
 	r, err := git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		URL:   url,
 		Depth: depth,

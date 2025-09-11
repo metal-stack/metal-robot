@@ -12,6 +12,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
@@ -139,10 +140,11 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	lock := multilock.New(targetRepos...)
 
 	g, _ := errgroup.WithContext(ctx)
+
 	for targetRepoName, targetRepo := range d.targetRepos {
-		targetRepoName := targetRepoName
-		targetRepo := targetRepo
 		g.Go(func() error {
+			d.logger.Info("applying patch actions", "source-repo", p.RepositoryName, "target-repo", targetRepoName)
+
 			repoURL, err := url.Parse(targetRepo.url)
 			if err != nil {
 				return err
@@ -170,6 +172,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			}
 
 			for _, patch := range targetRepo.patches {
+				spew.Dump(patch)
 				err = patch.Apply(reader, writer, tag)
 				if err != nil {
 					return fmt.Errorf("error applying repo updates %w", err)
