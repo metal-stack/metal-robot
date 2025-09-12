@@ -7,7 +7,7 @@ require (
 	github.com/atedja/go-multilock v0.0.0-20170315063113-31d195f255fb
 	github.com/bradleyfalzon/ghinstallation/v2 v2.16.0
 	github.com/go-git/go-billy/v5 v5.6.2
-	// IMPORTANT: keep this version as long as https://github.com/go-git/go-git/issues/328 is open
+	// IMPORTANT: better not update, it breaks the aggregate release webhook actions with "error fetching repository refs: object not found"
 	github.com/go-git/go-git/v5 v5.3.0
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-playground/webhooks/v6 v6.4.0
