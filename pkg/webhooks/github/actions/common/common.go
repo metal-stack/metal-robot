@@ -13,24 +13,24 @@ import (
 type CommentCommands string
 
 const (
-	CommentCommandPrefix                          = "/"
-	CommentCommandBuildFork       CommentCommands = CommentCommandPrefix + "ok-to-build"
-	CommentCommandReleaseFreeze   CommentCommands = CommentCommandPrefix + "freeze"
-	CommentCommandReleaseUnfreeze CommentCommands = CommentCommandPrefix + "unfreeze"
-	CommentCommandTag             CommentCommands = CommentCommandPrefix + "tag"
+	CommentCommandPrefix                   = "/"
+	CommentBuildFork       CommentCommands = CommentCommandPrefix + "ok-to-build"
+	CommentReleaseFreeze   CommentCommands = CommentCommandPrefix + "freeze"
+	CommentReleaseUnfreeze CommentCommands = CommentCommandPrefix + "unfreeze"
+	CommentTag             CommentCommands = CommentCommandPrefix + "tag"
 )
 
 var (
 	AllCommentCommands = map[CommentCommands]bool{
-		CommentCommandBuildFork:       true,
-		CommentCommandReleaseFreeze:   true,
-		CommentCommandReleaseUnfreeze: true,
-		CommentCommandTag:             true,
+		CommentBuildFork:       true,
+		CommentReleaseFreeze:   true,
+		CommentReleaseUnfreeze: true,
+		CommentTag:             true,
 	}
 )
 
-func SearchForCommentCommand(data string, want CommentCommands) ([]string, bool) {
-	for line := range strings.SplitSeq(strings.ReplaceAll(data, "\r\n", "\n"), "\n") {
+func SearchForCommand(data string, want CommentCommands) ([]string, bool) {
+	for _, line := range strings.Split(strings.ReplaceAll(data, "\r\n", "\n"), "\n") {
 		line = strings.TrimSpace(line)
 
 		fields := strings.Fields(line)
@@ -83,11 +83,11 @@ func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, own
 	sort.Slice(comments, sortComments(comments))
 
 	for _, comment := range comments {
-		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseFreeze); ok {
+		if _, ok := SearchForCommand(pointer.SafeDeref(comment.Body), CommentReleaseFreeze); ok {
 			return true, nil
 		}
 
-		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseUnfreeze); ok {
+		if _, ok := SearchForCommand(pointer.SafeDeref(comment.Body), CommentReleaseUnfreeze); ok {
 			return false, nil
 		}
 	}
