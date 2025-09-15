@@ -1,4 +1,4 @@
-package actions
+package project_v2_item
 
 import (
 	"context"
@@ -8,31 +8,32 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
 
-type projectV2ItemHandler struct {
+type ProjectV2ItemHandler struct {
 	logger       *slog.Logger
 	graphql      *githubv4.Client
 	projectID    string
 	removeLabels []string
 }
 
-type projectV2ItemHandlerParams struct {
+type Params struct {
 	ProjectNumber int64
 	ProjectID     string
 	ContentNodeID string
 }
 
-func newProjectV2ItemHandler(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*projectV2ItemHandler, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectV2ItemHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return &projectV2ItemHandler{
+	return &ProjectV2ItemHandler{
 		logger:       logger,
 		graphql:      client.GetGraphQLClient(),
 		projectID:    typedConfig.ProjectID,
@@ -40,7 +41,7 @@ func newProjectV2ItemHandler(logger *slog.Logger, client *clients.Github, rawCon
 	}, nil
 }
 
-func (r *projectV2ItemHandler) Handle(ctx context.Context, p *projectV2ItemHandlerParams) error {
+func (r *ProjectV2ItemHandler) Handle(ctx context.Context, p *Params) error {
 	if p.ProjectID != r.projectID {
 		r.logger.Debug("skip removing labels from project v2 item, wrong project-id")
 		return nil

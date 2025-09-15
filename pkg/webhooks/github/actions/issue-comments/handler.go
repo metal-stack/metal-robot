@@ -1,4 +1,4 @@
-package actions
+package issue_comments
 
 import (
 	"context"
@@ -12,26 +12,9 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
 	"github.com/mitchellh/mapstructure"
-)
-
-type IssueCommentCommand string
-
-const (
-	IssueCommentCommandPrefix                       = "/"
-	IssueCommentBuildFork       IssueCommentCommand = IssueCommentCommandPrefix + "ok-to-build"
-	IssueCommentReleaseFreeze   IssueCommentCommand = IssueCommentCommandPrefix + "freeze"
-	IssueCommentReleaseUnfreeze IssueCommentCommand = IssueCommentCommandPrefix + "unfreeze"
-	IssueCommentTag             IssueCommentCommand = IssueCommentCommandPrefix + "tag"
-)
-
-var (
-	IssueCommentCommands = map[IssueCommentCommand]bool{
-		IssueCommentBuildFork:       true,
-		IssueCommentReleaseFreeze:   true,
-		IssueCommentReleaseUnfreeze: true,
-		IssueCommentTag:             true,
-	}
 )
 
 type IssueCommentsAction struct {
@@ -41,7 +24,7 @@ type IssueCommentsAction struct {
 	targetRepos map[string]bool
 }
 
-type IssueCommentsActionParams struct {
+type Params struct {
 	PullRequestNumber int
 	RepositoryName    string
 	RepositoryURL     string
@@ -50,7 +33,7 @@ type IssueCommentsActionParams struct {
 	User              string
 }
 
-func newIssueCommentsAction(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*IssueCommentsAction, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.IssueCommentsHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -69,7 +52,7 @@ func newIssueCommentsAction(logger *slog.Logger, client *clients.Github, rawConf
 	}, nil
 }
 
-func (r *IssueCommentsAction) HandleIssueComment(ctx context.Context, p *IssueCommentsActionParams) error {
+func (r *IssueCommentsAction) Handle(ctx context.Context, p *Params) error {
 	_, ok := r.targetRepos[p.RepositoryName]
 	if !ok {
 		r.logger.Debug("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
@@ -89,14 +72,14 @@ func (r *IssueCommentsAction) HandleIssueComment(ctx context.Context, p *IssueCo
 		return nil
 	}
 
-	if _, ok := searchForCommandInBody(p.Comment, IssueCommentBuildFork); ok {
+	if _, ok := common.SearchForCommand(p.Comment, common.CommentBuildFork); ok {
 		err := r.buildForkPR(ctx, p)
 		if err != nil {
 			return err
 		}
 	}
 
-	if args, ok := searchForCommandInBody(p.Comment, IssueCommentTag); ok {
+	if args, ok := common.SearchForCommand(p.Comment, common.CommentTag); ok {
 		err := r.tag(ctx, p, args)
 		if err != nil {
 			return err
@@ -106,7 +89,7 @@ func (r *IssueCommentsAction) HandleIssueComment(ctx context.Context, p *IssueCo
 	return nil
 }
 
-func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsActionParams) error {
+func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *Params) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
 		return fmt.Errorf("error finding issue related pull request %w", err)
@@ -160,7 +143,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *IssueCommentsA
 	return nil
 }
 
-func (r *IssueCommentsAction) tag(ctx context.Context, p *IssueCommentsActionParams, args []string) error {
+func (r *IssueCommentsAction) tag(ctx context.Context, p *Params, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("no tag name given, skipping")
 	}
@@ -192,28 +175,4 @@ func (r *IssueCommentsAction) tag(ctx context.Context, p *IssueCommentsActionPar
 	r.logger.Info("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
 
 	return nil
-}
-
-func searchForCommandInBody(comment string, want IssueCommentCommand) ([]string, bool) {
-	for _, line := range strings.Split(strings.ReplaceAll(comment, "\r\n", "\n"), "\n") {
-		line = strings.TrimSpace(line)
-
-		fields := strings.Fields(line)
-		if len(fields) == 0 {
-			continue
-		}
-
-		cmd, args := IssueCommentCommand(fields[0]), fields[1:]
-
-		_, ok := IssueCommentCommands[cmd]
-		if !ok {
-			continue
-		}
-
-		if cmd == want {
-			return args, true
-		}
-	}
-
-	return nil, false
 }

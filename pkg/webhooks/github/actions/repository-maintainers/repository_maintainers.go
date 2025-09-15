@@ -1,4 +1,4 @@
-package actions
+package repository_maintainers
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -26,12 +27,12 @@ type repositoryTeamMembership struct {
 	permission string
 }
 
-type repositoryMaintainersParams struct {
+type Params struct {
 	RepositoryName string
 	Creator        string
 }
 
-func newCreateRepositoryMaintainers(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*repositoryMaintainers, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		suffix = "-maintainers"
 	)
@@ -63,7 +64,7 @@ func newCreateRepositoryMaintainers(logger *slog.Logger, client *clients.Github,
 	}, nil
 }
 
-func (r *repositoryMaintainers) CreateRepositoryMaintainers(ctx context.Context, p *repositoryMaintainersParams) error {
+func (r *repositoryMaintainers) Handle(ctx context.Context, p *Params) error {
 	var (
 		name        = fmt.Sprintf("%s%s", p.RepositoryName, r.suffix)
 		description = fmt.Sprintf("Maintainers of %s", p.RepositoryName)

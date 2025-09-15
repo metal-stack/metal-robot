@@ -1,11 +1,10 @@
-package actions
+package aggregate_releases
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
 	"net/url"
-	"sort"
 	"strings"
 	"sync"
 
@@ -14,15 +13,16 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/atedja/go-multilock"
 	"github.com/google/go-github/v74/github"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 )
 
-type AggregateReleases struct {
+type aggregateReleases struct {
 	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
@@ -36,14 +36,14 @@ type AggregateReleases struct {
 	lock *multilock.Lock
 }
 
-type AggregateReleaseParams struct {
+type Params struct {
 	RepositoryName string
 	RepositoryURL  string
 	TagName        string
 	Sender         string
 }
 
-func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*AggregateReleases, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -93,7 +93,7 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 		}
 	}
 
-	return &AggregateReleases{
+	return &aggregateReleases{
 		logger:                logger,
 		client:                client,
 		branch:                branch,
@@ -108,7 +108,7 @@ func NewAggregateReleases(logger *slog.Logger, client *clients.Github, rawConfig
 }
 
 // AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
-func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateReleaseParams) error {
+func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 	log := r.logger.With("target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
 
 	patches, ok := r.patchMap[p.RepositoryName]
@@ -125,13 +125,13 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 		return nil
 	}
 
-	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
 		return err
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
+		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
 			return err
 		}
@@ -220,54 +220,4 @@ func (r *AggregateReleases) AggregateRelease(ctx context.Context, p *AggregateRe
 	}
 
 	return nil
-}
-
-func findOpenReleasePR(ctx context.Context, client *github.Client, owner, repo, branch, base string) (*github.PullRequest, error) {
-	prs, _, err := client.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
-		State: "open",
-		Head:  branch,
-		Base:  base,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to list pull requests: %w", err)
-	}
-
-	if len(prs) == 1 {
-		return prs[0], nil
-	}
-
-	return nil, nil
-}
-
-func isReleaseFreeze(ctx context.Context, client *github.Client, number int, owner, repo string) (bool, error) {
-	comments, _, err := client.Issues.ListComments(ctx, owner, repo, number, &github.IssueListCommentsOptions{
-		Direction: github.Ptr("desc"),
-	})
-	if err != nil {
-		return true, fmt.Errorf("unable to list pull request comments: %w", err)
-	}
-
-	// somehow the direction parameter has no effect, it's always sorted in the same way?
-	// therefore sorting manually:
-	sort.Slice(comments, sortComments(comments))
-
-	for _, comment := range comments {
-		comment := comment
-
-		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseFreeze); ok {
-			return true, nil
-		}
-
-		if _, ok := searchForCommandInBody(pointer.SafeDeref(comment.Body), IssueCommentReleaseUnfreeze); ok {
-			return false, nil
-		}
-	}
-
-	return false, nil
-}
-
-func sortComments(comments []*github.IssueComment) func(i, j int) bool {
-	return func(i, j int) bool {
-		return comments[j].CreatedAt.Before(comments[i].CreatedAt.Time)
-	}
 }

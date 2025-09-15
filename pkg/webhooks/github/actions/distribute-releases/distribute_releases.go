@@ -1,4 +1,4 @@
-package actions
+package distribute_releases
 
 import (
 	"context"
@@ -16,12 +16,13 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
 )
 
-type distributeReleaseParams struct {
+type Params struct {
 	RepositoryName string
 	TagName        string
 }
@@ -43,7 +44,7 @@ type targetRepo struct {
 	url     string
 }
 
-func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*distributeReleases, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		commitMessageTemplate = "Bump %s to version %s"
 		branchTemplate        = "auto-generate/%s"
@@ -109,7 +110,7 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 }
 
 // DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
-func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distributeReleaseParams) error {
+func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 	if p.RepositoryName != d.repoName {
 		d.logger.Debug("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
 		return nil

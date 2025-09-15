@@ -8,19 +8,18 @@ import (
 	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 )
 
 type Webhook struct {
 	logger *slog.Logger
 	cs     clients.ClientMap
-	a      *actions.WebhookActions
+	a      *WebhookActions
 	secret string
 }
 
 // NewGithubWebhook returns a new webhook controller
 func NewGithubWebhook(logger *slog.Logger, w config.Webhook, cs clients.ClientMap) (*Webhook, error) {
-	a, err := actions.InitActions(logger, cs, w.Actions)
+	a, err := initHandlers(logger, cs, w.Actions)
 	if err != nil {
 		return nil, err
 	}
