@@ -39,6 +39,7 @@ type distributeReleases struct {
 
 type targetRepo struct {
 	patches []filepatchers.Patcher
+	branch  string
 	url     string
 }
 
@@ -83,8 +84,14 @@ func newDistributeReleases(logger *slog.Logger, client *clients.Github, rawConfi
 			patches = append(patches, patcher)
 		}
 
+		branch := "master"
+		if t.Branch != "" {
+			branch = t.Branch
+		}
+
 		targetRepos[t.RepositoryName] = targetRepo{
 			url:     t.RepositoryURL,
+			branch:  branch,
 			patches: patches,
 		}
 	}
@@ -139,10 +146,11 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 	lock := multilock.New(targetRepos...)
 
 	g, _ := errgroup.WithContext(ctx)
+
 	for targetRepoName, targetRepo := range d.targetRepos {
-		targetRepoName := targetRepoName
-		targetRepo := targetRepo
 		g.Go(func() error {
+			d.logger.Info("applying patch actions", "source-repo", p.RepositoryName, "target-repo", targetRepoName)
+
 			repoURL, err := url.Parse(targetRepo.url)
 			if err != nil {
 				return err
@@ -193,7 +201,7 @@ func (d *distributeReleases) DistributeRelease(ctx context.Context, p *distribut
 			pr, _, err := d.client.GetV3Client().PullRequests.Create(ctx, d.client.Organization(), targetRepoName, &github.NewPullRequest{
 				Title:               github.Ptr(commitMessage),
 				Head:                github.Ptr(prBranch),
-				Base:                github.Ptr("master"),
+				Base:                github.Ptr(targetRepo.branch),
 				Body:                github.Ptr(d.pullRequestTitle),
 				MaintainerCanModify: github.Ptr(true),
 			})
