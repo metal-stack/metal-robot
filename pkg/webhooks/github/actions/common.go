@@ -22,7 +22,7 @@ const (
 	ActionAggregateReleases           string = "aggregate-releases"
 	ActionYAMLTranslateReleases       string = "yaml-translate-releases"
 	ActionDocsPreviewComment          string = "docs-preview-comment"
-	ActionLabelOnCreationComment      string = "labels-on-issue-creation"
+	ActionLabelsOnIssueCreation       string = "labels-on-issue-creation"
 	ActionCreateRepositoryMaintainers string = "create-repository-maintainers"
 	ActionDistributeReleases          string = "distribute-releases"
 	ActionReleaseDraft                string = "release-draft"
@@ -75,7 +75,7 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 				return nil, err
 			}
 			actions.dp = append(actions.dp, h)
-		case ActionLabelOnCreationComment:
+		case ActionLabelsOnIssueCreation:
 			h, err := newLabelsOnCreationHandler(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
