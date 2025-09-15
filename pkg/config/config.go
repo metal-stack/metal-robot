@@ -61,7 +61,7 @@ func New(configPath string) (*Configuration, error) {
 func (w WebhookActions) String() string {
 	actions := []string{}
 	for _, h := range w {
-		actions = append(actions, h.Type)
+		actions = append(actions, string(h.Type))
 	}
 	return strings.Join(actions, ", ")
 }

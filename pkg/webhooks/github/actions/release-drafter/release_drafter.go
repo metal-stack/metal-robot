@@ -1,4 +1,4 @@
-package actions
+package release_drafter
 
 import (
 	"context"
@@ -13,6 +13,8 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/utils"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -56,14 +58,14 @@ type releaseDrafter struct {
 	prDescription *string
 }
 
-type releaseDrafterParams struct {
+type Params struct {
 	RepositoryName       string
 	TagName              string
 	ComponentReleaseInfo *string
 	ReleaseURL           string
 }
 
-func newReleaseDrafter(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*releaseDrafter, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		releaseTitleTemplate = "%s"
 		draftHeadline        = "General"
@@ -121,7 +123,7 @@ func newReleaseDrafter(logger *slog.Logger, client *clients.Github, rawConfig ma
 }
 
 // draft updates a release draft in a release repository
-func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) error {
+func (r *releaseDrafter) Handle(ctx context.Context, p *Params) error {
 	log := r.logger.With("repo", p.RepositoryName, "release", p.TagName)
 
 	_, ok := r.repoMap[p.RepositoryName]
@@ -168,13 +170,13 @@ func (r *releaseDrafter) draft(ctx context.Context, p *releaseDrafterParams) err
 		return nil //nolint:nilerr
 	}
 
-	openPR, err := findOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
 		return err
 	}
 
 	if openPR != nil {
-		frozen, err := isReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
+		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
 			return err
 		}
@@ -282,84 +284,6 @@ func stripHtmlComments(s string) string {
 	}
 
 	return res
-}
-
-// appends a merged pull request to the release draft
-func (r *releaseDrafter) appendMergedPR(ctx context.Context, title string, number int, author string, p *releaseDrafterParams) error {
-	_, ok := r.repoMap[p.RepositoryName]
-	if ok {
-		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
-
-		if p.ComponentReleaseInfo == nil {
-			r.logger.Debug("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
-			return nil
-		}
-
-		infos, err := r.releaseInfos(ctx)
-		if err != nil {
-			return err
-		}
-
-		m := markdown.Parse(infos.body)
-
-		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.client.Organization(), p.RepositoryName, number)
-		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, &issueSuffix)
-		if err != nil {
-			r.logger.Debug("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
-			return nil
-		}
-
-		body := m.String()
-
-		return r.createOrUpdateRelease(ctx, infos, body, p)
-	}
-
-	infos, err := r.releaseInfos(ctx)
-	if err != nil {
-		return err
-	}
-
-	body := r.appendPullRequest(r.client.Organization(), infos.body, p.RepositoryName, title, number, author, p.ComponentReleaseInfo)
-
-	return r.createOrUpdateRelease(ctx, infos, body, p)
-}
-
-func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int, author string, prBody *string) string {
-	m := markdown.Parse(priorBody)
-
-	l := fmt.Sprintf("* %s (%s/%s#%d) @%s", title, org, repo, number, author)
-
-	body := []string{l}
-
-	section := m.FindSectionByHeading(1, r.prHeadline)
-	if section == nil {
-		if r.prDescription != nil {
-			body = append([]string{*r.prDescription}, body...)
-		}
-
-		m.AppendSection(&markdown.MarkdownSection{
-			Level:        1,
-			Heading:      r.prHeadline,
-			ContentLines: body,
-		})
-	} else {
-		alreadyPresent := false
-		for _, existingLine := range section.ContentLines {
-			if existingLine == l {
-				alreadyPresent = true
-			}
-		}
-		if !alreadyPresent {
-			section.AppendContent(body)
-		}
-	}
-
-	if prBody != nil {
-		issueSuffix := fmt.Sprintf("(%s/%s#%d)", org, repo, number)
-		_ = r.prependCodeBlocks(m, *prBody, &issueSuffix)
-	}
-
-	return m.String()
 }
 
 func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, issueSuffix *string) error {
@@ -507,7 +431,7 @@ func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoN
 	return nil, nil
 }
 
-func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *releaseInfos, body string, p *releaseDrafterParams) error {
+func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, infos *releaseInfos, body string, p *Params) error {
 	if infos.existing != nil {
 		infos.existing.Body = &body
 		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, infos.existing.GetID(), infos.existing)

@@ -1,4 +1,4 @@
-package actions
+package yaml_translate_releases
 
 import (
 	"context"
@@ -16,6 +16,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 )
@@ -44,13 +45,13 @@ type yamlFrom struct {
 	yamlPath string
 }
 
-type yamlTranslateReleaseParams struct {
+type Params struct {
 	RepositoryName string
 	RepositoryURL  string
 	TagName        string
 }
 
-func newYAMLTranslateReleases(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*yamlTranslateReleases, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -128,7 +129,7 @@ func newYAMLTranslateReleases(logger *slog.Logger, client *clients.Github, rawCo
 }
 
 // TranslateRelease translates contents from one repository to another repository
-func (r *yamlTranslateReleases) translateRelease(ctx context.Context, p *yamlTranslateReleaseParams) error {
+func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
 	translations, ok := r.translationMap[p.RepositoryName]
 	if !ok {
 		r.logger.Debug("skip applying translate release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)

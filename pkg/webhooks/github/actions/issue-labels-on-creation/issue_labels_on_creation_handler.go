@@ -1,4 +1,4 @@
-package actions
+package issue_labels_on_creation
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -18,13 +19,13 @@ type labelsOnCreationHandler struct {
 	owner   string
 }
 
-type labelsOnCreationHandlerParams struct {
+type Params struct {
 	ContentNodeID  string
 	RepositoryName string
 	URL            string
 }
 
-func newLabelsOnCreationHandler(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*labelsOnCreationHandler, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.LabelsOnCreation
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -39,7 +40,7 @@ func newLabelsOnCreationHandler(logger *slog.Logger, client *clients.Github, raw
 	}, nil
 }
 
-func (r *labelsOnCreationHandler) Handle(ctx context.Context, p *labelsOnCreationHandlerParams) error {
+func (r *labelsOnCreationHandler) Handle(ctx context.Context, p *Params) error {
 	repo, ok := r.repos[p.RepositoryName]
 	if !ok {
 		r.logger.Debug("skip handling labels on creation action, not in list of defined repositories", "source-repo", p.RepositoryName)

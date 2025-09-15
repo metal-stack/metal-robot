@@ -1,9 +1,24 @@
 package config
 
+type ActionName string
+
+const (
+	ActionAggregateReleases           ActionName = "aggregate-releases"
+	ActionYAMLTranslateReleases       ActionName = "yaml-translate-releases"
+	ActionDocsPreviewComment          ActionName = "docs-preview-comment"
+	ActionLabelsOnIssueCreation       ActionName = "labels-on-issue-creation"
+	ActionCreateRepositoryMaintainers ActionName = "create-repository-maintainers"
+	ActionDistributeReleases          ActionName = "distribute-releases"
+	ActionReleaseDraft                ActionName = "release-draft"
+	ActionIssueCommentsHandler        ActionName = "issue-handling"
+	ActionProjectItemAddHandler       ActionName = "add-items-to-project"
+	ActionProjectV2ItemHandler        ActionName = "project-v2-item"
+)
+
 type WebhookActions []WebhookAction
 
 type WebhookAction struct {
-	Type   string         `json:"type" description:"name of the webhook action"`
+	Type   ActionName     `json:"type" description:"name of the webhook action"`
 	Client string         `json:"client" description:"client that this webhook action uses"`
 	Args   map[string]any `json:"args" description:"action configuration"`
 }
