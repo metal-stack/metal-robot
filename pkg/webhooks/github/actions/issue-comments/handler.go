@@ -18,7 +18,6 @@ import (
 )
 
 type IssueCommentsAction struct {
-	logger *slog.Logger
 	client *clients.Github
 
 	targetRepos map[string]bool
@@ -33,7 +32,7 @@ type Params struct {
 	User              string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.IssueCommentsHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -46,16 +45,16 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &IssueCommentsAction{
-		logger:      logger,
 		client:      client,
 		targetRepos: targetRepos,
 	}, nil
 }
 
-func (r *IssueCommentsAction) Handle(ctx context.Context, p *Params) error {
+// Handle applies actions on issues comments, e.g. executes ad hoc commands
+func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	_, ok := r.targetRepos[p.RepositoryName]
 	if !ok {
-		r.logger.Debug("skip handling issues comment action, not in list of target repositories", "source-repo", p.RepositoryName)
+		log.Debug("skip handling issues comment action, repository not configured in metal-robot configuration")
 		return nil
 	}
 
@@ -68,19 +67,19 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, p *Params) error {
 	case "admin":
 		// fallthrough
 	default:
-		r.logger.Debug("skip handling issues comment action, author does not have admin permissions on this repo", "source-repo", p.RepositoryName, "author", p.User)
+		log.Debug("skip handling issues comment action, author does not have admin permissions on this repo", "author", p.User)
 		return nil
 	}
 
-	if _, ok := common.SearchForCommand(p.Comment, common.CommentBuildFork); ok {
-		err := r.buildForkPR(ctx, p)
+	if _, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandBuildFork); ok {
+		err := r.buildForkPR(ctx, log, p)
 		if err != nil {
 			return err
 		}
 	}
 
-	if args, ok := common.SearchForCommand(p.Comment, common.CommentTag); ok {
-		err := r.tag(ctx, p, args)
+	if args, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandTag); ok {
+		err := r.tag(ctx, log, p, args)
 		if err != nil {
 			return err
 		}
@@ -89,20 +88,20 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, p *Params) error {
 	return nil
 }
 
-func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *Params) error {
+func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger, p *Params) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
 		return fmt.Errorf("error finding issue related pull request %w", err)
 	}
 
 	if pullRequest.Head.Repo.Fork == nil || !*pullRequest.Head.Repo.Fork {
-		r.logger.Debug("skip handling issues comment action, pull request is not from a fork", "source-repo", p.RepositoryName)
+		log.Debug("skip handling issues comment action, pull request is not from a fork")
 		return nil
 	}
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	targetRepoURL, err := url.Parse(p.RepositoryURL)
@@ -121,7 +120,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *Params) error 
 
 	err = git.PushToRemote(*pullRequest.Head.Repo.CloneURL, headRef, targetRepoURL.String(), forkBuildBranch, commitMessage)
 	if err != nil {
-		return fmt.Errorf("error pushing to target remote repository %w", err)
+		return fmt.Errorf("error pushing to target remote repository: %w", err)
 	}
 
 	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), p.RepositoryName, &github.NewPullRequest{
@@ -138,12 +137,12 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, p *Params) error 
 		}
 	}
 
-	r.logger.Info("triggered fork build action by pushing to fork-build branch", "source-repo", p.RepositoryName, "branch", forkBuildBranch, "pull-request-url", forkPr.GetURL())
+	log.Info("triggered fork build action by pushing to fork-build branch", "branch", forkBuildBranch, "pull-request-url", forkPr.GetURL())
 
 	return nil
 }
 
-func (r *IssueCommentsAction) tag(ctx context.Context, p *Params, args []string) error {
+func (r *IssueCommentsAction) tag(ctx context.Context, log *slog.Logger, p *Params, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("no tag name given, skipping")
 	}
@@ -157,7 +156,7 @@ func (r *IssueCommentsAction) tag(ctx context.Context, p *Params, args []string)
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	targetRepoURL, err := url.Parse(p.RepositoryURL)
@@ -172,7 +171,7 @@ func (r *IssueCommentsAction) tag(ctx context.Context, p *Params, args []string)
 		return err
 	}
 
-	r.logger.Info("pushed tag to repo", "repo", p.RepositoryName, "branch", headRef, "tag", tag)
+	log.Info("pushed tag to repo", "branch", headRef, "tag", tag)
 
 	return nil
 }

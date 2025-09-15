@@ -13,7 +13,6 @@ import (
 )
 
 type projectItemAdd struct {
-	logger    *slog.Logger
 	client    *clients.Github
 	graphql   *githubv4.Client
 	projectID string
@@ -26,7 +25,7 @@ type Params struct {
 	URL            string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectItemAddHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -34,22 +33,22 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &projectItemAdd{
-		logger:    logger,
 		client:    client,
 		graphql:   client.GetGraphQLClient(),
 		projectID: typedConfig.ProjectID,
 	}, nil
 }
 
-func (r *projectItemAdd) Handle(ctx context.Context, p *Params) error {
-	if err := r.addToProject(ctx, p); err != nil {
+// Handle automatically adds project items in an organization to a project
+func (r *projectItemAdd) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
+	if err := r.addToProject(ctx, log, p); err != nil {
 		return fmt.Errorf("unable to add item to project: %w", err)
 	}
 
 	return nil
 }
 
-func (r *projectItemAdd) addToProject(ctx context.Context, p *Params) error {
+func (r *projectItemAdd) addToProject(ctx context.Context, log *slog.Logger, p *Params) error {
 	var m struct {
 		AddProjectV2ItemById struct {
 			Item struct {
@@ -72,7 +71,7 @@ func (r *projectItemAdd) addToProject(ctx context.Context, p *Params) error {
 		return fmt.Errorf("error mutating graphql: %w", err)
 	}
 
-	r.logger.Info("added item to project", "project-number", m.AddProjectV2ItemById.Item.Project.Number, "project-title", m.AddProjectV2ItemById.Item.Project.Title, "url", p.URL)
+	log.Info("added item to project", "project-number", m.AddProjectV2ItemById.Item.Project.Number, "project-title", m.AddProjectV2ItemById.Item.Project.Title)
 
 	return nil
 }

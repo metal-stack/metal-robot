@@ -21,20 +21,20 @@ func Test_searchForCommandInBody(t *testing.T) {
 		{
 			name:     "find in single line",
 			body:     "/freeze",
-			search:   CommentReleaseFreeze,
+			search:   CommentCommandReleaseFreeze,
 			want:     true,
 			wantArgs: []string{},
 		},
 		{
 			name:   "no match",
 			body:   "/foo",
-			search: CommentReleaseFreeze,
+			search: CommentCommandReleaseFreeze,
 			want:   false,
 		},
 		{
 			name:     "find with strip",
 			body:     "  /freeze  ",
-			search:   CommentReleaseFreeze,
+			search:   CommentCommandReleaseFreeze,
 			want:     true,
 			wantArgs: []string{},
 		},
@@ -43,7 +43,7 @@ func Test_searchForCommandInBody(t *testing.T) {
 			body: `Release is frozen now.
 			/freeze
 			`,
-			search:   CommentReleaseFreeze,
+			search:   CommentCommandReleaseFreeze,
 			want:     true,
 			wantArgs: []string{},
 		},
@@ -52,14 +52,14 @@ func Test_searchForCommandInBody(t *testing.T) {
 			body: `Tagging.
 			/tag v0.1.17-rc.0
 			`,
-			search:   CommentTag,
+			search:   CommentCommandTag,
 			want:     true,
 			wantArgs: []string{"v0.1.17-rc.0"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotArgs, got := SearchForCommand(tt.body, tt.search)
+			gotArgs, got := SearchForCommentCommand(tt.body, tt.search)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("diff: %s", diff)
 			}

@@ -1,7 +1,6 @@
 package release_drafter
 
 import (
-	"log/slog"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
@@ -227,7 +226,6 @@ Some description
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &releaseDrafter{
-				logger:        slog.Default(),
 				client:        nil,
 				draftHeadline: tt.headline,
 			}
@@ -393,7 +391,6 @@ Some description
 		t.Run(tt.name, func(t *testing.T) {
 			t.Run(tt.name, func(t *testing.T) {
 				r := &releaseDrafter{
-					logger:        slog.Default(),
 					client:        nil,
 					prHeadline:    "Merged Pull Requests",
 					draftHeadline: "General",
