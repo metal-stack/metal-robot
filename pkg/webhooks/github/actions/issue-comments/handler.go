@@ -72,14 +72,14 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, p *Params) error {
 		return nil
 	}
 
-	if _, ok := common.SearchForCommand(p.Comment, common.CommentBuildFork); ok {
+	if _, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandBuildFork); ok {
 		err := r.buildForkPR(ctx, p)
 		if err != nil {
 			return err
 		}
 	}
 
-	if args, ok := common.SearchForCommand(p.Comment, common.CommentTag); ok {
+	if args, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandTag); ok {
 		err := r.tag(ctx, p, args)
 		if err != nil {
 			return err
