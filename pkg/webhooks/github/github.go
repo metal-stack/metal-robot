@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 )
 
 type Webhook struct {
@@ -48,6 +49,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusInternalServerError)
 	}
 
+	// as we need to fulfill the time constraint by github, we run all handlers async
+
 	ctx := context.Background()
 	switch event := event.(type) {
 	case *github.ReleaseEvent:
@@ -73,7 +76,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 	case *github.RepositoryEvent:
 		w.logger.Debug("received repository event")
 		// nolint:contextcheck
-		go w.a.ProcessRepositoryEvent(ctx, event)
+		go actions.Run(w.logger, event)
 	case *github.ProjectV2ItemEvent:
 		w.logger.Debug("received project v2 item event")
 		// nolint:contextcheck
