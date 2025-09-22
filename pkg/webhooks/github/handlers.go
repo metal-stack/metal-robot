@@ -40,21 +40,21 @@ const (
 type WebhookActions struct {
 	logger *slog.Logger
 
-	aggregateReleasesHandlers     []actions.WebhookHandler[*aggregate_releases.Params]
-	distributeReleasesHandlers    []actions.WebhookHandler[*distribute_releases.Params]
-	docsPreviewCommentHandlers    []actions.WebhookHandler[*docs_preview_comment.Params]
-	issueCommentsHandlers         []actions.WebhookHandler[*issue_comments.Params]
-	labelsOnCreationHandlers      []actions.WebhookHandler[*issue_labels_on_creation.Params]
-	projectItemAddHandlers        []actions.WebhookHandler[*project_item_add.Params]
-	projectV2ItemHandlers         []actions.WebhookHandler[*project_v2_item.Params]
-	releaseDrafterHandlers        []actions.WebhookHandler[*release_drafter.Params]
-	appendMergedPRsHandlers       []actions.WebhookHandler[*release_drafter.AppendMergedPrParams]
-	repositoryMaintainersHandlers []actions.WebhookHandler[*repository_maintainers.Params]
+	aggregateReleasesHandlers  []actions.WebhookHandler[*aggregate_releases.Params]
+	distributeReleasesHandlers []actions.WebhookHandler[*distribute_releases.Params]
+	docsPreviewCommentHandlers []actions.WebhookHandler[*docs_preview_comment.Params]
+	issueCommentsHandlers      []actions.WebhookHandler[*issue_comments.Params]
+	labelsOnCreationHandlers   []actions.WebhookHandler[*issue_labels_on_creation.Params]
+	projectItemAddHandlers     []actions.WebhookHandler[*project_item_add.Params]
+	projectV2ItemHandlers      []actions.WebhookHandler[*project_v2_item.Params]
+	releaseDrafterHandlers     []actions.WebhookHandler[*release_drafter.Params]
+	appendMergedPRsHandlers    []actions.WebhookHandler[*release_drafter.AppendMergedPrParams]
+	// repositoryMaintainersHandlers []actions.WebhookHandler[*repository_maintainers.Params]
 	yamlTranslateReleasesHandlers []actions.WebhookHandler[*yaml_translate_releases.Params]
 }
 
 func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookActions) (*WebhookActions, error) {
-	actions := WebhookActions{
+	wa := WebhookActions{
 		logger: logger,
 	}
 
@@ -76,67 +76,86 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 			if err != nil {
 				return nil, err
 			}
-			actions.repositoryMaintainersHandlers = append(actions.repositoryMaintainersHandlers, h)
+
+			actions.Append(func(ctx context.Context, event *github.RepositoryEvent) error {
+				var (
+					action = pointer.SafeDeref(event.Action)
+					repo   = pointer.SafeDeref(event.Repo)
+					sender = pointer.SafeDeref(event.Sender)
+
+					repoName = pointer.SafeDeref(repo.Name)
+					login    = pointer.SafeDeref(sender.Login)
+				)
+
+				if action != githubActionCreated {
+					return nil
+				}
+
+				return h.Handle(ctx, &repository_maintainers.Params{
+					RepositoryName: repoName,
+					Creator:        login,
+				})
+			})
 		case config.ActionDocsPreviewComment:
 			h, err := docs_preview_comment.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.docsPreviewCommentHandlers = append(actions.docsPreviewCommentHandlers, h)
+			wa.docsPreviewCommentHandlers = append(wa.docsPreviewCommentHandlers, h)
 		case config.ActionLabelsOnIssueCreation:
 			h, err := issue_labels_on_creation.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.labelsOnCreationHandlers = append(actions.labelsOnCreationHandlers, h)
+			wa.labelsOnCreationHandlers = append(wa.labelsOnCreationHandlers, h)
 		case config.ActionAggregateReleases:
 			h, err := aggregate_releases.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.aggregateReleasesHandlers = append(actions.aggregateReleasesHandlers, h)
+			wa.aggregateReleasesHandlers = append(wa.aggregateReleasesHandlers, h)
 		case config.ActionDistributeReleases:
 			h, err := distribute_releases.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.distributeReleasesHandlers = append(actions.distributeReleasesHandlers, h)
+			wa.distributeReleasesHandlers = append(wa.distributeReleasesHandlers, h)
 		case config.ActionReleaseDraft:
 			h, err := release_drafter.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.releaseDrafterHandlers = append(actions.releaseDrafterHandlers, h)
+			wa.releaseDrafterHandlers = append(wa.releaseDrafterHandlers, h)
 
 			h2, err := release_drafter.NewAppendMergedPRs(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.appendMergedPRsHandlers = append(actions.appendMergedPRsHandlers, h2)
+			wa.appendMergedPRsHandlers = append(wa.appendMergedPRsHandlers, h2)
 		case config.ActionYAMLTranslateReleases:
 			h, err := yaml_translate_releases.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.yamlTranslateReleasesHandlers = append(actions.yamlTranslateReleasesHandlers, h)
+			wa.yamlTranslateReleasesHandlers = append(wa.yamlTranslateReleasesHandlers, h)
 		case config.ActionProjectItemAddHandler:
 			h, err := project_item_add.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.projectItemAddHandlers = append(actions.projectItemAddHandlers, h)
+			wa.projectItemAddHandlers = append(wa.projectItemAddHandlers, h)
 		case config.ActionProjectV2ItemHandler:
 			h, err := project_v2_item.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.projectV2ItemHandlers = append(actions.projectV2ItemHandlers, h)
+			wa.projectV2ItemHandlers = append(wa.projectV2ItemHandlers, h)
 		case config.ActionIssueCommentsHandler:
 			h, err := issue_comments.New(logger, c.(*clients.Github), spec.Args)
 			if err != nil {
 				return nil, err
 			}
-			actions.issueCommentsHandlers = append(actions.issueCommentsHandlers, h)
+			wa.issueCommentsHandlers = append(wa.issueCommentsHandlers, h)
 		default:
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
@@ -144,7 +163,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 		logger.Debug("initialized github webhook action", "name", spec.Type)
 	}
 
-	return &actions, nil
+	return &wa, nil
 }
 
 func (w *WebhookActions) ProcessReleaseEvent(ctx context.Context, payload *github.ReleaseEvent) {
@@ -478,34 +497,6 @@ func (w *WebhookActions) ProcessRepositoryEvent(ctx context.Context, payload *gi
 	ctx, cancel := context.WithTimeout(ctx, constants.WebhookHandleTimeout)
 	defer cancel()
 	g, _ := errgroup.WithContext(ctx)
-
-	for _, a := range w.repositoryMaintainersHandlers {
-		g.Go(func() error {
-			var (
-				action = pointer.SafeDeref(payload.Action)
-				repo   = pointer.SafeDeref(payload.Repo)
-				sender = pointer.SafeDeref(payload.Sender)
-
-				repoName = pointer.SafeDeref(repo.Name)
-				login    = pointer.SafeDeref(sender.Login)
-			)
-
-			if action != githubActionCreated {
-				return nil
-			}
-
-			err := a.Handle(ctx, &repository_maintainers.Params{
-				RepositoryName: repoName,
-				Creator:        login,
-			})
-			if err != nil {
-				w.logger.Error("error creating repository maintainers team", "repo", repoName, "error", err)
-				return err
-			}
-
-			return nil
-		})
-	}
 
 	if err := g.Wait(); err != nil {
 		w.logger.Error("errors processing event", "error", err)
