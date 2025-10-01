@@ -23,7 +23,6 @@ import (
 )
 
 type aggregateReleases struct {
-	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -43,7 +42,7 @@ type Params struct {
 	Sender         string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -94,7 +93,6 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &aggregateReleases{
-		logger:                logger,
 		client:                client,
 		branch:                branch,
 		branchBase:            branchBase,
@@ -107,21 +105,24 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}, nil
 }
 
-// AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
-func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
-	log := r.logger.With("target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+// Handle adds a repository release to a release vector repository.
+func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
+	log = log.With("target-repo", r.repoName, "tag", p.TagName)
 
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		log.Debug("skip applying release actions to aggregation repo, not in list of source repositories")
+		log.Debug("not adding to release vector because repository is not configured as a release repository in the metal-robot configuration")
 		return nil
 	}
 
-	tag := p.TagName
-	trimmed := strings.TrimPrefix(tag, "v")
+	var (
+		tag     = p.TagName
+		trimmed = strings.TrimPrefix(tag, "v")
+	)
+
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Info("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
+		log.Info("not adding to release vector because not a valid semver release tag", "error", err)
 		return nil
 	}
 
@@ -137,7 +138,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 		}
 
 		if frozen {
-			log.Info("skip applying release actions to aggregation repo because release is currently frozen")
+			log.Info("not adding to release vector because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &github.IssueComment{
 				Body: github.Ptr(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
@@ -161,7 +162,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	repoURL, err := url.Parse(r.repoURL)

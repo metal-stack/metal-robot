@@ -22,7 +22,6 @@ import (
 )
 
 type yamlTranslateReleases struct {
-	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -51,7 +50,7 @@ type Params struct {
 	TagName        string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -115,7 +114,6 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &yamlTranslateReleases{
-		logger:                logger,
 		client:                client,
 		branch:                branch,
 		branchBase:            branchBase,
@@ -128,19 +126,26 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}, nil
 }
 
-// TranslateRelease translates contents from one repository to another repository
-func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
+// Handle adds a repository release to a release vector repository considering the contents of the released repository,
+// e.g. you can take file contents from the release repository and patch this into a certain place of the release vector repository.
+// this is similar to aggregate releases but a bit more sophisticated because you can use file contents of the release repository.
+func (r *yamlTranslateReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
+	log = log.With("target-repository-name", r.repoName, "tag", p.TagName)
+
 	translations, ok := r.translationMap[p.RepositoryName]
 	if !ok {
-		r.logger.Debug("skip applying translate release actions to aggregation repo, not in list of source repositories", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		log.Debug("skip applying translate release, no translation configured in metal-robot configuration")
 		return nil
 	}
 
-	tag := p.TagName
-	trimmed := strings.TrimPrefix(tag, "v")
+	var (
+		tag     = p.TagName
+		trimmed = strings.TrimPrefix(tag, "v")
+	)
+
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		r.logger.Info("skip applying translate release actions to aggregation repo because not a valid semver release tag", "target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+		log.Info("skip applying translate release action because not a valid semver release tag")
 		return nil //nolint:nilerr
 	}
 
@@ -151,7 +156,7 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	sourceRepoURL, err := url.Parse(p.RepositoryURL)
@@ -187,18 +192,18 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
 	for _, translation := range translations {
 		content, err := git.ReadRepoFile(sourceRepository, translation.from.file)
 		if err != nil {
-			return fmt.Errorf("error reading content from source repository file %w", err)
+			return fmt.Errorf("error reading content from source repository file: %w", err)
 		}
 
 		value, err := filepatchers.GetYAML(content, translation.from.yamlPath)
 		if err != nil {
-			return fmt.Errorf("error reading value from source repository file %w", err)
+			return fmt.Errorf("error reading value from source repository file: %w", err)
 		}
 
 		for _, patch := range translation.to {
 			err = patch.Apply(reader, writer, value)
 			if err != nil {
-				return fmt.Errorf("error applying translate updates %w", err)
+				return fmt.Errorf("error applying translate updates: %w", err)
 			}
 		}
 	}
@@ -207,13 +212,13 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
 	hash, err := git.CommitAndPush(targetRepository, commitMessage)
 	if err != nil {
 		if errors.Is(err, git.ErrNoChanges) {
-			r.logger.Debug("skip push to target repository because nothing changed", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag)
+			log.Debug("skip push to target repository because nothing changed")
 			return nil
 		}
-		return fmt.Errorf("error pushing to target repository %w", err)
+		return fmt.Errorf("error pushing to target repository: %w", err)
 	}
 
-	r.logger.Info("pushed to translate target repo", "target-repo", p.RepositoryName, "source-repo", p.RepositoryName, "release", tag, "branch", r.branch, "hash", hash)
+	log.Info("pushed to translate target repo", "branch", r.branch, "hash", hash)
 
 	once.Do(func() { r.lock.Unlock() })
 
@@ -229,7 +234,7 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, p *Params) error {
 			return err
 		}
 	} else {
-		r.logger.Info("created pull request", "target-repo", p.RepositoryName, "url", pr.GetURL())
+		log.Info("created pull request", "url", pr.GetURL())
 	}
 
 	return nil

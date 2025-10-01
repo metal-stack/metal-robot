@@ -2,6 +2,7 @@ package actions
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -16,14 +17,15 @@ var (
 
 type (
 	WebhookHandler[P any] interface {
-		Handle(ctx context.Context, params P) error
+		Handle(ctx context.Context, log *slog.Logger, params P) error
 	}
 
 	WebhookEvents interface {
-		*github.ReleaseEvent | *github.RepositoryEvent
+		*github.ReleaseEvent | *github.RepositoryEvent | *github.PullRequestEvent | *github.PushEvent |
+			*github.ProjectV2ItemEvent | *github.IssueCommentEvent | *github.IssuesEvent
 	}
 
-	HandleFn[E WebhookEvents] func(ctx context.Context, event E) error
+	HandleFn[E WebhookEvents] func(ctx context.Context, log *slog.Logger, event E) error
 
 	key[T WebhookEvents] struct{}
 )
@@ -34,15 +36,29 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 
 	if val, ok := handlerMap[key[E]{}]; ok {
 		for _, h := range val {
-			fn := h.(HandleFn[E]) // not checked because can only be filled by Append
+			var (
+				handlerType = fmt.Sprintf("%T", h)
+				log         = log.With("handler-type", handlerType)
+				fn, ok      = h.(HandleFn[E])
+			)
+
+			if !ok {
+				// this should never happen because handlers can only be added through Append()
+				log.Error("handler map contains something different than a handler func")
+				continue
+			}
 
 			go func() {
 				// handlers can run in parallel, so create an own context for every handler
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 				defer cancel()
 
-				if err := fn(ctx, e); err != nil {
-					log.Error("error handling repository event", "error", err)
+				log.Info("running event handler")
+
+				if err := fn(ctx, log, e); err != nil {
+					log.Error("error handling event", "error", err)
+				} else {
+					log.Info("successfully handled event")
 				}
 			}()
 		}

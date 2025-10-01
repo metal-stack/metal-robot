@@ -14,7 +14,6 @@ import (
 )
 
 type repositoryMaintainers struct {
-	logger          *slog.Logger
 	client          *clients.Github
 	suffix          string
 	additionalTeams repositoryAdditionalMemberships
@@ -32,7 +31,7 @@ type Params struct {
 	Creator        string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		suffix = "-maintainers"
 	)
@@ -49,7 +48,6 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 
 	var additionalTeams repositoryAdditionalMemberships
 	for _, team := range typedConfig.AdditionalMemberships {
-		team := team
 		additionalTeams = append(additionalTeams, repositoryTeamMembership{
 			teamSlug:   team.TeamSlug,
 			permission: team.Permission,
@@ -57,14 +55,14 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &repositoryMaintainers{
-		logger:          logger,
 		client:          client,
 		suffix:          suffix,
 		additionalTeams: additionalTeams,
 	}, nil
 }
 
-func (r *repositoryMaintainers) Handle(ctx context.Context, p *Params) error {
+// Handle creates a maintainers team for a newly created repository
+func (r *repositoryMaintainers) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	var (
 		name        = fmt.Sprintf("%s%s", p.RepositoryName, r.suffix)
 		description = fmt.Sprintf("Maintainers of %s", p.RepositoryName)
@@ -79,12 +77,12 @@ func (r *repositoryMaintainers) Handle(ctx context.Context, p *Params) error {
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Name must be unique for this org") {
-			r.logger.Info("maintainers team for repository already exists", "repository", p.RepositoryName, "team", name)
+			log.Info("maintainers team for repository already exists", "team", name)
 		} else {
-			return fmt.Errorf("error creating maintainers team %w", err)
+			return fmt.Errorf("error creating maintainers team: %w", err)
 		}
 	} else {
-		r.logger.Info("created new maintainers team for repository", "repository", p.RepositoryName, "team", name)
+		log.Info("created new maintainers team for repository", "team", name)
 	}
 
 	memberships := []repositoryTeamMembership{
@@ -104,7 +102,7 @@ func (r *repositoryMaintainers) Handle(ctx context.Context, p *Params) error {
 		if err != nil {
 			return fmt.Errorf("error adding team membership: %w", err)
 		} else {
-			r.logger.Info("added team to repository", "repository", p.RepositoryName, "team", team.teamSlug, "permission", team.permission)
+			log.Info("added team to repository", "team", team.teamSlug, "permission", team.permission)
 		}
 	}
 

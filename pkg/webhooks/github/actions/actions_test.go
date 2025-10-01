@@ -35,14 +35,14 @@ func TestRun(t *testing.T) {
 
 				wg.Add(1)
 
-				actions.Append(func(_ context.Context, event *github.ReleaseEvent) error {
+				actions.Append(func(_ context.Context, _ *slog.Logger, event *github.ReleaseEvent) error {
 					require.NotNil(t, event.Action)
 					assert.Equal(t, "open", *event.Action)
 					wg.Done()
 					return nil
 				})
 
-				actions.Append(func(_ context.Context, event *github.RepositoryEvent) error {
+				actions.Append(func(_ context.Context, _ *slog.Logger, event *github.RepositoryEvent) error {
 					assert.Fail(t, "this should not be called")
 					return nil
 				})

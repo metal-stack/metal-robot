@@ -38,7 +38,7 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookAc
 			if !ok {
 				return nil, fmt.Errorf("action %s only supports github clients", spec.Type)
 			}
-			h, err := aggregate_releases.New(logger, typedClient, spec.Args)
+			h, err := aggregate_releases.New(typedClient, spec.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -61,7 +61,7 @@ func (w *WebhookActions) ProcessTagEvent(ctx context.Context, payload *glwebhook
 	for _, a := range w.ar {
 		a := a
 		g.Go(func() error {
-			err := a.Handle(ctx, &aggregate_releases.Params{
+			err := a.Handle(ctx, w.logger, &aggregate_releases.Params{
 				RepositoryName: payload.Repository.Name,
 				RepositoryURL:  payload.Repository.URL,
 				TagName:        extractTag(payload),

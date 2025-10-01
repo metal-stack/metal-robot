@@ -13,7 +13,6 @@ import (
 )
 
 type docsPreviewComment struct {
-	logger          *slog.Logger
 	client          *clients.Github
 	commentTemplate string
 	repositoryName  string
@@ -23,7 +22,7 @@ type Params struct {
 	PullRequestNumber int
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		commentTemplate = "#%d"
 	)
@@ -42,15 +41,14 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &docsPreviewComment{
-		logger:          logger,
 		client:          client,
 		commentTemplate: commentTemplate,
 		repositoryName:  typedConfig.RepositoryName,
 	}, nil
 }
 
-// AddDocsPreviewComment adds a comment to a pull request in the docs repository
-func (d *docsPreviewComment) Handle(ctx context.Context, p *Params) error {
+// Handle adds a comment to a pull request in the docs repository
+func (d *docsPreviewComment) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	b := fmt.Sprintf(d.commentTemplate, p.PullRequestNumber)
 	c, _, err := d.client.GetV3Client().Issues.CreateComment(
 		ctx,
@@ -62,10 +60,10 @@ func (d *docsPreviewComment) Handle(ctx context.Context, p *Params) error {
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("error creating pull request comment in docs repo %w", err)
+		return fmt.Errorf("error creating pull request comment in docs repo: %w", err)
 	}
 
-	d.logger.Info("added preview comment in docs repo", "url", c.GetURL())
+	log.Info("added preview comment in docs repo", "url", c.GetURL())
 
 	return nil
 }
