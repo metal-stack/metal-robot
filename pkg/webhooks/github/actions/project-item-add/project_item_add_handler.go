@@ -1,4 +1,4 @@
-package actions
+package project_item_add
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -18,14 +19,14 @@ type projectItemAdd struct {
 	projectID string
 }
 
-type projectItemAddParams struct {
+type Params struct {
 	RepositoryName string
 	NodeID         string
 	ID             int64
 	URL            string
 }
 
-func newProjectItemAdd(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*projectItemAdd, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectItemAddHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -40,7 +41,7 @@ func newProjectItemAdd(logger *slog.Logger, client *clients.Github, rawConfig ma
 	}, nil
 }
 
-func (r *projectItemAdd) Handle(ctx context.Context, p *projectItemAddParams) error {
+func (r *projectItemAdd) Handle(ctx context.Context, p *Params) error {
 	if err := r.addToProject(ctx, p); err != nil {
 		return fmt.Errorf("unable to add item to project: %w", err)
 	}
@@ -48,7 +49,7 @@ func (r *projectItemAdd) Handle(ctx context.Context, p *projectItemAddParams) er
 	return nil
 }
 
-func (r *projectItemAdd) addToProject(ctx context.Context, p *projectItemAddParams) error {
+func (r *projectItemAdd) addToProject(ctx context.Context, p *Params) error {
 	var m struct {
 		AddProjectV2ItemById struct {
 			Item struct {

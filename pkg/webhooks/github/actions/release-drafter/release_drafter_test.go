@@ -1,4 +1,4 @@
-package actions
+package release_drafter
 
 import (
 	"log/slog"

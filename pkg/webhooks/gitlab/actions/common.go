@@ -10,6 +10,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/constants"
 	ghactions "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	aggregate_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/aggregate-releases"
 	"golang.org/x/sync/errgroup"
 
 	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
@@ -17,27 +18,27 @@ import (
 
 type WebhookActions struct {
 	logger *slog.Logger
-	ar     []*ghactions.AggregateReleases
+	ar     []ghactions.WebhookHandler[*aggregate_releases.Params]
 }
 
-func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.WebhookActions) (*WebhookActions, error) {
+func InitActions(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookActions) (*WebhookActions, error) {
 	actions := WebhookActions{
 		logger: logger,
 	}
 
-	for _, spec := range config {
+	for _, spec := range cfg {
 		c, ok := cs[spec.Client]
 		if !ok {
 			return nil, fmt.Errorf("webhook action client not found: %s", spec.Client)
 		}
 
 		switch t := spec.Type; t {
-		case ghactions.ActionAggregateReleases:
+		case config.ActionAggregateReleases:
 			typedClient, ok := c.(*clients.Github)
 			if !ok {
 				return nil, fmt.Errorf("action %s only supports github clients", spec.Type)
 			}
-			h, err := ghactions.NewAggregateReleases(logger, typedClient, spec.Args)
+			h, err := aggregate_releases.New(logger, typedClient, spec.Args)
 			if err != nil {
 				return nil, err
 			}
@@ -46,7 +47,7 @@ func InitActions(logger *slog.Logger, cs clients.ClientMap, config config.Webhoo
 			return nil, fmt.Errorf("handler type not supported: %s", t)
 		}
 
-		logger.Debug("initialized github webhook action", "name", ghactions.ActionAggregateReleases)
+		logger.Debug("initialized github webhook action", "name", config.ActionAggregateReleases)
 	}
 
 	return &actions, nil
@@ -60,16 +61,13 @@ func (w *WebhookActions) ProcessTagEvent(ctx context.Context, payload *glwebhook
 	for _, a := range w.ar {
 		a := a
 		g.Go(func() error {
-			params := &ghactions.AggregateReleaseParams{
+			err := a.Handle(ctx, &aggregate_releases.Params{
 				RepositoryName: payload.Repository.Name,
 				RepositoryURL:  payload.Repository.URL,
 				TagName:        extractTag(payload),
 				Sender:         payload.UserUsername,
-			}
-			err := a.AggregateRelease(ctx, params)
+			})
 			if err != nil {
-				w.logger.Error("error in aggregate release action", "release-repo", params, "repo", params.RepositoryName, "tag", params.TagName, "error", err)
-				w.logger.Error("error adding release to release vector", "repo", params.RepositoryName, "tag", extractTag(payload), "error", err)
 				return err
 			}
 

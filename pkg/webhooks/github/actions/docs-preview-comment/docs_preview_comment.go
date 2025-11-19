@@ -1,4 +1,4 @@
-package actions
+package docs_preview_comment
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/google/go-github/v74/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -18,11 +19,11 @@ type docsPreviewComment struct {
 	repositoryName  string
 }
 
-type docsPreviewCommentParams struct {
+type Params struct {
 	PullRequestNumber int
 }
 
-func newDocsPreviewComment(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (*docsPreviewComment, error) {
+func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
 	var (
 		commentTemplate = "#%d"
 	)
@@ -49,7 +50,7 @@ func newDocsPreviewComment(logger *slog.Logger, client *clients.Github, rawConfi
 }
 
 // AddDocsPreviewComment adds a comment to a pull request in the docs repository
-func (d *docsPreviewComment) AddDocsPreviewComment(ctx context.Context, p *docsPreviewCommentParams) error {
+func (d *docsPreviewComment) Handle(ctx context.Context, p *Params) error {
 	b := fmt.Sprintf(d.commentTemplate, p.PullRequestNumber)
 	c, _, err := d.client.GetV3Client().Issues.CreateComment(
 		ctx,
