@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/google/go-github/v74/github"
+	"github.com/google/go-github/v79/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
