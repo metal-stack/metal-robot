@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/google/go-github/v74/github"
+	"github.com/google/go-github/v79/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/stretchr/testify/assert"

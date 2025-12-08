@@ -5,7 +5,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v74/github"
+	"github.com/google/go-github/v79/github"
 
 	_ "embed"
 )

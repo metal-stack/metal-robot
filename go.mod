@@ -12,7 +12,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-playground/webhooks/v6 v6.4.0
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-github/v74 v74.0.0
+	github.com/google/go-github/v79 v79.0.0
 	github.com/metal-stack/metal-lib v0.23.4
 	github.com/metal-stack/v v1.0.3
 	github.com/mitchellh/mapstructure v1.5.0
@@ -25,10 +25,6 @@ require (
 	golang.org/x/sync v0.17.0
 	sigs.k8s.io/yaml v1.6.0
 )
-
-// TODO: Hope this can be removed in a future release
-// https://github.com/google/go-github/pull/3650
-replace github.com/google/go-github/v74 => github.com/gerrit91/go-github/v74 v74.0.0-20250725122512-42bbaeb22e64
 
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
