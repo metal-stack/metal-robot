@@ -24,7 +24,7 @@ import (
 	repository_maintainers "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/repository-maintainers"
 	yaml_translate_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/yaml-translate-releases"
 
-	"github.com/google/go-github/v74/github"
+	"github.com/google/go-github/v79/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"golang.org/x/sync/errgroup"
 )
