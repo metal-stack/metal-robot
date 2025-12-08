@@ -45,9 +45,7 @@ type AggregateReleasesConfig struct {
 	SourceRepos          map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
-type IssueCommentsHandlerConfig struct {
-	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
-}
+type IssueCommentsHandlerConfig struct{}
 
 type LabelsOnCreation struct {
 	SourceRepos map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`

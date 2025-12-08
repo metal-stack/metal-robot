@@ -19,8 +19,6 @@ import (
 
 type IssueCommentsAction struct {
 	client *clients.Github
-
-	targetRepos map[string]bool
 }
 
 type Params struct {
@@ -39,25 +37,13 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 		return nil, err
 	}
 
-	targetRepos := make(map[string]bool)
-	for name := range typedConfig.TargetRepos {
-		targetRepos[name] = true
-	}
-
 	return &IssueCommentsAction{
-		client:      client,
-		targetRepos: targetRepos,
+		client: client,
 	}, nil
 }
 
 // Handle applies actions on issues comments, e.g. executes ad hoc commands
 func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
-	_, ok := r.targetRepos[p.RepositoryName]
-	if !ok {
-		log.Debug("skip handling issues comment action, repository not configured in metal-robot configuration")
-		return nil
-	}
-
 	level, _, err := r.client.GetV3Client().Repositories.GetPermissionLevel(ctx, r.client.Organization(), p.RepositoryName, p.User)
 	if err != nil {
 		return fmt.Errorf("error determining collaborator status: %w", err)
