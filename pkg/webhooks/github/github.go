@@ -55,8 +55,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Org.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 				"github-release-name", pointer.SafeDeref(event.Release.Name),
 			)
 
@@ -66,8 +66,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Organization.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 				"github-pull-request-url", pointer.SafeDeref(event.PullRequest.URL),
 			)
 
@@ -77,8 +77,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Organization.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 				"github-ref", pointer.SafeDeref(event.Ref),
 			)
 
@@ -88,8 +88,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Org.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
 			)
 
@@ -99,8 +99,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Organization.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
 			)
 
@@ -110,8 +110,8 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Org.Name),
-				"github-repository-url", pointer.SafeDeref(event.Repo.URL),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 			)
 
 			actions.Run(logger, event)
@@ -120,7 +120,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 			logger = logger.With(
 				"github-event-action", pointer.SafeDeref(event.Action),
 				"github-user", pointer.SafeDeref(event.Sender.Login),
-				"github-organization-name", pointer.SafeDeref(event.Org.Name),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
 				"github-v2-item-content-type", pointer.SafeDeref(event.ProjectV2Item.ContentType),
 			)
 
