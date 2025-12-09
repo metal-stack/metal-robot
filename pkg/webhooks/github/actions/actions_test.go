@@ -79,6 +79,6 @@ type noopHandlerParams struct {
 	callbackFn func() error
 }
 
-func (_ *noopHandler) Handle(ctx context.Context, log *slog.Logger, params *noopHandlerParams) error {
+func (*noopHandler) Handle(ctx context.Context, log *slog.Logger, params *noopHandlerParams) error {
 	return params.callbackFn()
 }
