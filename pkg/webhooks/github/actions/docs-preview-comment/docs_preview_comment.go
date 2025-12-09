@@ -49,14 +49,13 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 
 // Handle adds a comment to a pull request in the docs repository
 func (d *docsPreviewComment) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
-	b := fmt.Sprintf(d.commentTemplate, p.PullRequestNumber)
 	c, _, err := d.client.GetV3Client().Issues.CreateComment(
 		ctx,
 		d.client.Organization(),
 		d.repositoryName,
 		p.PullRequestNumber,
 		&github.IssueComment{
-			Body: github.Ptr(b),
+			Body: github.Ptr(fmt.Sprintf(d.commentTemplate, p.PullRequestNumber)),
 		},
 	)
 	if err != nil {

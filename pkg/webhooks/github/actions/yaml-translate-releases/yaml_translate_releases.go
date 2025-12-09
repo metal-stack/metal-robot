@@ -17,6 +17,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 )
@@ -134,8 +135,7 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, log *slog.Logger, p 
 
 	translations, ok := r.translationMap[p.RepositoryName]
 	if !ok {
-		log.Debug("skip applying translate release, no translation configured in metal-robot configuration")
-		return nil
+		return handlerrors.Skip("skip applying translate release, no translation configured in metal-robot configuration")
 	}
 
 	var (
@@ -145,8 +145,7 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, log *slog.Logger, p 
 
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Info("skip applying translate release action because not a valid semver release tag")
-		return nil //nolint:nilerr
+		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
 	}
 
 	// preventing concurrent git repo modifications

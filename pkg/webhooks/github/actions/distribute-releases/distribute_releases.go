@@ -17,6 +17,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
@@ -110,31 +111,23 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 // Handle can apply file patches in other repositories, when a repository creates a release
 func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	if p.RepositoryName != d.repoName {
-		return nil
+		return handlerrors.Skip("only acting repository %s", d.repoName)
 	}
 
 	var (
-		tag = p.TagName
+		tag     = p.TagName
+		trimmed = strings.TrimPrefix(tag, "v")
 	)
 
 	log = log.With("tag", p.TagName)
 
-	if !strings.HasPrefix(tag, "v") {
-		log.Debug("skip distribute release action because release tag not starting with v")
-		return nil
-	}
-
-	trimmed := strings.TrimPrefix(tag, "v")
-
 	parsedVersion, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Info("skip distribute release action because not a valid semver release tag")
-		return nil //nolint:nilerr
+		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
 	}
 
 	if parsedVersion.Prerelease() != "" {
-		log.Info("skip distribute release action because is a pre-release")
-		return nil //nolint:nilerr
+		return handlerrors.Skip("skip distribute release action because is a pre-release")
 	}
 
 	token, err := d.client.GitToken(ctx)
@@ -158,7 +151,7 @@ func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Pa
 
 			repoURL, err := url.Parse(targetRepo.url)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to parse repository url: %w", err)
 			}
 			repoURL.User = url.UserPassword("x-access-token", token)
 
@@ -171,7 +164,7 @@ func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Pa
 
 			r, err := git.ShallowClone(repoURL.String(), prBranch, 1)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to shallow clone repository: %w", err)
 			}
 
 			reader := func(file string) ([]byte, error) {
@@ -212,7 +205,7 @@ func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Pa
 			})
 			if err != nil {
 				if !strings.Contains(err.Error(), "A pull request already exists") {
-					return err
+					return fmt.Errorf("unable to create pull request: %w", err)
 				}
 			} else {
 				log.Info("created pull request for target repo", "url", pr.GetURL())

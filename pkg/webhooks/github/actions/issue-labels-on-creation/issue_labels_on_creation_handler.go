@@ -8,6 +8,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -42,8 +43,7 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 func (r *labelsOnCreationHandler) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	repo, ok := r.repos[p.RepositoryName]
 	if !ok {
-		log.Debug("skip handling labels on creation action, repository is not configured in the metal-robot configuration")
-		return nil
+		return handlerrors.Skip("skip handling labels on creation action, repository is not configured in the metal-robot configuration")
 	}
 
 	if len(repo.Labels) == 0 {

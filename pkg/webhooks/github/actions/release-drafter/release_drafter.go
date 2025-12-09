@@ -15,6 +15,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/utils"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -129,8 +130,7 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's not a release vector repository)
 
 		if p.ComponentReleaseInfo == nil {
-			log.Debug("skip adding release draft because not a release vector repo and no special sections")
-			return nil
+			return handlerrors.Skip("skip adding release draft because not a release vector repo and no special sections")
 		}
 
 		infos, err := r.releaseInfos(ctx, log)
@@ -147,8 +147,7 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 		}
 		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, releaseSuffix)
 		if err != nil {
-			log.Debug("skip adding release draft", "reason", err)
-			return nil
+			return handlerrors.Skip("skip adding release draft: %w", err)
 		}
 
 		body := m.String()
@@ -158,30 +157,27 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 
 	componentTag := p.TagName
 	if !strings.HasPrefix(componentTag, "v") {
-		log.Debug("skip adding release draft because tag not starting with v")
-		return nil
+		return handlerrors.Skip("skip adding release draft because tag not starting with v")
 	}
 	trimmedVersion := strings.TrimPrefix(componentTag, "v")
 	componentSemver, err := semver.NewVersion(trimmedVersion)
 	if err != nil {
-		log.Debug("skip adding release draft because tag is not semver compatible")
-		return nil //nolint:nilerr
+		return handlerrors.Skip("skip adding release draft because tag is not semver compatible: %w", err)
 	}
 
 	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to find open release pull requests: %w", err)
 	}
 
 	if openPR != nil {
 		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to find out if release is frozen: %w", err)
 		}
 
 		if frozen {
-			log.Info("skip adding release draft because release is currently frozen")
-			return nil
+			return handlerrors.Skip("skip adding release draft because release is currently frozen")
 		}
 	}
 

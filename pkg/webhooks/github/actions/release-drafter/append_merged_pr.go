@@ -8,6 +8,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 )
 
 type appendMergedPR struct {
@@ -40,8 +41,7 @@ func (r *appendMergedPR) Handle(ctx context.Context, log *slog.Logger, p *Append
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
 
 		if p.ComponentReleaseInfo == nil {
-			log.Debug("not adding merged pull request to release draft because of special handling for release vector repositories")
-			return nil
+			return handlerrors.Skip("not adding merged pull request to release draft because of special handling for release vector repositories")
 		}
 
 		infos, err := r.rd.releaseInfos(ctx, log)
@@ -54,8 +54,7 @@ func (r *appendMergedPR) Handle(ctx context.Context, log *slog.Logger, p *Append
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.rd.client.Organization(), p.RepositoryName, p.Number)
 		err = r.rd.prependCodeBlocks(m, *p.ComponentReleaseInfo, &issueSuffix)
 		if err != nil {
-			log.Debug("skip adding merged pull request to release draft", "reason", err)
-			return nil
+			return handlerrors.Skip("skip adding merged pull request to release draft: %s", err)
 		}
 
 		body := m.String()

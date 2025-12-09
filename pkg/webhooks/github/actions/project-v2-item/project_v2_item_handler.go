@@ -9,6 +9,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -42,8 +43,7 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 // Handle removes a label from an issue or pull request when being moved to a certain project column
 func (r *ProjectV2ItemHandler) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	if p.ProjectID != r.projectID {
-		log.Debug("skip removing labels from project v2 item, wrong project-id")
-		return nil
+		return handlerrors.Skip("skip removing labels from project v2 item, only acting on project-id %q", r.projectID)
 	}
 
 	var q struct {

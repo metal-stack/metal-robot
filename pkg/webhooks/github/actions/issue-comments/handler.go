@@ -14,6 +14,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -49,15 +50,17 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 		return fmt.Errorf("error determining collaborator status: %w", err)
 	}
 
-	switch *level.Permission {
+	switch perm := *level.Permission; perm {
 	case "admin":
-		// fallthrough
+		// in this case we can continue
 	default:
-		log.Debug("skip handling issues comment action, author does not have admin permissions on this repo", "author", p.User)
-		return nil
+		return handlerrors.Skip("skip handling issues comment action, author %q does not have admin permissions on this repo (but only %q)", p.User, perm)
 	}
 
+	executedSomething := false
+
 	if _, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandBuildFork); ok {
+		executedSomething = true
 		err := r.buildForkPR(ctx, log, p)
 		if err != nil {
 			return err
@@ -65,10 +68,15 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 	}
 
 	if args, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandTag); ok {
+		executedSomething = true
 		err := r.tag(ctx, log, p, args)
 		if err != nil {
 			return err
 		}
+	}
+
+	if !executedSomething {
+		return handlerrors.Skip("no comment command contained in issue command")
 	}
 
 	return nil
@@ -77,12 +85,11 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger, p *Params) error {
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
-		return fmt.Errorf("error finding issue related pull request %w", err)
+		return fmt.Errorf("error finding issue related pull request: %w", err)
 	}
 
 	if pullRequest.Head.Repo.Fork == nil || !*pullRequest.Head.Repo.Fork {
-		log.Debug("skip handling issues comment action, pull request is not from a fork")
-		return nil
+		return handlerrors.Skip("skip handling issues comment action, pull request is not from a fork")
 	}
 
 	token, err := r.client.GitToken(ctx)
@@ -92,7 +99,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger,
 
 	targetRepoURL, err := url.Parse(p.RepositoryURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse repository url: %w", err)
 	}
 	targetRepoURL.User = url.UserPassword("x-access-token", token)
 
@@ -119,7 +126,7 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger,
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
-			return err
+			return fmt.Errorf("unable to create pull request: %w", err)
 		}
 	}
 
@@ -137,7 +144,7 @@ func (r *IssueCommentsAction) tag(ctx context.Context, log *slog.Logger, p *Para
 
 	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
 	if err != nil {
-		return fmt.Errorf("error finding issue related pull request %w", err)
+		return fmt.Errorf("error finding issue related pull request: %w", err)
 	}
 
 	token, err := r.client.GitToken(ctx)
@@ -147,14 +154,14 @@ func (r *IssueCommentsAction) tag(ctx context.Context, log *slog.Logger, p *Para
 
 	targetRepoURL, err := url.Parse(p.RepositoryURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse repository url: %w", err)
 	}
 	targetRepoURL.User = url.UserPassword("x-access-token", token)
 
 	headRef := *pullRequest.Head.Ref
 	err = git.CreateTag(targetRepoURL.String(), headRef, tag, p.User)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to create git tag: %w", err)
 	}
 
 	log.Info("pushed tag to repo", "branch", headRef, "tag", tag)

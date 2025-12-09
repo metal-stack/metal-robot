@@ -2,6 +2,7 @@ package actions_test
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"testing"
@@ -35,16 +36,24 @@ func TestRun(t *testing.T) {
 
 				wg.Add(1)
 
-				actions.Append(func(_ context.Context, _ *slog.Logger, event *github.ReleaseEvent) error {
-					require.NotNil(t, event.Action)
-					assert.Equal(t, "open", *event.Action)
-					wg.Done()
-					return nil
+				actions.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+					return &noopHandlerParams{
+						callbackFn: func() error {
+							require.NotNil(t, event.Action)
+							assert.Equal(t, "open", *event.Action)
+							wg.Done()
+							return nil
+						},
+					}, nil
 				})
 
-				actions.Append(func(_ context.Context, _ *slog.Logger, event *github.RepositoryEvent) error {
-					assert.Fail(t, "this should not be called")
-					return nil
+				actions.Register("handler-b", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
+					return &noopHandlerParams{
+						callbackFn: func() error {
+							assert.Fail(t, "this should not be called")
+							return fmt.Errorf("shoulud not be called")
+						},
+					}, nil
 				})
 
 				actions.Run(log, &github.ReleaseEvent{
@@ -62,4 +71,14 @@ func TestRun(t *testing.T) {
 			tt.testFn(t)
 		})
 	}
+}
+
+type noopHandler struct{}
+
+type noopHandlerParams struct {
+	callbackFn func() error
+}
+
+func (_ *noopHandler) Handle(ctx context.Context, log *slog.Logger, params *noopHandlerParams) error {
+	return params.callbackFn()
 }

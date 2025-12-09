@@ -2,16 +2,17 @@ package actions
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/google/go-github/v79/github"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 )
 
 var (
-	handlerMap = map[any][]any{}
+	handlerMap = map[any][]any{} // unfortunately, this cannot be typed or I am just too stupid
 	mtx        sync.RWMutex
 )
 
@@ -25,9 +26,13 @@ type (
 			*github.ProjectV2ItemEvent | *github.IssueCommentEvent | *github.IssuesEvent
 	}
 
-	HandleFn[E WebhookEvents] func(ctx context.Context, log *slog.Logger, event E) error
+	HandlerParamsFn[E WebhookEvents, P any] func(event E) (P, error)
 
-	key[T WebhookEvents] struct{}
+	key[E WebhookEvents]   struct{}
+	entry[E WebhookEvents] struct {
+		name   string
+		invoke func(ctx context.Context, log *slog.Logger, event E) error
+	}
 )
 
 func Run[E WebhookEvents](log *slog.Logger, e E) {
@@ -36,27 +41,22 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 
 	if val, ok := handlerMap[key[E]{}]; ok {
 		for _, h := range val {
-			var (
-				handlerType = fmt.Sprintf("%T", h)
-				log         = log.With("handler-type", handlerType)
-				fn, ok      = h.(HandleFn[E])
-			)
+			data := h.(entry[E])
 
-			if !ok {
-				// this should never happen because handlers can only be added through Append()
-				log.Error("handler map contains something different than a handler func")
-				continue
-			}
+			log = log.With("handler-name", data.name)
 
 			go func() {
 				// handlers can run in parallel, so create an own context for every handler
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 				defer cancel()
 
-				log.Info("running event handler")
-
-				if err := fn(ctx, log, e); err != nil {
-					log.Error("error handling event", "error", err)
+				err := data.invoke(ctx, log, e)
+				if err != nil {
+					if errors.Is(err, handlerrors.SkipErr{}) {
+						log.Info("skipping event handler", "reason", err.Error())
+					} else {
+						log.Error("error handling event", "error", err)
+					}
 				} else {
 					log.Info("successfully handled event")
 				}
@@ -65,11 +65,21 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 	}
 }
 
-func Append[E WebhookEvents](v HandleFn[E]) {
+func Register[E WebhookEvents, P any, H WebhookHandler[P]](name string, h H, paramsFn HandlerParamsFn[E, P]) {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap[key[E]{}] = append(handlerMap[key[E]{}], v)
+	handlerMap[key[E]{}] = append(handlerMap[key[E]{}], entry[E]{
+		name: name,
+		invoke: func(ctx context.Context, log *slog.Logger, event E) error {
+			params, err := paramsFn(event)
+			if err != nil {
+				return err
+			}
+
+			return h.Handle(ctx, log, params)
+		},
+	})
 }
 
 func Clear() {

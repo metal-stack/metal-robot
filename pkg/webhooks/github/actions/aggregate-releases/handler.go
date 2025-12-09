@@ -18,6 +18,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/git"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 )
@@ -111,8 +112,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		log.Debug("not adding to release vector because repository is not configured as a release repository in the metal-robot configuration")
-		return nil
+		return handlerrors.Skip("not adding to release vector because repository is not configured as a release repository in the metal-robot configuration")
 	}
 
 	var (
@@ -122,19 +122,18 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Info("not adding to release vector because not a valid semver release tag", "error", err)
-		return nil
+		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
 	}
 
 	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to find open release pull requests: %w", err)
 	}
 
 	if openPR != nil {
 		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to find out if release is frozen: %w", err)
 		}
 
 		if frozen {
@@ -167,13 +166,13 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 
 	repoURL, err := url.Parse(r.repoURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse repository url: %w", err)
 	}
 	repoURL.User = url.UserPassword("x-access-token", token)
 
 	repository, err := git.ShallowClone(repoURL.String(), r.branch, 1)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to shallow clone repository: %w", err)
 	}
 
 	reader := func(file string) ([]byte, error) {
@@ -187,7 +186,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 	for _, patch := range patches {
 		err = patch.Apply(reader, writer, tag)
 		if err != nil {
-			return fmt.Errorf("error applying release updates %w", err)
+			return fmt.Errorf("error applying release updates: %w", err)
 		}
 	}
 
@@ -197,7 +196,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 		if errors.Is(err, git.ErrNoChanges) {
 			log.Debug("skip push to target repository because nothing changed")
 		} else {
-			return fmt.Errorf("error pushing to target repository %w", err)
+			return fmt.Errorf("error pushing to target repository: %w", err)
 		}
 	} else {
 		log.Info("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
@@ -214,7 +213,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
-			return err
+			return fmt.Errorf("unable to create pull request: %w", err)
 		}
 	} else {
 		log.Info("created pull request", "url", pr.GetURL())

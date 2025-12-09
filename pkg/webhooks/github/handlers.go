@@ -1,7 +1,6 @@
 package github
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 
 	aggregate_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/aggregate-releases"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
 	distribute_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/distribute-releases"
 	docs_preview_comment "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/docs-preview-comment"
 	issue_comments "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/issue-comments"
@@ -57,7 +57,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.RepositoryEvent) error {
+			actions.Register(string(t), h, func(event *github.RepositoryEvent) (*repository_maintainers.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -68,13 +68,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionCreated {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
 				}
 
-				return h.Handle(ctx, log, &repository_maintainers.Params{
+				return &repository_maintainers.Params{
 					RepositoryName: repoName,
 					Creator:        login,
-				})
+				}, nil
 			})
 
 		case config.ActionDocsPreviewComment:
@@ -83,7 +83,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PullRequestEvent) error {
+			actions.Register(string(t), h, func(event *github.PullRequestEvent) (*docs_preview_comment.Params, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -94,15 +94,15 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionOpened {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
 				if repoName != "docs" { // FIXME: this is a weird convention, this should come from configuration
-					return nil
+					return nil, handlerrors.Skip("only acting on repository with name docs")
 				}
 
-				return h.Handle(ctx, log, &docs_preview_comment.Params{
+				return &docs_preview_comment.Params{
 					PullRequestNumber: int(pullRequestNumber),
-				})
+				}, nil
 			})
 
 		case config.ActionLabelsOnIssueCreation:
@@ -111,7 +111,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PullRequestEvent) error {
+			actions.Register(string(t), h, func(event *github.PullRequestEvent) (*issue_labels_on_creation.Params, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -123,17 +123,17 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionOpened {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
 
-				return h.Handle(ctx, log, &issue_labels_on_creation.Params{
+				return &issue_labels_on_creation.Params{
 					RepositoryName: repoName,
 					URL:            pullRequestURL,
 					ContentNodeID:  pullRequestNodeID,
-				})
+				}, nil
 			})
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.IssuesEvent) error {
+			actions.Register(string(t), h, func(event *github.IssuesEvent) (*issue_labels_on_creation.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -145,14 +145,14 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionOpened {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
 
-				return h.Handle(ctx, log, &issue_labels_on_creation.Params{
+				return &issue_labels_on_creation.Params{
 					RepositoryName: repoName,
 					URL:            url,
 					ContentNodeID:  nodeID,
-				})
+				}, nil
 			})
 
 		case config.ActionAggregateReleases:
@@ -161,7 +161,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.ReleaseEvent) error {
+			actions.Register(string(t), h, func(event *github.ReleaseEvent) (*aggregate_releases.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -175,18 +175,18 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionReleased {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
 				}
 
-				return h.Handle(ctx, log, &aggregate_releases.Params{
+				return &aggregate_releases.Params{
 					RepositoryName: repoName,
 					RepositoryURL:  repoURL,
 					TagName:        tagName,
 					Sender:         login,
-				})
+				}, nil
 			})
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PushEvent) error {
+			actions.Register(string(t), h, func(event *github.PushEvent) (*aggregate_releases.Params, error) {
 				var (
 					created = pointer.SafeDeref(event.Created)
 					ref     = pointer.SafeDeref(event.Ref)
@@ -202,16 +202,20 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					tagName = extractTag(event)
 				)
 
-				if !created || !strings.HasPrefix(ref, "refs/tags/v") {
-					return nil
+				if !created {
+					return nil, handlerrors.Skip("only reacting on created event")
 				}
 
-				return h.Handle(ctx, log, &aggregate_releases.Params{
+				if !strings.HasPrefix(ref, "refs/tags/v") {
+					return nil, handlerrors.Skip("only reacting if ref starts with /refs/tags/v, but has %s", ref)
+				}
+
+				return &aggregate_releases.Params{
 					RepositoryName: repoName,
 					RepositoryURL:  repoURL,
 					TagName:        tagName,
 					Sender:         login,
-				})
+				}, nil
 			})
 
 		case config.ActionDistributeReleases:
@@ -220,7 +224,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PushEvent) error {
+			actions.Register(string(t), h, func(event *github.PushEvent) (*distribute_releases.Params, error) {
 				var (
 					created = pointer.SafeDeref(event.Created)
 					ref     = pointer.SafeDeref(event.Ref)
@@ -232,14 +236,18 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					tagName = extractTag(event)
 				)
 
-				if !created || !strings.HasPrefix(ref, "refs/tags/v") {
-					return nil
+				if !created {
+					return nil, handlerrors.Skip("only reacting on created event")
 				}
 
-				return h.Handle(ctx, log, &distribute_releases.Params{
+				if !strings.HasPrefix(ref, "refs/tags/v") {
+					return nil, handlerrors.Skip("only reacting if ref starts with /refs/tags/v, but has %s", ref)
+				}
+
+				return &distribute_releases.Params{
 					RepositoryName: repoName,
 					TagName:        tagName,
-				})
+				}, nil
 			})
 
 		case config.ActionReleaseDraft:
@@ -248,7 +256,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.ReleaseEvent) error {
+			actions.Register(string(t), h, func(event *github.ReleaseEvent) (*release_drafter.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -261,15 +269,15 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionReleased {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
 				}
 
-				return h.Handle(ctx, log, &release_drafter.Params{
+				return &release_drafter.Params{
 					RepositoryName:       repoName,
 					TagName:              tagName,
 					ComponentReleaseInfo: releaseBody,
 					ReleaseURL:           releaseURL,
-				})
+				}, nil
 			})
 
 			h2, err := release_drafter.NewAppendMergedPRs(logger, client, spec.Args)
@@ -277,7 +285,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PullRequestEvent) error {
+			actions.Register(string(t), h2, func(event *github.PullRequestEvent) (*release_drafter.AppendMergedPrParams, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -294,16 +302,16 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionClosed {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionClosed)
 				}
 				if privateRepo {
-					return nil
+					return nil, handlerrors.Skip("not reacting on private repos")
 				}
 				if !merged {
-					return nil
+					return nil, handlerrors.Skip("only reacting on merged pull requests")
 				}
 
-				return h2.Handle(ctx, log, &release_drafter.AppendMergedPrParams{
+				return &release_drafter.AppendMergedPrParams{
 					Params: release_drafter.Params{
 						RepositoryName:       repoName,
 						ComponentReleaseInfo: pullRequestBody,
@@ -313,8 +321,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					Title:  pullRequestTitle,
 					Number: pullRequestNumber,
 					Author: pullRequestLogin,
-				},
-				)
+				}, nil
 			})
 
 		case config.ActionYAMLTranslateReleases:
@@ -323,7 +330,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.ReleaseEvent) error {
+			actions.Register(string(t), h, func(event *github.ReleaseEvent) (*yaml_translate_releases.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -335,14 +342,14 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionReleased {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
 				}
 
-				return h.Handle(ctx, log, &yaml_translate_releases.Params{
+				return &yaml_translate_releases.Params{
 					RepositoryName: repoName,
 					RepositoryURL:  cloneURL,
 					TagName:        tagName,
-				})
+				}, nil
 			})
 
 		case config.ActionProjectItemAddHandler:
@@ -351,7 +358,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.PullRequestEvent) error {
+			actions.Register(string(t), h, func(event *github.PullRequestEvent) (*project_item_add.Params, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -365,18 +372,18 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionOpened {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
 
-				return h.Handle(ctx, log, &project_item_add.Params{
+				return &project_item_add.Params{
 					RepositoryName: repoName,
 					NodeID:         pullRequestNodeID,
 					ID:             pullRequestID,
 					URL:            pullRequestURL,
-				})
+				}, nil
 			})
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.IssuesEvent) error {
+			actions.Register(string(t), h, func(event *github.IssuesEvent) (*project_item_add.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -389,15 +396,15 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionOpened {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
 
-				return h.Handle(ctx, log, &project_item_add.Params{
+				return &project_item_add.Params{
 					RepositoryName: repoName,
 					NodeID:         nodeID,
 					ID:             id,
 					URL:            url,
-				})
+				}, nil
 			})
 
 		case config.ActionProjectV2ItemHandler:
@@ -406,7 +413,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.ProjectV2ItemEvent) error {
+			actions.Register(string(t), h, func(event *github.ProjectV2ItemEvent) (*project_v2_item.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					changes = pointer.SafeDeref(event.Changes)
@@ -421,28 +428,28 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionEdited {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionEdited)
 				}
 
 				if fieldName != "Status" || len(fieldValue.To) == 0 || len(fieldValue.From) == 0 {
-					return nil
+					return nil, handlerrors.Skip("only reacting to changes in status field (that contain contents)")
 				}
 
 				var from any
 				err := json.Unmarshal(fieldValue.From, &from)
 				if err != nil {
-					return err
+					return nil, fmt.Errorf("unable to unmarshal field value: %w", err)
 				}
 
 				if from != nil {
-					return nil
+					return nil, handlerrors.Skip("from field is nil")
 				}
 
-				return h.Handle(ctx, log, &project_v2_item.Params{
+				return &project_v2_item.Params{
 					ProjectNumber: projectNumber,
 					ProjectID:     projectNodeID,
 					ContentNodeID: contentNodeID,
-				})
+				}, nil
 			})
 		case config.ActionIssueCommentsHandler:
 			h, err := issue_comments.New(client, spec.Args)
@@ -450,7 +457,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			actions.Append(func(ctx context.Context, log *slog.Logger, event *github.IssueCommentEvent) error {
+			actions.Register(string(t), h, func(event *github.IssueCommentEvent) (*issue_comments.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -470,27 +477,27 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				)
 
 				if action != githubActionCreated {
-					return nil
+					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
 				}
 				if event.Issue.PullRequestLinks == nil {
-					return nil
+					return nil, handlerrors.Skip("pull requests links are nil")
 				}
 
 				parts := strings.Split(pullRequestURL, "/")
 				pullRequestNumberString := parts[len(parts)-1]
 				pullRequestNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
 				if err != nil {
-					return err
+					return nil, fmt.Errorf("unable to parse pull request number: %w", err)
 				}
 
-				return h.Handle(ctx, log, &issue_comments.Params{
+				return &issue_comments.Params{
 					RepositoryName:    repoName,
 					RepositoryURL:     repoCloneURL,
 					Comment:           commentBody,
 					CommentID:         commentID,
 					User:              commentlogin,
 					PullRequestNumber: int(pullRequestNumber),
-				})
+				}, nil
 			})
 		default:
 			return fmt.Errorf("handler type not supported: %s", t)
