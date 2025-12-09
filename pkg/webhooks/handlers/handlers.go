@@ -51,25 +51,26 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 
 	if val, ok := handlerMap[key[E]{}]; ok {
 		for _, h := range val {
-			data := h.(entry[E])
-
-			log = log.With("handler-name", data.name)
+			var (
+				data       = h.(entry[E])
+				handlerLog = log.With("handler-name", data.name)
+			)
 
 			go func() {
 				// handlers can run in parallel, so create an own context for every handler
 				ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 				defer cancel()
 
-				err := data.invoke(ctx, log, e)
+				err := data.invoke(ctx, handlerLog, e)
 				if err != nil {
 					var skipErr handlerrors.SkipErr
 					if errors.As(err, &skipErr) {
-						log.Debug("skip handling event", "reason", err.Error())
+						handlerLog.Debug("skip handling event", "reason", err.Error())
 					} else {
-						log.Error("error handling event", "error", err)
+						handlerLog.Error("error handling event", "error", err)
 					}
 				} else {
-					log.Info("successfully handled event")
+					handlerLog.Info("successfully handled event")
 				}
 			}()
 		}
