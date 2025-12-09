@@ -34,13 +34,24 @@ func TestRun(t *testing.T) {
 			testFn: func(t *testing.T) {
 				var wg sync.WaitGroup
 
-				wg.Add(1)
+				wg.Add(2)
 
 				actions.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+					require.NotNil(t, event.Action)
+					assert.Equal(t, "open", *event.Action)
 					return &noopHandlerParams{
 						callbackFn: func() error {
-							require.NotNil(t, event.Action)
-							assert.Equal(t, "open", *event.Action)
+							wg.Done()
+							return nil
+						},
+					}, nil
+				})
+
+				actions.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+					require.NotNil(t, event.Action)
+					assert.Equal(t, "open", *event.Action)
+					return &noopHandlerParams{
+						callbackFn: func() error {
 							wg.Done()
 							return nil
 						},
@@ -48,9 +59,10 @@ func TestRun(t *testing.T) {
 				})
 
 				actions.Register("handler-b", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
+					assert.Fail(t, "this should not be called")
 					return &noopHandlerParams{
 						callbackFn: func() error {
-							assert.Fail(t, "this should not be called")
+							t.Fail()
 							return fmt.Errorf("shoulud not be called")
 						},
 					}, nil

@@ -111,7 +111,7 @@ func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandl
 // Handle can apply file patches in other repositories, when a repository creates a release
 func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	if p.RepositoryName != d.repoName {
-		return handlerrors.Skip("only acting repository %s", d.repoName)
+		return handlerrors.Skip("only acting on repository %s", d.repoName)
 	}
 
 	var (
