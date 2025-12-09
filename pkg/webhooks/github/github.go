@@ -68,7 +68,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-user", pointer.SafeDeref(event.Sender.Login),
 				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
 				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
-				"github-pull-request-url", pointer.SafeDeref(event.PullRequest.URL),
+				"github-pull-request-url", pointer.SafeDeref(event.PullRequest.HTMLURL),
 			)
 
 			handlers.Run(logger, event)
