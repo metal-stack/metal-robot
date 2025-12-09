@@ -20,7 +20,6 @@ var (
 
 type Webhook struct {
 	logger *slog.Logger
-	cs     clients.ClientMap
 	hook   *glwebhooks.Webhook
 }
 
