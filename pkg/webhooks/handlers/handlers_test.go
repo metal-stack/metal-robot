@@ -1,4 +1,4 @@
-package actions_test
+package handlers_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/google/go-github/v79/github"
 	"github.com/metal-stack/metal-lib/pkg/pointer"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestRun(t *testing.T) {
 		{
 			name: "no events",
 			testFn: func(t *testing.T) {
-				actions.Run(log, &github.ReleaseEvent{
+				handlers.Run(log, &github.ReleaseEvent{
 					Action: pointer.Pointer("open"),
 				})
 			},
@@ -36,7 +36,7 @@ func TestRun(t *testing.T) {
 
 				wg.Add(2)
 
-				actions.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
 					require.NotNil(t, event.Action)
 					assert.Equal(t, "open", *event.Action)
 					return &noopHandlerParams{
@@ -47,7 +47,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				actions.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
 					require.NotNil(t, event.Action)
 					assert.Equal(t, "open", *event.Action)
 					return &noopHandlerParams{
@@ -58,7 +58,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				actions.Register("handler-b", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-b", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
 					assert.Fail(t, "this should not be called")
 					return &noopHandlerParams{
 						callbackFn: func() error {
@@ -68,7 +68,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				actions.Run(log, &github.ReleaseEvent{
+				handlers.Run(log, &github.ReleaseEvent{
 					Action: pointer.Pointer("open"),
 				})
 
@@ -78,7 +78,7 @@ func TestRun(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer actions.Clear()
+			defer handlers.Clear()
 
 			tt.testFn(t)
 		})

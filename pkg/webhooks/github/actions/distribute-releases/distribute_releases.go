@@ -16,8 +16,8 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
-	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
@@ -44,7 +44,7 @@ type targetRepo struct {
 	url     string
 }
 
-func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var (
 		commitMessageTemplate = "Bump %s to version %s"
 		branchTemplate        = "auto-generate/%s"

@@ -8,8 +8,8 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
-	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -26,7 +26,7 @@ type Params struct {
 	ContentNodeID string
 }
 
-func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectV2ItemHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {

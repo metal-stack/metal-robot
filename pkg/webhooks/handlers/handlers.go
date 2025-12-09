@@ -1,4 +1,4 @@
-package actions
+package handlers
 
 import (
 	"context"
@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/google/go-github/v79/github"
-	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
+
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 )
 
 var (
@@ -22,8 +24,16 @@ type (
 	}
 
 	WebhookEvents interface {
+		githubEvents | gitlabEvents
+	}
+
+	githubEvents interface {
 		*github.ReleaseEvent | *github.RepositoryEvent | *github.PullRequestEvent | *github.PushEvent |
 			*github.ProjectV2ItemEvent | *github.IssueCommentEvent | *github.IssuesEvent
+	}
+
+	gitlabEvents interface {
+		*glwebhooks.TagEventPayload
 	}
 
 	HandlerParamsFn[E WebhookEvents, P any] func(event E) (P, error)
@@ -52,8 +62,9 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 
 				err := data.invoke(ctx, log, e)
 				if err != nil {
-					if errors.Is(err, handlerrors.SkipErr{}) {
-						log.Info("skipping event handler", "reason", err.Error())
+					var skipErr handlerrors.SkipErr
+					if errors.As(err, &skipErr) {
+						log.Debug("skip handling event", "reason", err.Error())
 					} else {
 						log.Error("error handling event", "error", err)
 					}

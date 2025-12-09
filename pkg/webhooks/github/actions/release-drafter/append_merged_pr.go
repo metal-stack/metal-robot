@@ -7,8 +7,8 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
-	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common/errors"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 )
 
 type appendMergedPR struct {
@@ -23,7 +23,7 @@ type AppendMergedPrParams struct {
 	Author string
 }
 
-func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*AppendMergedPrParams], error) {
+func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*AppendMergedPrParams], error) {
 	rd, err := New(client, rawConfig)
 	if err != nil {
 		return nil, err

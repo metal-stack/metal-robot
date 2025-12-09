@@ -8,7 +8,7 @@ import (
 	"github.com/google/go-github/v79/github"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -22,7 +22,7 @@ type Params struct {
 	PullRequestNumber int
 }
 
-func New(client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var (
 		commentTemplate = "#%d"
 	)
