@@ -5,7 +5,6 @@ type ActionName string
 const (
 	ActionAggregateReleases           ActionName = "aggregate-releases"
 	ActionYAMLTranslateReleases       ActionName = "yaml-translate-releases"
-	ActionDocsPreviewComment          ActionName = "docs-preview-comment"
 	ActionLabelsOnIssueCreation       ActionName = "labels-on-issue-creation"
 	ActionCreateRepositoryMaintainers ActionName = "create-repository-maintainers"
 	ActionDistributeReleases          ActionName = "distribute-releases"
@@ -28,11 +27,6 @@ type RepositoryMaintainersConfig struct {
 		TeamSlug   string `mapstructure:"team" description:"the slug of the team"`
 		Permission string `mapstructure:"permission" description:"the permission for the team, must be one of "`
 	} `mapstructure:"additional-teams" description:"adds additional teams to this repository"`
-}
-
-type DocsPreviewCommentConfig struct {
-	CommentTemplate *string `mapstructure:"comment-tpl" description:"template to be used for the docs PR comment"`
-	RepositoryName  string  `mapstructure:"repository" description:"the name of the docs repo"`
 }
 
 type AggregateReleasesConfig struct {

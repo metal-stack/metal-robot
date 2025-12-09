@@ -12,7 +12,6 @@ import (
 
 	aggregate_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/aggregate-releases"
 	distribute_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/distribute-releases"
-	docs_preview_comment "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/docs-preview-comment"
 	issue_comments "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/issue-comments"
 	issue_labels_on_creation "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/issue-labels-on-creation"
 	project_item_add "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/project-item-add"
@@ -74,34 +73,6 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return &repository_maintainers.Params{
 					RepositoryName: repoName,
 					Creator:        login,
-				}, nil
-			})
-
-		case config.ActionDocsPreviewComment:
-			h, err := docs_preview_comment.New(client, spec.Args)
-			if err != nil {
-				return err
-			}
-
-			handlers.Register(string(t), h, func(event *github.PullRequestEvent) (*docs_preview_comment.Params, error) {
-				var (
-					action      = pointer.SafeDeref(event.Action)
-					repo        = pointer.SafeDeref(event.Repo)
-					pullRequest = pointer.SafeDeref(event.PullRequest)
-
-					repoName          = pointer.SafeDeref(repo.Name)
-					pullRequestNumber = pointer.SafeDeref(pullRequest.Number)
-				)
-
-				if action != githubActionOpened {
-					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
-				}
-				if repoName != "docs" { // FIXME: this is a weird convention, this should come from configuration
-					return nil, handlerrors.Skip("only acting on repository with name docs")
-				}
-
-				return &docs_preview_comment.Params{
-					PullRequestNumber: int(pullRequestNumber),
 				}, nil
 			})
 
@@ -478,9 +449,6 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 
 				if action != githubActionCreated {
 					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
-				}
-				if event.Issue.PullRequestLinks == nil {
-					return nil, handlerrors.Skip("pull requests links are nil")
 				}
 
 				parts := strings.Split(pullRequestURL, "/")
