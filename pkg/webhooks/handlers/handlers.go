@@ -13,19 +13,33 @@ import (
 	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 )
 
-var (
-	handlerMap = map[any][]any{} // unfortunately, this cannot be typed or I am just too stupid
-	mtx        sync.RWMutex
-)
-
 type (
-	WebhookHandler[P any] interface {
-		Handle(ctx context.Context, log *slog.Logger, params P) error
+	// WebhookHandler is implemented by a handler to run a specific action.
+	// It receives some arbitrary params, which are not specific to a certain webhook event.
+	// This way you can run the same handler with different webhook events if desired.
+	// Handlers can return a handlerrors.SkipErr error to indicate they did need to run.
+	WebhookHandler[Params any] interface {
+		Handle(ctx context.Context, log *slog.Logger, params Params) error
 	}
 
-	WebhookEvents interface {
+	// WebhookEvent describes an incoming event from a webhook.
+	WebhookEvent interface {
 		githubEvents | gitlabEvents
 	}
+
+	// ParamsConversion is a function that transforms a webhook event into parameters for a handler.
+	// It can also contain some filter logic to skip the handler before calling it. For this
+	// a handleerrors.SkipErr can be returned.
+	ParamsConversion[Event WebhookEvent, Params any] func(event Event) (Params, error)
+
+	key[Event WebhookEvent]   struct{}
+	entry[Event WebhookEvent] struct {
+		name   string
+		invoke func(ctx context.Context, log *slog.Logger, event Event) error
+	}
+
+	// Now define explicit type constraints for events, so every new event needs to be whitelisted first.
+	// This is basically just to prevent misuse of this package.
 
 	githubEvents interface {
 		*github.ReleaseEvent | *github.RepositoryEvent | *github.PullRequestEvent | *github.PushEvent |
@@ -35,24 +49,42 @@ type (
 	gitlabEvents interface {
 		*glwebhooks.TagEventPayload
 	}
-
-	HandlerParamsFn[E WebhookEvents, P any] func(event E) (P, error)
-
-	key[E WebhookEvents]   struct{}
-	entry[E WebhookEvents] struct {
-		name   string
-		invoke func(ctx context.Context, log *slog.Logger, event E) error
-	}
 )
 
-func Run[E WebhookEvents](log *slog.Logger, e E) {
+var (
+	handlerMap = map[any][]any{} // unfortunately, this cannot be typed or I am just too stupid
+	mtx        sync.RWMutex
+)
+
+// Register registers a webhook handler by a given webhook event type. The conversion function transform the content of
+// the webhook event into parameters for the handler and is called before the handler invocation.
+// The name is only used for logging purposes and does not need to be identical with any contents from the application config.
+func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](name string, h Handler, convertFn ParamsConversion[Event, Params]) {
+	mtx.Lock()
+	defer mtx.Unlock()
+
+	handlerMap[key[Event]{}] = append(handlerMap[key[Event]{}], entry[Event]{
+		name: name,
+		invoke: func(ctx context.Context, log *slog.Logger, event Event) error {
+			params, err := convertFn(event)
+			if err != nil {
+				return err
+			}
+
+			return h.Handle(ctx, log, params)
+		},
+	})
+}
+
+// Run triggers all registered handlers asynchronously for the given webhook event type.
+func Run[Event WebhookEvent](log *slog.Logger, e Event) {
 	mtx.RLock()
 	defer mtx.RUnlock()
 
-	if val, ok := handlerMap[key[E]{}]; ok {
+	if val, ok := handlerMap[key[Event]{}]; ok {
 		for _, h := range val {
 			var (
-				data       = h.(entry[E])
+				data       = h.(entry[Event])
 				handlerLog = log.With("handler-name", data.name)
 			)
 
@@ -77,23 +109,7 @@ func Run[E WebhookEvents](log *slog.Logger, e E) {
 	}
 }
 
-func Register[E WebhookEvents, P any, H WebhookHandler[P]](name string, h H, paramsFn HandlerParamsFn[E, P]) {
-	mtx.Lock()
-	defer mtx.Unlock()
-
-	handlerMap[key[E]{}] = append(handlerMap[key[E]{}], entry[E]{
-		name: name,
-		invoke: func(ctx context.Context, log *slog.Logger, event E) error {
-			params, err := paramsFn(event)
-			if err != nil {
-				return err
-			}
-
-			return h.Handle(ctx, log, params)
-		},
-	})
-}
-
+// Clear can be used to clear all registered handlers. Basically this is only used for testing purposes.
 func Clear() {
 	mtx.Lock()
 	defer mtx.Unlock()
