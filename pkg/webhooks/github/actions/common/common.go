@@ -10,26 +10,30 @@ import (
 	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
-type CommentCommands string
+type CommentCommand string
 
 const (
-	CommentCommandPrefix                          = "/"
-	CommentCommandBuildFork       CommentCommands = CommentCommandPrefix + "ok-to-build"
-	CommentCommandReleaseFreeze   CommentCommands = CommentCommandPrefix + "freeze"
-	CommentCommandReleaseUnfreeze CommentCommands = CommentCommandPrefix + "unfreeze"
-	CommentCommandTag             CommentCommands = CommentCommandPrefix + "tag"
+	CommentCommandPrefix                         = "/"
+	CommentCommandBuildFork       CommentCommand = CommentCommandPrefix + "ok-to-build"
+	CommentCommandReleaseFreeze   CommentCommand = CommentCommandPrefix + "freeze"
+	CommentCommandReleaseUnfreeze CommentCommand = CommentCommandPrefix + "unfreeze"
+	CommentCommandTag             CommentCommand = CommentCommandPrefix + "tag"
+	// CommentCommandBumpRelease runs aggragte releases handlers on the repository for a given repository name.
+	// This only works on Github, Gitlab-hosted releases components cannot be bumped.
+	CommentCommandBumpRelease CommentCommand = CommentCommandPrefix + "bump-release"
 )
 
 var (
-	AllCommentCommands = map[CommentCommands]bool{
+	AllCommentCommands = map[CommentCommand]bool{
 		CommentCommandBuildFork:       true,
 		CommentCommandReleaseFreeze:   true,
 		CommentCommandReleaseUnfreeze: true,
 		CommentCommandTag:             true,
+		CommentCommandBumpRelease:     true,
 	}
 )
 
-func SearchForCommentCommand(data string, want CommentCommands) ([]string, bool) {
+func SearchForCommentCommand(data string, want CommentCommand) ([]string, bool) {
 	for line := range strings.SplitSeq(strings.ReplaceAll(data, "\r\n", "\n"), "\n") {
 		line = strings.TrimSpace(line)
 
@@ -38,7 +42,7 @@ func SearchForCommentCommand(data string, want CommentCommands) ([]string, bool)
 			continue
 		}
 
-		cmd, args := CommentCommands(fields[0]), fields[1:]
+		cmd, args := CommentCommand(fields[0]), fields[1:]
 
 		_, ok := AllCommentCommands[cmd]
 		if !ok {
