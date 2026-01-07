@@ -42,6 +42,10 @@ jobs:
       with:
         args: --build-tags integration --timeout=3m
 
+    - name: Test and Build
+      run: |
+        make all
+
     - name: Make tag
       run: |
         [ "${GITHUB_EVENT_NAME}" == 'pull_request' ] && echo "tag=${GITHUB_HEAD_REF##*/}" >> $GITHUB_ENV || true

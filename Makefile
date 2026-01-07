@@ -1,28 +1,35 @@
-BINARY := metal-robot
-MAINMODULE := github.com/metal-stack/metal-robot/cmd/metal-robot
-COMMONDIR := $(or ${COMMONDIR},../builder)
-KUBECONFIG := $(or ${KUBECONFIG},.kubeconfig)
+SHA := $(shell git rev-parse --short=8 HEAD)
+GITVERSION := $(shell git describe --long --all)
+BUILDDATE := $(shell date -Iseconds)
+VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
 
-include $(COMMONDIR)/Makefile.inc
+CGO_ENABLED := 1
+LINKMODE := -extldflags '-static -s -w'
+
+ifeq ($(CI),true)
+  DOCKER_TTY_ARG=
+else
+  DOCKER_TTY_ARG=t
+endif
 
 .PHONY: all
-all::
-	go mod tidy
+all: test build
 
-release:: all;
+.PHONY: build
+build:
+	go build -tags netgo,osusergo \
+		 -ldflags "$(LINKMODE) -X 'github.com/metal-stack/v.Version=$(VERSION)' \
+								   -X 'github.com/metal-stack/v.Revision=$(GITVERSION)' \
+								   -X 'github.com/metal-stack/v.GitSHA1=$(SHA)' \
+								   -X 'github.com/metal-stack/v.BuildDate=$(BUILDDATE)'" \
+	   -o bin/metal-robot github.com/metal-stack/metal-robot/cmd/metal-robot/...
+	strip bin/metal-robot
 
-.PHONY: start
-start: all
-	bin/metal-robot \
-	  --bind-addr 0.0.0.0 \
-	  --log-level debug \
+.PHONY: test
+test:
+	go test ./... -coverprofile=coverage.out -covermode=atomic && go tool cover -func=coverage.out
 
-.PHONY: swap
-swap:
-	docker build -f Dockerfile.telepresence -t telepresence-container .
-	docker run \
-	  --privileged --rm -it \
-	  -v ${KUBECONFIG}:/.kubeconfig:ro \
-	  --network host \
-	  -e KUBECONFIG=/.kubeconfig \
-	  telepresence-container telepresence --swap-deployment metal-robot --namespace metal-robot --run-shell
+.PHONY: test-integration
+test-integration:
+	# make sure you deploy the version you want to test before!
+	go test -v -count=1 -tags=integration -timeout 600s -p 1 ./tests/e2e/...
