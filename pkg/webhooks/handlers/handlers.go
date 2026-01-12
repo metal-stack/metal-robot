@@ -52,7 +52,7 @@ type (
 )
 
 var (
-	handlerMap = map[any][]any{}
+	handlerMap = map[any][]any{} // unfortunately, this cannot be typed or I am just too stupid
 	mtx        sync.RWMutex
 )
 
