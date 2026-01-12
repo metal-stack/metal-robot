@@ -16,7 +16,8 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 	"golang.org/x/sync/errgroup"
@@ -28,7 +29,6 @@ type Params struct {
 }
 
 type distributeReleases struct {
-	logger                *slog.Logger
 	client                *clients.Github
 	commitMessageTemplate string
 	branchTemplate        string
@@ -44,7 +44,7 @@ type targetRepo struct {
 	url     string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var (
 		commitMessageTemplate = "Bump %s to version %s"
 		branchTemplate        = "auto-generate/%s"
@@ -98,7 +98,6 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &distributeReleases{
-		logger:                logger,
 		client:                client,
 		branchTemplate:        branchTemplate,
 		commitMessageTemplate: commitMessageTemplate,
@@ -109,35 +108,31 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}, nil
 }
 
-// DistributeRelease applies the actions to a given list of target repositories after a push or release trigger on the source repository
-func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
+// Handle can apply file patches in other repositories, when a repository creates a release
+func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	if p.RepositoryName != d.repoName {
-		d.logger.Debug("skip applying release actions to target repos, not triggered by source repo", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
-		return nil
+		return handlerrors.Skip("only acting on repository %s", d.repoName)
 	}
 
-	tag := p.TagName
-	if !strings.HasPrefix(tag, "v") {
-		d.logger.Debug("skip applying release actions to target repos because release tag not starting with v", "source-repo", p.RepositoryName, "tag", p.TagName)
-		return nil
-	}
+	var (
+		tag     = p.TagName
+		trimmed = strings.TrimPrefix(tag, "v")
+	)
 
-	trimmed := strings.TrimPrefix(tag, "v")
+	log = log.With("tag", p.TagName)
 
 	parsedVersion, err := semver.NewVersion(trimmed)
 	if err != nil {
-		d.logger.Info("skip applying release actions to target repos because not a valid semver release tag", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
-		return nil //nolint:nilerr
+		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
 	}
 
 	if parsedVersion.Prerelease() != "" {
-		d.logger.Info("skip applying release actions to target repos because is a pre-release", "source-repo", d.repoName, "trigger-repo", p.RepositoryName, "tag", p.TagName)
-		return nil //nolint:nilerr
+		return handlerrors.Skip("skip distribute release action because is a pre-release")
 	}
 
 	token, err := d.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	var targetRepos []string
@@ -150,11 +145,13 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 
 	for targetRepoName, targetRepo := range d.targetRepos {
 		g.Go(func() error {
-			d.logger.Info("applying patch actions", "source-repo", p.RepositoryName, "target-repo", targetRepoName)
+			log = log.With("target-repo", targetRepoName)
+
+			log.Info("applying patch actions")
 
 			repoURL, err := url.Parse(targetRepo.url)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to parse repository url: %w", err)
 			}
 			repoURL.User = url.UserPassword("x-access-token", token)
 
@@ -167,7 +164,7 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 
 			r, err := git.ShallowClone(repoURL.String(), prBranch, 1)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to shallow clone repository: %w", err)
 			}
 
 			reader := func(file string) ([]byte, error) {
@@ -181,7 +178,7 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 			for _, patch := range targetRepo.patches {
 				err = patch.Apply(reader, writer, tag)
 				if err != nil {
-					return fmt.Errorf("error applying repo updates %w", err)
+					return fmt.Errorf("error applying repo updates: %w", err)
 				}
 			}
 
@@ -189,13 +186,13 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 			hash, err := git.CommitAndPush(r, commitMessage)
 			if err != nil {
 				if errors.Is(err, git.ErrNoChanges) {
-					d.logger.Debug("skip applying release actions to target repo because nothing changed", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "tag", p.TagName)
+					log.Debug("skip pushing to target repo because nothing changed")
 					return nil
 				}
 				return fmt.Errorf("error applying release updates %w", err)
 			}
 
-			d.logger.Info("pushed to target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "branch", prBranch, "hash", hash)
+			log.Info("pushed to target repo", "branch", prBranch, "hash", hash)
 
 			once.Do(func() { lock.Unlock() })
 
@@ -208,10 +205,10 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 			})
 			if err != nil {
 				if !strings.Contains(err.Error(), "A pull request already exists") {
-					return err
+					return fmt.Errorf("unable to create pull request: %w", err)
 				}
 			} else {
-				d.logger.Info("created pull request for target repo", "source-repo", p.RepositoryName, "target-repo", targetRepoName, "release", tag, "url", pr.GetURL())
+				log.Info("created pull request for target repo", "url", pr.GetURL())
 			}
 
 			return nil
@@ -219,7 +216,7 @@ func (d *distributeReleases) Handle(ctx context.Context, p *Params) error {
 	}
 
 	if err := g.Wait(); err != nil {
-		d.logger.Error("errors occurred while applying release actions to target repos", "error", err)
+		log.Error("errors occurred while applying release actions to target repos", "error", err)
 	}
 
 	return nil

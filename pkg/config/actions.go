@@ -5,7 +5,6 @@ type ActionName string
 const (
 	ActionAggregateReleases           ActionName = "aggregate-releases"
 	ActionYAMLTranslateReleases       ActionName = "yaml-translate-releases"
-	ActionDocsPreviewComment          ActionName = "docs-preview-comment"
 	ActionLabelsOnIssueCreation       ActionName = "labels-on-issue-creation"
 	ActionCreateRepositoryMaintainers ActionName = "create-repository-maintainers"
 	ActionDistributeReleases          ActionName = "distribute-releases"
@@ -30,11 +29,6 @@ type RepositoryMaintainersConfig struct {
 	} `mapstructure:"additional-teams" description:"adds additional teams to this repository"`
 }
 
-type DocsPreviewCommentConfig struct {
-	CommentTemplate *string `mapstructure:"comment-tpl" description:"template to be used for the docs PR comment"`
-	RepositoryName  string  `mapstructure:"repository" description:"the name of the docs repo"`
-}
-
 type AggregateReleasesConfig struct {
 	TargetRepositoryName string                 `mapstructure:"repository" description:"the name of the target repo"`
 	TargetRepositoryURL  string                 `mapstructure:"repository-url" description:"the url of the target repo"`
@@ -45,9 +39,7 @@ type AggregateReleasesConfig struct {
 	SourceRepos          map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`
 }
 
-type IssueCommentsHandlerConfig struct {
-	TargetRepos map[string]any `mapstructure:"repos" description:"the repositories for which issue comment handling will be applied"`
-}
+type IssueCommentsHandlerConfig struct{}
 
 type LabelsOnCreation struct {
 	SourceRepos map[string]RepoActions `mapstructure:"repos" description:"the source repositories to trigger this action"`

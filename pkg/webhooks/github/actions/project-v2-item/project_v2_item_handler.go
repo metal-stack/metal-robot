@@ -8,13 +8,13 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
 
 type ProjectV2ItemHandler struct {
-	logger       *slog.Logger
 	graphql      *githubv4.Client
 	projectID    string
 	removeLabels []string
@@ -26,7 +26,7 @@ type Params struct {
 	ContentNodeID string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectV2ItemHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -34,17 +34,16 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &ProjectV2ItemHandler{
-		logger:       logger,
 		graphql:      client.GetGraphQLClient(),
 		projectID:    typedConfig.ProjectID,
 		removeLabels: typedConfig.RemoveLabels,
 	}, nil
 }
 
-func (r *ProjectV2ItemHandler) Handle(ctx context.Context, p *Params) error {
+// Handle removes a label from an issue or pull request when being moved to a certain project column
+func (r *ProjectV2ItemHandler) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	if p.ProjectID != r.projectID {
-		r.logger.Debug("skip removing labels from project v2 item, wrong project-id")
-		return nil
+		return handlerrors.Skip("skip removing labels from project v2 item, only acting on project-id %q", r.projectID)
 	}
 
 	var q struct {
@@ -116,9 +115,9 @@ func (r *ProjectV2ItemHandler) Handle(ctx context.Context, p *Params) error {
 			return fmt.Errorf("error mutating graphql: %w", err)
 		}
 
-		r.logger.Info("removed labels from project v2 item", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
+		log.Info("removed labels from project v2 item", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	} else {
-		r.logger.Info("no need to remove labels from project v2 item, none of them are attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
+		log.Info("no need to remove labels from project v2 item, none of them are attached", "labels", r.removeLabels, "project-number", r.projectID, "item-url", url)
 	}
 
 	return nil

@@ -7,7 +7,8 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/markdown"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 )
 
 type appendMergedPR struct {
@@ -22,8 +23,8 @@ type AppendMergedPrParams struct {
 	Author string
 }
 
-func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*AppendMergedPrParams], error) {
-	rd, err := New(logger, client, rawConfig)
+func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*AppendMergedPrParams], error) {
+	rd, err := New(client, rawConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -33,17 +34,17 @@ func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig m
 	}, nil
 }
 
-func (r *appendMergedPR) Handle(ctx context.Context, p *AppendMergedPrParams) error {
+// Handle appends a merged pull request to the release draft
+func (r *appendMergedPR) Handle(ctx context.Context, log *slog.Logger, p *AppendMergedPrParams) error {
 	_, ok := r.rd.repoMap[p.RepositoryName]
 	if ok {
 		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's a release vector handled repository)
 
 		if p.ComponentReleaseInfo == nil {
-			r.rd.logger.Debug("skip adding merged pull request to release draft because of special handling in release vector", "repo", p.RepositoryName)
-			return nil
+			return handlerrors.Skip("not adding merged pull request to release draft because of special handling for release vector repositories")
 		}
 
-		infos, err := r.rd.releaseInfos(ctx)
+		infos, err := r.rd.releaseInfos(ctx, log)
 		if err != nil {
 			return err
 		}
@@ -53,23 +54,22 @@ func (r *appendMergedPR) Handle(ctx context.Context, p *AppendMergedPrParams) er
 		issueSuffix := fmt.Sprintf("(%s/%s#%d)", r.rd.client.Organization(), p.RepositoryName, p.Number)
 		err = r.rd.prependCodeBlocks(m, *p.ComponentReleaseInfo, &issueSuffix)
 		if err != nil {
-			r.rd.logger.Debug("skip adding merged pull request to release draft", "reason", err, "repo", p.RepositoryName)
-			return nil
+			return handlerrors.Skip("skip adding merged pull request to release draft: %s", err)
 		}
 
 		body := m.String()
 
-		return r.rd.createOrUpdateRelease(ctx, infos, body, &p.Params)
+		return r.rd.createOrUpdateRelease(ctx, log, infos, body, &p.Params)
 	}
 
-	infos, err := r.rd.releaseInfos(ctx)
+	infos, err := r.rd.releaseInfos(ctx, log)
 	if err != nil {
 		return err
 	}
 
 	body := r.rd.appendPullRequest(r.rd.client.Organization(), infos.body, p.RepositoryName, p.Title, p.Number, p.Author, p.ComponentReleaseInfo)
 
-	return r.rd.createOrUpdateRelease(ctx, infos, body, &p.Params)
+	return r.rd.createOrUpdateRelease(ctx, log, infos, body, &p.Params)
 }
 
 func (r *releaseDrafter) appendPullRequest(org string, priorBody string, repo string, title string, number int, author string, prBody *string) string {

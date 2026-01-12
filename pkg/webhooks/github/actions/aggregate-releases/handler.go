@@ -16,14 +16,14 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
 	"github.com/mitchellh/mapstructure"
 )
 
 type aggregateReleases struct {
-	logger                *slog.Logger
 	client                *clients.Github
 	branch                string
 	branchBase            string
@@ -43,7 +43,7 @@ type Params struct {
 	Sender         string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -94,7 +94,6 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &aggregateReleases{
-		logger:                logger,
 		client:                client,
 		branch:                branch,
 		branchBase:            branchBase,
@@ -107,37 +106,38 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}, nil
 }
 
-// AggregateRelease applies the given actions after push and release trigger of a given list of source repositories to a target repository
-func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
-	log := r.logger.With("target-repo", r.repoName, "source-repo", p.RepositoryName, "tag", p.TagName)
+// Handle adds a repository release to a release vector repository.
+func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
+	log = log.With("target-repo", r.repoName, "tag", p.TagName)
 
 	patches, ok := r.patchMap[p.RepositoryName]
 	if !ok {
-		log.Debug("skip applying release actions to aggregation repo, not in list of source repositories")
-		return nil
+		return handlerrors.Skip("not adding to release vector because repository is not configured as a release repository in the metal-robot configuration")
 	}
 
-	tag := p.TagName
-	trimmed := strings.TrimPrefix(tag, "v")
+	var (
+		tag     = p.TagName
+		trimmed = strings.TrimPrefix(tag, "v")
+	)
+
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
-		log.Info("skip applying release actions to aggregation repo because not a valid semver release tag", "error", err)
-		return nil
+		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
 	}
 
 	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to find open release pull requests: %w", err)
 	}
 
 	if openPR != nil {
 		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to find out if release is frozen: %w", err)
 		}
 
 		if frozen {
-			log.Info("skip applying release actions to aggregation repo because release is currently frozen")
+			log.Info("not adding to release vector because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &github.IssueComment{
 				Body: github.Ptr(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
@@ -161,18 +161,18 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 
 	token, err := r.client.GitToken(ctx)
 	if err != nil {
-		return fmt.Errorf("error creating git token %w", err)
+		return fmt.Errorf("error creating git token: %w", err)
 	}
 
 	repoURL, err := url.Parse(r.repoURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to parse repository url: %w", err)
 	}
 	repoURL.User = url.UserPassword("x-access-token", token)
 
 	repository, err := git.ShallowClone(repoURL.String(), r.branch, 1)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to shallow clone repository: %w", err)
 	}
 
 	reader := func(file string) ([]byte, error) {
@@ -186,7 +186,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 	for _, patch := range patches {
 		err = patch.Apply(reader, writer, tag)
 		if err != nil {
-			return fmt.Errorf("error applying release updates %w", err)
+			return fmt.Errorf("error applying release updates: %w", err)
 		}
 	}
 
@@ -196,7 +196,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 		if errors.Is(err, git.ErrNoChanges) {
 			log.Debug("skip push to target repository because nothing changed")
 		} else {
-			return fmt.Errorf("error pushing to target repository %w", err)
+			return fmt.Errorf("error pushing to target repository: %w", err)
 		}
 	} else {
 		log.Info("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
@@ -213,7 +213,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, p *Params) error {
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {
-			return err
+			return fmt.Errorf("unable to create pull request: %w", err)
 		}
 	} else {
 		log.Info("created pull request", "url", pr.GetURL())

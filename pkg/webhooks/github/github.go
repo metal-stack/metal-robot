@@ -1,34 +1,32 @@
 package github
 
 import (
-	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/google/go-github/v79/github"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 )
 
 type Webhook struct {
 	logger *slog.Logger
-	cs     clients.ClientMap
-	a      *WebhookActions
 	secret string
 }
 
 // NewGithubWebhook returns a new webhook controller
-func NewGithubWebhook(logger *slog.Logger, w config.Webhook, cs clients.ClientMap) (*Webhook, error) {
-	a, err := initHandlers(logger, cs, w.Actions)
+func NewGithubWebhook(logger *slog.Logger, cfg config.Webhook, clients clients.ClientMap) (*Webhook, error) {
+	err := initHandlers(logger, clients, cfg.Actions)
 	if err != nil {
 		return nil, err
 	}
 
 	controller := &Webhook{
 		logger: logger,
-		cs:     cs,
-		secret: w.Secret,
-		a:      a,
+		secret: cfg.Secret,
 	}
 
 	return controller, nil
@@ -48,39 +46,90 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 		response.WriteHeader(http.StatusInternalServerError)
 	}
 
-	ctx := context.Background()
-	switch event := event.(type) {
-	case *github.ReleaseEvent:
-		w.logger.Debug("received release event")
-		// nolint:contextcheck
-		go w.a.ProcessReleaseEvent(ctx, event)
-	case *github.PullRequestEvent:
-		w.logger.Debug("received pull request event")
-		// nolint:contextcheck
-		go w.a.ProcessPullRequestEvent(ctx, event)
-	case *github.PushEvent:
-		w.logger.Debug("received push event")
-		// nolint:contextcheck
-		go w.a.ProcessPushEvent(ctx, event)
-	case *github.IssuesEvent:
-		w.logger.Debug("received issues event")
-		// nolint:contextcheck
-		go w.a.ProcessIssuesEvent(ctx, event)
-	case *github.IssueCommentEvent:
-		w.logger.Debug("received issue comment event")
-		// nolint:contextcheck
-		go w.a.ProcessIssueCommentEvent(ctx, event)
-	case *github.RepositoryEvent:
-		w.logger.Debug("received repository event")
-		// nolint:contextcheck
-		go w.a.ProcessRepositoryEvent(ctx, event)
-	case *github.ProjectV2ItemEvent:
-		w.logger.Debug("received project v2 item event")
-		// nolint:contextcheck
-		go w.a.ProcessProjectV2ItemEvent(ctx, event)
-	default:
-		w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))
-	}
+	logger := w.logger.With("github-event-type", fmt.Sprintf("%T", event))
+
+	// as we need to fulfill the time constraint for webhooks, we run all actions async
+	go func() {
+		switch event := event.(type) {
+		case *github.ReleaseEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+				"github-release-name", pointer.SafeDeref(event.Release.Name),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.PullRequestEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+				"github-pull-request-url", pointer.SafeDeref(event.PullRequest.HTMLURL),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.PushEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+				"github-ref", pointer.SafeDeref(event.Ref),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.IssuesEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.IssueCommentEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Organization.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.RepositoryEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
+			)
+
+			handlers.Run(logger, event)
+
+		case *github.ProjectV2ItemEvent:
+			logger = logger.With(
+				"github-event-action", pointer.SafeDeref(event.Action),
+				"github-user", pointer.SafeDeref(event.Sender.Login),
+				"github-organization-name", pointer.SafeDeref(event.Org.Login),
+				"github-v2-item-content-type", pointer.SafeDeref(event.ProjectV2Item.ContentType),
+			)
+
+			handlers.Run(logger, event)
+
+		default:
+			w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))
+		}
+	}()
 
 	response.WriteHeader(http.StatusOK)
 }

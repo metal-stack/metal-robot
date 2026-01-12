@@ -7,13 +7,13 @@ import (
 
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
-	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
 
 type labelsOnCreationHandler struct {
-	logger  *slog.Logger
 	graphql *githubv4.Client
 	repos   map[string]config.RepoActions
 	owner   string
@@ -25,7 +25,7 @@ type Params struct {
 	URL            string
 }
 
-func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) (actions.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var typedConfig config.LabelsOnCreation
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -33,18 +33,17 @@ func New(logger *slog.Logger, client *clients.Github, rawConfig map[string]any) 
 	}
 
 	return &labelsOnCreationHandler{
-		logger:  logger,
 		graphql: client.GetGraphQLClient(),
 		repos:   typedConfig.SourceRepos,
 		owner:   client.Owner(),
 	}, nil
 }
 
-func (r *labelsOnCreationHandler) Handle(ctx context.Context, p *Params) error {
+// Handle adds configured labels to issues and pull requests for certain repositories
+func (r *labelsOnCreationHandler) Handle(ctx context.Context, log *slog.Logger, p *Params) error {
 	repo, ok := r.repos[p.RepositoryName]
 	if !ok {
-		r.logger.Debug("skip handling labels on creation action, not in list of defined repositories", "source-repo", p.RepositoryName)
-		return nil
+		return handlerrors.Skip("skip handling labels on creation action, repository is not configured in the metal-robot configuration")
 	}
 
 	if len(repo.Labels) == 0 {
@@ -102,9 +101,9 @@ func (r *labelsOnCreationHandler) Handle(ctx context.Context, p *Params) error {
 			return fmt.Errorf("error mutating graphql: %w", err)
 		}
 
-		r.logger.Info("added creation labels to target repo", "labels", repo.Labels, "repository", p.RepositoryName, "url", p.URL)
+		log.Info("added creation labels to target repo", "labels", repo.Labels)
 	} else {
-		r.logger.Info("no need to add creation labels because there are none of them present in the target repo", "labels", repo.Labels, "repository", p.RepositoryName, "url", p.URL)
+		log.Info("no need to add creation labels because there are none of them present in the target repo", "labels", repo.Labels)
 	}
 
 	return nil
