@@ -245,5 +245,5 @@ func (r *IssueCommentsAction) bumpRelease(ctx context.Context, log *slog.Logger,
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
