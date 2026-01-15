@@ -64,7 +64,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 
 					repoName = pointer.SafeDeref(repo.Name)
 					login    = pointer.SafeDeref(sender.Login)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionCreated {
 					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
@@ -91,7 +97,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					repoName          = pointer.SafeDeref(repo.Name)
 					pullRequestNodeID = pointer.SafeDeref(pullRequest.NodeID)
 					pullRequestURL    = pointer.SafeDeref(pullRequest.HTMLURL)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionOpened {
 					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
@@ -113,7 +125,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					repoName = pointer.SafeDeref(repo.Name)
 					nodeID   = pointer.SafeDeref(issue.NodeID)
 					url      = pointer.SafeDeref(issue.URL)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionOpened {
 					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
@@ -143,7 +161,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					repoURL  = pointer.SafeDeref(repo.HTMLURL)
 					tagName  = pointer.SafeDeref(release.TagName)
 					login    = pointer.SafeDeref(sender.Login)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionReleased {
 					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
@@ -171,7 +195,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					login = pointer.SafeDeref(sender.Login)
 
 					tagName = extractTag(event)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if !created {
 					return nil, handlerrors.Skip("only reacting on created event")
@@ -205,7 +235,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					repoName = pointer.SafeDeref(repo.Name)
 
 					tagName = extractTag(event)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if !created {
 					return nil, handlerrors.Skip("only reacting on created event")
@@ -237,7 +273,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					tagName     = pointer.SafeDeref(release.TagName)
 					releaseURL  = pointer.SafeDeref(release.HTMLURL)
 					releaseBody = release.Body
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionReleased {
 					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
@@ -270,7 +312,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					pullRequestTitle  = pointer.SafeDeref(event.PullRequest.Title)
 					pullRequestNumber = pointer.SafeDeref(event.PullRequest.Number)
 					pullRequestLogin  = pointer.SafeDeref(event.PullRequest.User.Login)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionClosed {
 					return nil, handlerrors.SkipOnlyActions(githubActionClosed)
@@ -310,7 +358,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					repoName = pointer.SafeDeref(repo.Name)
 					cloneURL = pointer.SafeDeref(repo.CloneURL)
 					tagName  = pointer.SafeDeref(release.TagName)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionReleased {
 					return nil, handlerrors.SkipOnlyActions(githubActionReleased)
@@ -340,7 +394,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					pullRequestNodeID = pointer.SafeDeref(pullRequest.NodeID)
 					pullRequestID     = pointer.SafeDeref(pullRequest.ID)
 					pullRequestURL    = pointer.SafeDeref(pullRequest.HTMLURL)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionOpened {
 					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
@@ -364,8 +424,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 					nodeID   = pointer.SafeDeref(issue.NodeID)
 					id       = pointer.SafeDeref(issue.ID)
 					url      = pointer.SafeDeref(issue.URL)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
 
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 				if action != githubActionOpened {
 					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
 				}
@@ -396,7 +461,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 
 					projectNodeID = pointer.SafeDeref(project.ProjectNodeID)
 					contentNodeID = pointer.SafeDeref(project.ContentNodeID)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Org).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionEdited {
 					return nil, handlerrors.SkipOnlyActions(githubActionEdited)
@@ -445,7 +516,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 
 					pullRequestLinks = pointer.SafeDeref(issue.PullRequestLinks)
 					pullRequestURL   = pointer.SafeDeref(pullRequestLinks.URL)
+
+					orgLogin = pointer.SafeDeref(pointer.SafeDeref(event.Organization).Login)
 				)
+
+				if orgLogin != c.Organization() {
+					return nil, handlerrors.Skip("not responsible for org %s", orgLogin)
+				}
 
 				if action != githubActionCreated {
 					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
