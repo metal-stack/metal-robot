@@ -69,6 +69,16 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
+				handlers.Register("handler-a", "/different-path/", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
+					assert.Fail(t, "this should not be called")
+					return &noopHandlerParams{
+						callbackFn: func() error {
+							t.Fail()
+							return fmt.Errorf("shoulud not be called")
+						},
+					}, nil
+				})
+
 				handlers.Run(log, servePath, &github.ReleaseEvent{
 					Action: pointer.Pointer("open"),
 				})
