@@ -18,7 +18,7 @@ type (
 	// WebhookHandler is implemented by a handler to run a specific action.
 	// It receives some arbitrary params, which are not specific to a certain webhook event.
 	// This way you can run the same handler with different webhook events if desired.
-	// Handlers can return a handlerrors.SkipErr error to indicate they did need to run.
+	// Handlers can return a handlerrors.SkipErr error to indicate they did not need to run.
 	WebhookHandler[Params any] interface {
 		Handle(ctx context.Context, log *slog.Logger, params Params) error
 	}
@@ -53,6 +53,8 @@ type (
 )
 
 var (
+	// handlerMap contains a map of handlers grouped by their serve path, which then contains a list of handlers grouped by event type
+	// => e.g. handlerMap["/webhook/path-a"][*github.ReleaseEvent][]{&handler.A{}, &handler.B{}}
 	handlerMap = map[string]map[any][]any{}
 	mtx        sync.RWMutex
 )
