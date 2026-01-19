@@ -64,7 +64,7 @@ func TestRun(t *testing.T) {
 					return &noopHandlerParams{
 						callbackFn: func() error {
 							t.Fail()
-							return fmt.Errorf("shoulud not be called")
+							return fmt.Errorf("should not be called")
 						},
 					}, nil
 				})
@@ -74,7 +74,7 @@ func TestRun(t *testing.T) {
 					return &noopHandlerParams{
 						callbackFn: func() error {
 							t.Fail()
-							return fmt.Errorf("shoulud not be called")
+							return fmt.Errorf("should not be called")
 						},
 					}, nil
 				})
