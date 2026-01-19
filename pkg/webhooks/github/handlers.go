@@ -34,7 +34,7 @@ const (
 	githubActionEdited   string = "edited"
 )
 
-func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookActions) error {
+func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg config.WebhookActions) error {
 	for _, spec := range cfg {
 		c, ok := cs[spec.Client]
 		if !ok {
@@ -56,7 +56,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.RepositoryEvent) (*repository_maintainers.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.RepositoryEvent) (*repository_maintainers.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -82,7 +82,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.PullRequestEvent) (*issue_labels_on_creation.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.PullRequestEvent) (*issue_labels_on_creation.Params, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -104,7 +104,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				}, nil
 			})
 
-			handlers.Register(string(t), h, func(event *github.IssuesEvent) (*issue_labels_on_creation.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.IssuesEvent) (*issue_labels_on_creation.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -132,7 +132,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.ReleaseEvent) (*aggregate_releases.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.ReleaseEvent) (*aggregate_releases.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -157,7 +157,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				}, nil
 			})
 
-			handlers.Register(string(t), h, func(event *github.PushEvent) (*aggregate_releases.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.PushEvent) (*aggregate_releases.Params, error) {
 				var (
 					created = pointer.SafeDeref(event.Created)
 					ref     = pointer.SafeDeref(event.Ref)
@@ -195,7 +195,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.PushEvent) (*distribute_releases.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.PushEvent) (*distribute_releases.Params, error) {
 				var (
 					created = pointer.SafeDeref(event.Created)
 					ref     = pointer.SafeDeref(event.Ref)
@@ -227,7 +227,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.ReleaseEvent) (*release_drafter.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.ReleaseEvent) (*release_drafter.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -256,7 +256,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h2, func(event *github.PullRequestEvent) (*release_drafter.AppendMergedPrParams, error) {
+			handlers.Register(string(t), path, h2, func(event *github.PullRequestEvent) (*release_drafter.AppendMergedPrParams, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -301,7 +301,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.ReleaseEvent) (*yaml_translate_releases.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.ReleaseEvent) (*yaml_translate_releases.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
@@ -329,7 +329,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.PullRequestEvent) (*project_item_add.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.PullRequestEvent) (*project_item_add.Params, error) {
 				var (
 					action      = pointer.SafeDeref(event.Action)
 					repo        = pointer.SafeDeref(event.Repo)
@@ -354,7 +354,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				}, nil
 			})
 
-			handlers.Register(string(t), h, func(event *github.IssuesEvent) (*project_item_add.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.IssuesEvent) (*project_item_add.Params, error) {
 				var (
 					action = pointer.SafeDeref(event.Action)
 					repo   = pointer.SafeDeref(event.Repo)
@@ -384,7 +384,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.ProjectV2ItemEvent) (*project_v2_item.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.ProjectV2ItemEvent) (*project_v2_item.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					changes = pointer.SafeDeref(event.Changes)
@@ -428,7 +428,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *github.IssueCommentEvent) (*issue_comments.Params, error) {
+			handlers.Register(string(t), path, h, func(event *github.IssueCommentEvent) (*issue_comments.Params, error) {
 				var (
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)

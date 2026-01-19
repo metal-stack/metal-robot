@@ -16,6 +16,7 @@ import (
 
 func TestRun(t *testing.T) {
 	log := slog.Default()
+	const servePath = "path-a"
 
 	tests := []struct {
 		name   string
@@ -24,7 +25,7 @@ func TestRun(t *testing.T) {
 		{
 			name: "no events",
 			testFn: func(t *testing.T) {
-				handlers.Run(log, &github.ReleaseEvent{
+				handlers.Run(log, servePath, &github.ReleaseEvent{
 					Action: pointer.Pointer("open"),
 				})
 			},
@@ -36,7 +37,7 @@ func TestRun(t *testing.T) {
 
 				wg.Add(2)
 
-				handlers.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-a", servePath, &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
 					require.NotNil(t, event.Action)
 					assert.Equal(t, "open", *event.Action)
 					return &noopHandlerParams{
@@ -47,7 +48,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				handlers.Register("handler-a", &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-a", servePath, &noopHandler{}, func(event *github.ReleaseEvent) (*noopHandlerParams, error) {
 					require.NotNil(t, event.Action)
 					assert.Equal(t, "open", *event.Action)
 					return &noopHandlerParams{
@@ -58,7 +59,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				handlers.Register("handler-b", &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
+				handlers.Register("handler-b", servePath, &noopHandler{}, func(event *github.RepositoryEvent) (*noopHandlerParams, error) {
 					assert.Fail(t, "this should not be called")
 					return &noopHandlerParams{
 						callbackFn: func() error {
@@ -68,7 +69,7 @@ func TestRun(t *testing.T) {
 					}, nil
 				})
 
-				handlers.Run(log, &github.ReleaseEvent{
+				handlers.Run(log, servePath, &github.ReleaseEvent{
 					Action: pointer.Pointer("open"),
 				})
 

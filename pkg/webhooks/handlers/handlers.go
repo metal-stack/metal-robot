@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -52,18 +53,25 @@ type (
 )
 
 var (
-	handlerMap = map[any][]any{}
+	handlerMap = map[string]map[any][]any{}
 	mtx        sync.RWMutex
 )
 
 // Register registers a webhook handler by a given webhook event type. The conversion function transform the content of
 // the webhook event into parameters for the handler and is called before the handler invocation.
 // The name is only used for logging purposes and does not need to be identical with any contents from the application config.
-func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](name string, h Handler, convertFn ParamsConversion[Event, Params]) {
+func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](name string, path string, h Handler, convertFn ParamsConversion[Event, Params]) {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap[key[Event]{}] = append(handlerMap[key[Event]{}], entry[Event]{
+	path = trimPath(path)
+
+	handlers, ok := handlerMap[path]
+	if !ok {
+		handlers = map[any][]any{}
+	}
+
+	handlers[key[Event]{}] = append(handlers[key[Event]{}], entry[Event]{
 		name: name,
 		invoke: func(ctx context.Context, log *slog.Logger, event Event) error {
 			params, err := convertFn(event)
@@ -74,14 +82,23 @@ func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](na
 			return h.Handle(ctx, log, params)
 		},
 	})
+
+	handlerMap[path] = handlers
 }
 
 // Run triggers all registered handlers asynchronously for the given webhook event type.
-func Run[Event WebhookEvent](log *slog.Logger, e Event) {
+func Run[Event WebhookEvent](log *slog.Logger, path string, e Event) {
 	mtx.RLock()
 	defer mtx.RUnlock()
 
-	if val, ok := handlerMap[key[Event]{}]; ok {
+	path = trimPath(path)
+
+	handlers, ok := handlerMap[path]
+	if !ok {
+		return
+	}
+
+	if val, ok := handlers[key[Event]{}]; ok {
 		for _, h := range val {
 			var (
 				data       = h.(entry[Event])
@@ -114,5 +131,9 @@ func Clear() {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap = map[any][]any{}
+	handlerMap = map[string]map[any][]any{}
+}
+
+func trimPath(path string) string {
+	return strings.Trim(path, "/")
 }

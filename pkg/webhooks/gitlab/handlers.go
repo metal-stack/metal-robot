@@ -13,7 +13,7 @@ import (
 	glwebhooks "github.com/go-playground/webhooks/v6/gitlab"
 )
 
-func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookActions) error {
+func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg config.WebhookActions) error {
 	for _, spec := range cfg {
 		c, ok := cs[spec.Client]
 		if !ok {
@@ -36,7 +36,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, cfg config.WebhookA
 				return err
 			}
 
-			handlers.Register(string(t), h, func(event *glwebhooks.TagEventPayload) (*aggregate_releases.Params, error) {
+			handlers.Register(string(t), path, h, func(event *glwebhooks.TagEventPayload) (*aggregate_releases.Params, error) {
 				return &aggregate_releases.Params{
 					RepositoryName: event.Repository.Name,
 					RepositoryURL:  event.Repository.URL,
