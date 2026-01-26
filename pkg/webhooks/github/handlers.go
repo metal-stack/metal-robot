@@ -35,6 +35,10 @@ const (
 )
 
 func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg config.WebhookActions) error {
+	var (
+		aggregateReleaseHandlers = map[string][]handlers.WebhookHandler[*aggregate_releases.Params]{}
+	)
+
 	for _, spec := range cfg {
 		c, ok := cs[spec.Client]
 		if !ok {
@@ -127,10 +131,12 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 			})
 
 		case config.ActionAggregateReleases:
-			h, err := aggregate_releases.New(client, spec.Args)
+			h, repoName, err := aggregate_releases.New(client, spec.Args)
 			if err != nil {
 				return err
 			}
+
+			aggregateReleaseHandlers[repoName] = append(aggregateReleaseHandlers[repoName], h)
 
 			handlers.Register(string(t), path, h, func(event *github.ReleaseEvent) (*aggregate_releases.Params, error) {
 				var (
@@ -422,8 +428,32 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					ContentNodeID: contentNodeID,
 				}, nil
 			})
+		default:
+			continue
+		}
+
+		logger.Debug("initialized github webhook action", "name", spec.Type)
+	}
+
+	// the second loop for handlers that have dependencies on other handlers
+
+	for _, spec := range cfg {
+		c, ok := cs[spec.Client]
+		if !ok {
+			return fmt.Errorf("webhook action client not found: %s", spec.Client)
+		}
+
+		switch clientType := c.(type) {
+		case *clients.Github:
+		default:
+			return fmt.Errorf("action %s only supports github clients, not: %s", spec.Type, clientType)
+		}
+
+		client := c.(*clients.Github)
+
+		switch t := spec.Type; t {
 		case config.ActionIssueCommentsHandler:
-			h, err := issue_comments.New(client, spec.Args)
+			h, err := issue_comments.New(client, spec.Args, aggregateReleaseHandlers)
 			if err != nil {
 				return err
 			}
