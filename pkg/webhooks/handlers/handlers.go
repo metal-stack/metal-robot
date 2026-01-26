@@ -50,12 +50,15 @@ type (
 	gitlabEvents interface {
 		*glwebhooks.TagEventPayload
 	}
+
+	// handlers by event type
+	eventTypeHandlers = map[any][]any
 )
 
 var (
 	// handlerMap contains a map of handlers grouped by their serve path, which then contains a list of handlers grouped by event type
 	// => e.g. handlerMap["/webhook/path-a"][*github.ReleaseEvent][]{&handler.A{}, &handler.B{}}
-	handlerMap = map[string]map[any][]any{}
+	handlerMap = map[string]eventTypeHandlers{}
 	mtx        sync.RWMutex
 )
 
@@ -95,12 +98,12 @@ func Run[Event WebhookEvent](log *slog.Logger, path string, e Event) {
 
 	path = trimPath(path)
 
-	handlers, ok := handlerMap[path]
+	eventHandlers, ok := handlerMap[path]
 	if !ok {
 		return
 	}
 
-	if val, ok := handlers[key[Event]{}]; ok {
+	if val, ok := eventHandlers[key[Event]{}]; ok {
 		for _, h := range val {
 			var (
 				data       = h.(entry[Event])
@@ -133,7 +136,7 @@ func Clear() {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap = map[string]map[any][]any{}
+	handlerMap = map[string]eventTypeHandlers{}
 }
 
 func trimPath(path string) string {
