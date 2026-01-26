@@ -61,25 +61,26 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 	var (
 		errs              []error
 		executedSomething = false
+		commandActions    = []struct {
+			cmd common.CommentCommand
+			fn  func(args []string) error
+		}{
+			{
+				cmd: common.CommentCommandBuildFork,
+				fn: func(_ []string) error {
+					return r.buildForkPR(ctx, log, p)
+				},
+			},
+			{
+				cmd: common.CommentCommandTag,
+				fn: func(args []string) error {
+					return r.tag(ctx, log, p, args)
+				},
+			},
+		}
 	)
 
-	for _, action := range []struct {
-		cmd common.CommentCommand
-		fn  func(args []string) error
-	}{
-		{
-			cmd: common.CommentCommandBuildFork,
-			fn: func(_ []string) error {
-				return r.buildForkPR(ctx, log, p)
-			},
-		},
-		{
-			cmd: common.CommentCommandTag,
-			fn: func(args []string) error {
-				return r.tag(ctx, log, p, args)
-			},
-		},
-	} {
+	for _, action := range commandActions {
 		if args, ok := common.SearchForCommentCommand(p.Comment, action.cmd); ok {
 			log.Info("running issue comment command", "cmd", action.cmd, "args", args)
 
