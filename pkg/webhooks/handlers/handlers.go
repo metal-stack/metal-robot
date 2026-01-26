@@ -51,8 +51,10 @@ type (
 		*glwebhooks.TagEventPayload
 	}
 
-	// handlers by event type
-	eventTypeHandlers = map[any][]any
+	// eventTypeHandlers contains handlers by event type
+	eventTypeHandlers = map[anyEventType][]anyHandler
+	anyEventType      = any
+	anyHandler        = any
 )
 
 var (
@@ -73,7 +75,7 @@ func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](na
 
 	handlers, ok := handlerMap[path]
 	if !ok {
-		handlers = map[any][]any{}
+		handlers = eventTypeHandlers{}
 	}
 
 	handlers[key[Event]{}] = append(handlers[key[Event]{}], entry[Event]{
