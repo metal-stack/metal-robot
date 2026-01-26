@@ -14,7 +14,7 @@ func Test_searchForCommandInBody(t *testing.T) {
 	tests := []struct {
 		name     string
 		body     string
-		search   CommentCommands
+		search   CommentCommand
 		want     bool
 		wantArgs []string
 	}{

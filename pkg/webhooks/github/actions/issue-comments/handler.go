@@ -2,6 +2,7 @@ package issue_comments
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
@@ -57,21 +58,39 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 		return handlerrors.Skip("skip handling issues comment action, author %q does not have admin permissions on this repo (but only %q)", p.User, perm)
 	}
 
-	executedSomething := false
-
-	if _, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandBuildFork); ok {
-		executedSomething = true
-		err := r.buildForkPR(ctx, log, p)
-		if err != nil {
-			return err
+	var (
+		errs              []error
+		executedSomething = false
+		commandActions    = []struct {
+			cmd common.CommentCommand
+			fn  func(args []string) error
+		}{
+			{
+				cmd: common.CommentCommandBuildFork,
+				fn: func(_ []string) error {
+					return r.buildForkPR(ctx, log, p)
+				},
+			},
+			{
+				cmd: common.CommentCommandTag,
+				fn: func(args []string) error {
+					return r.tag(ctx, log, p, args)
+				},
+			},
 		}
-	}
+	)
 
-	if args, ok := common.SearchForCommentCommand(p.Comment, common.CommentCommandTag); ok {
-		executedSomething = true
-		err := r.tag(ctx, log, p, args)
-		if err != nil {
-			return err
+	for _, action := range commandActions {
+		if args, ok := common.SearchForCommentCommand(p.Comment, action.cmd); ok {
+			log.Info("running issue comment command", "cmd", action.cmd, "args", args)
+
+			executedSomething = true
+
+			err := action.fn(args)
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
 		}
 	}
 
@@ -79,7 +98,7 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 		return handlerrors.Skip("no comment command contained in issue command")
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger, p *Params) error {
