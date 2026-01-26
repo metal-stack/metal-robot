@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,7 +18,7 @@ type (
 	// WebhookHandler is implemented by a handler to run a specific action.
 	// It receives some arbitrary params, which are not specific to a certain webhook event.
 	// This way you can run the same handler with different webhook events if desired.
-	// Handlers can return a handlerrors.SkipErr error to indicate they did need to run.
+	// Handlers can return a handlerrors.SkipErr error to indicate they did not need to run.
 	WebhookHandler[Params any] interface {
 		Handle(ctx context.Context, log *slog.Logger, params Params) error
 	}
@@ -49,21 +50,35 @@ type (
 	gitlabEvents interface {
 		*glwebhooks.TagEventPayload
 	}
+
+	// eventTypeHandlers contains handlers by event type
+	eventTypeHandlers = map[anyEventType][]anyHandler
+	anyEventType      = any
+	anyHandler        = any
 )
 
 var (
-	handlerMap = map[any][]any{}
+	// handlerMap contains a map of handlers grouped by their serve path, which then contains a list of handlers grouped by event type
+	// => e.g. handlerMap["/webhook/path-a"][*github.ReleaseEvent][]{&handler.A{}, &handler.B{}}
+	handlerMap = map[string]eventTypeHandlers{}
 	mtx        sync.RWMutex
 )
 
 // Register registers a webhook handler by a given webhook event type. The conversion function transform the content of
 // the webhook event into parameters for the handler and is called before the handler invocation.
 // The name is only used for logging purposes and does not need to be identical with any contents from the application config.
-func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](name string, h Handler, convertFn ParamsConversion[Event, Params]) {
+func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](name string, path string, h Handler, convertFn ParamsConversion[Event, Params]) {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap[key[Event]{}] = append(handlerMap[key[Event]{}], entry[Event]{
+	path = trimPath(path)
+
+	handlers, ok := handlerMap[path]
+	if !ok {
+		handlers = eventTypeHandlers{}
+	}
+
+	handlers[key[Event]{}] = append(handlers[key[Event]{}], entry[Event]{
 		name: name,
 		invoke: func(ctx context.Context, log *slog.Logger, event Event) error {
 			params, err := convertFn(event)
@@ -74,14 +89,23 @@ func Register[Event WebhookEvent, Params any, Handler WebhookHandler[Params]](na
 			return h.Handle(ctx, log, params)
 		},
 	})
+
+	handlerMap[path] = handlers
 }
 
 // Run triggers all registered handlers asynchronously for the given webhook event type.
-func Run[Event WebhookEvent](log *slog.Logger, e Event) {
+func Run[Event WebhookEvent](log *slog.Logger, path string, e Event) {
 	mtx.RLock()
 	defer mtx.RUnlock()
 
-	if val, ok := handlerMap[key[Event]{}]; ok {
+	path = trimPath(path)
+
+	eventHandlers, ok := handlerMap[path]
+	if !ok {
+		return
+	}
+
+	if val, ok := eventHandlers[key[Event]{}]; ok {
 		for _, h := range val {
 			var (
 				data       = h.(entry[Event])
@@ -114,5 +138,9 @@ func Clear() {
 	mtx.Lock()
 	defer mtx.Unlock()
 
-	handlerMap = map[any][]any{}
+	handlerMap = map[string]eventTypeHandlers{}
+}
+
+func trimPath(path string) string {
+	return strings.Trim(path, "/")
 }

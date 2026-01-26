@@ -19,7 +19,7 @@ type Webhook struct {
 
 // NewGithubWebhook returns a new webhook controller
 func NewGithubWebhook(logger *slog.Logger, cfg config.Webhook, clients clients.ClientMap) (*Webhook, error) {
-	err := initHandlers(logger, clients, cfg.Actions)
+	err := initHandlers(logger, clients, cfg.ServePath, cfg.Actions)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-release-name", pointer.SafeDeref(event.Release.Name),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.PullRequestEvent:
 			logger = logger.With(
@@ -71,7 +71,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-pull-request-url", pointer.SafeDeref(event.PullRequest.HTMLURL),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.PushEvent:
 			logger = logger.With(
@@ -82,7 +82,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-ref", pointer.SafeDeref(event.Ref),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.IssuesEvent:
 			logger = logger.With(
@@ -93,7 +93,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.IssueCommentEvent:
 			logger = logger.With(
@@ -104,7 +104,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-issue-number", pointer.SafeDeref(event.Issue.Number),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.RepositoryEvent:
 			logger = logger.With(
@@ -114,7 +114,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-repository-url", pointer.SafeDeref(event.Repo.HTMLURL),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		case *github.ProjectV2ItemEvent:
 			logger = logger.With(
@@ -124,7 +124,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"github-v2-item-content-type", pointer.SafeDeref(event.ProjectV2Item.ContentType),
 			)
 
-			handlers.Run(logger, event)
+			handlers.Run(logger, request.URL.Path, event)
 
 		default:
 			w.logger.Warn("missing handler for webhook event", "event-type", github.WebHookType(request))

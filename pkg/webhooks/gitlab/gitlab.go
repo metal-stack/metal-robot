@@ -30,7 +30,7 @@ func NewGitlabWebhook(logger *slog.Logger, cfg config.Webhook, clients clients.C
 		return nil, err
 	}
 
-	err = initHandlers(logger, clients, cfg.Actions)
+	err = initHandlers(logger, clients, cfg.ServePath, cfg.Actions)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (w *Webhook) Handle(response http.ResponseWriter, request *http.Request) {
 				"gitlab-username", payload.UserUsername,
 			)
 
-			handlers.Run(logger, &payload)
+			handlers.Run(logger, request.URL.Path, &payload)
 		default:
 			w.logger.Warn("missing handler for webhook event", "event-type", payload)
 		}
