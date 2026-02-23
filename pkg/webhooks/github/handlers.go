@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	githubActionReleased string = "released"
-	githubActionOpened   string = "opened"
 	githubActionClosed   string = "closed"
 	githubActionCreated  string = "created"
 	githubActionEdited   string = "edited"
+	githubActionOpened   string = "opened"
+	githubActionReleased string = "released"
+	githubActionTyped    string = "typed"
 )
 
 func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg config.WebhookActions) error {
@@ -351,6 +352,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					NodeID:         pullRequestNodeID,
 					ID:             pullRequestID,
 					URL:            pullRequestURL,
+					IssueType:      nil, // pull requests never have an issue type
 				}, nil
 			})
 
@@ -360,14 +362,15 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					repo   = pointer.SafeDeref(event.Repo)
 					issue  = pointer.SafeDeref(event.Issue)
 
-					repoName = pointer.SafeDeref(repo.Name)
-					nodeID   = pointer.SafeDeref(issue.NodeID)
-					id       = pointer.SafeDeref(issue.ID)
-					url      = pointer.SafeDeref(issue.URL)
+					repoName  = pointer.SafeDeref(repo.Name)
+					nodeID    = pointer.SafeDeref(issue.NodeID)
+					id        = pointer.SafeDeref(issue.ID)
+					url       = pointer.SafeDeref(issue.URL)
+					issueType = pointer.SafeDeref(issue.Type)
 				)
 
-				if action != githubActionOpened {
-					return nil, handlerrors.SkipOnlyActions(githubActionOpened)
+				if action != githubActionTyped {
+					return nil, handlerrors.SkipOnlyActions(githubActionTyped)
 				}
 
 				return &project_item_add.Params{
@@ -375,6 +378,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					NodeID:         nodeID,
 					ID:             id,
 					URL:            url,
+					IssueType:      issueType.Name,
 				}, nil
 			})
 
