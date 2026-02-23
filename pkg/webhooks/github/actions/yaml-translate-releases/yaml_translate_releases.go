@@ -16,6 +16,7 @@ import (
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	filepatchers "github.com/metal-stack/metal-robot/pkg/webhooks/modifiers/file-patchers"
@@ -49,6 +50,7 @@ type Params struct {
 	RepositoryName string
 	RepositoryURL  string
 	TagName        string
+	Sender         string
 }
 
 func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
@@ -146,6 +148,35 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, log *slog.Logger, p 
 	_, err := semver.NewVersion(trimmed)
 	if err != nil {
 		return handlerrors.Skip("not adding to release vector because not a valid semver release tag: %w", err)
+	}
+
+	openPR, err := common.FindOpenReleasePR(ctx, r.client.GetV3Client(), r.client.Organization(), r.repoName, r.branch, r.branchBase)
+	if err != nil {
+		return fmt.Errorf("unable to find open release pull requests: %w", err)
+	}
+
+	if openPR != nil {
+		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
+		if err != nil {
+			return fmt.Errorf("unable to find out if release is frozen: %w", err)
+		}
+
+		if frozen {
+			log.Info("not adding to release vector because release is currently frozen")
+
+			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &github.IssueComment{
+				Body: github.Ptr(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
+					p.TagName,
+					p.RepositoryURL,
+					p.Sender,
+				)),
+			})
+			if err != nil {
+				return fmt.Errorf("unable to create comment for rejected release aggregation: %w", err)
+			}
+
+			return nil
+		}
 	}
 
 	// preventing concurrent git repo modifications

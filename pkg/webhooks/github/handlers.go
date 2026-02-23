@@ -306,10 +306,13 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					action  = pointer.SafeDeref(event.Action)
 					repo    = pointer.SafeDeref(event.Repo)
 					release = pointer.SafeDeref(event.Release)
+					sender  = pointer.SafeDeref(event.Sender)
 
 					repoName = pointer.SafeDeref(repo.Name)
 					cloneURL = pointer.SafeDeref(repo.CloneURL)
 					tagName  = pointer.SafeDeref(release.TagName)
+
+					login = pointer.SafeDeref(sender.Login)
 				)
 
 				if action != githubActionReleased {
@@ -320,6 +323,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					RepositoryName: repoName,
 					RepositoryURL:  cloneURL,
 					TagName:        tagName,
+					Sender:         login,
 				}, nil
 			})
 
