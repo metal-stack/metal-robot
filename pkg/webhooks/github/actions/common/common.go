@@ -79,12 +79,13 @@ func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, own
 	var comments []*github.IssueComment
 
 	for {
-		repos, resp, err := client.Issues.ListComments(ctx, owner, repo, number, options)
+		cs, resp, err := client.Issues.ListComments(ctx, owner, repo, number, options)
 		if err != nil {
 			return true, fmt.Errorf("unable to list pull request comments: %w", err)
 		}
 
-		comments = append(comments, repos...)
+		comments = append(comments, cs...)
+
 		if resp.NextPage == 0 {
 			break
 		}
