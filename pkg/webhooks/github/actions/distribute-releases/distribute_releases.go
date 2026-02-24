@@ -197,11 +197,11 @@ func (d *distributeReleases) Handle(ctx context.Context, log *slog.Logger, p *Pa
 			once.Do(func() { lock.Unlock() })
 
 			pr, _, err := d.client.GetV3Client().PullRequests.Create(ctx, d.client.Organization(), targetRepoName, &github.NewPullRequest{
-				Title:               github.Ptr(commitMessage),
-				Head:                github.Ptr(prBranch),
-				Base:                github.Ptr(targetRepo.branch),
-				Body:                github.Ptr(d.pullRequestTitle),
-				MaintainerCanModify: github.Ptr(true),
+				Title:               new(commitMessage),
+				Head:                new(prBranch),
+				Base:                new(targetRepo.branch),
+				Body:                new(d.pullRequestTitle),
+				MaintainerCanModify: new(true),
 			})
 			if err != nil {
 				if !strings.Contains(err.Error(), "A pull request already exists") {

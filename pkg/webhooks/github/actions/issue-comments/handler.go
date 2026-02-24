@@ -136,12 +136,12 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger,
 	}
 
 	forkPr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), p.RepositoryName, &github.NewPullRequest{
-		Title:               github.Ptr(forkPrTitle),
-		Head:                github.Ptr(forkBuildBranch),
+		Title:               new(forkPrTitle),
+		Head:                new(forkBuildBranch),
 		Base:                pullRequest.Base.Ref,
-		Body:                github.Ptr("Fork build for #" + prNumber + " triggered by @" + p.User),
-		MaintainerCanModify: github.Ptr(true),
-		Draft:               github.Ptr(true),
+		Body:                new("Fork build for #" + prNumber + " triggered by @" + p.User),
+		MaintainerCanModify: new(true),
+		Draft:               new(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {

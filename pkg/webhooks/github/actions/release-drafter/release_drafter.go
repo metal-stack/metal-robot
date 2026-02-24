@@ -439,10 +439,10 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, log *slog.Lo
 		log.Info("release draft updated", "version", p.TagName)
 	} else {
 		newDraft := &github.RepositoryRelease{
-			TagName: github.Ptr(infos.releaseTag),
-			Name:    github.Ptr(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
+			TagName: new(infos.releaseTag),
+			Name:    new(fmt.Sprintf(r.titleTemplate, infos.releaseTag)),
 			Body:    &body,
-			Draft:   github.Ptr(true),
+			Draft:   new(true),
 		}
 
 		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)

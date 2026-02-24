@@ -70,10 +70,10 @@ func (r *repositoryMaintainers) Handle(ctx context.Context, log *slog.Logger, p 
 
 	_, _, err := r.client.GetV3Client().Teams.CreateTeam(ctx, r.client.Organization(), github.NewTeam{
 		Name:        name,
-		Description: github.Ptr(description),
+		Description: new(description),
 		Maintainers: []string{p.Creator},
 		RepoNames:   []string{p.RepositoryName},
-		Privacy:     github.Ptr("closed"),
+		Privacy:     new("closed"),
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "Name must be unique for this org") {
@@ -94,7 +94,6 @@ func (r *repositoryMaintainers) Handle(ctx context.Context, log *slog.Logger, p 
 	memberships = append(memberships, r.additionalTeams...)
 
 	for _, team := range memberships {
-		team := team
 
 		_, err := r.client.GetV3Client().Teams.AddTeamRepoBySlug(ctx, r.client.Organization(), team.teamSlug, r.client.Organization(), p.RepositoryName, &github.TeamAddTeamRepoOptions{
 			Permission: team.permission,
