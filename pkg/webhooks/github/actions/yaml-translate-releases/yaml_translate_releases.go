@@ -172,7 +172,7 @@ func (r *yamlTranslateReleases) Handle(ctx context.Context, log *slog.Logger, p 
 				)),
 			})
 			if err != nil {
-				return fmt.Errorf("unable to create comment for rejected release aggregation: %w", err)
+				return fmt.Errorf("unable to create comment for rejected release translation: %w", err)
 			}
 
 			return nil
