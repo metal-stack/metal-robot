@@ -71,11 +71,26 @@ func FindOpenReleasePR(ctx context.Context, client *github.Client, owner, repo, 
 }
 
 func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, owner, repo string) (bool, error) {
-	comments, _, err := client.Issues.ListComments(ctx, owner, repo, number, &github.IssueListCommentsOptions{
-		Direction: github.Ptr("desc"),
-	})
-	if err != nil {
-		return true, fmt.Errorf("unable to list pull request comments: %w", err)
+	options := &github.IssueListCommentsOptions{
+		Direction:   github.Ptr("desc"),
+		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	var comments []*github.IssueComment
+
+	for {
+		cs, resp, err := client.Issues.ListComments(ctx, owner, repo, number, options)
+		if err != nil {
+			return true, fmt.Errorf("unable to list pull request comments: %w", err)
+		}
+
+		comments = append(comments, cs...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+
+		options.Page = resp.NextPage
 	}
 
 	// somehow the direction parameter has no effect, it's always sorted in the same way?
