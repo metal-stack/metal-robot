@@ -46,7 +46,8 @@ type LabelsOnCreation struct {
 }
 
 type ProjectItemAddHandlerConfig struct {
-	ProjectID string `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
+	ProjectID        string  `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
+	IssuesTypeFilter *string `mapstructure:"issue-type" description:"type of the issue to add"`
 }
 
 type ProjectV2ItemHandlerConfig struct {

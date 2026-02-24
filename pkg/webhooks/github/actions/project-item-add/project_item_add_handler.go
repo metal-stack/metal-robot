@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
+	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shurcooL/githubv4"
 )
@@ -16,6 +18,7 @@ type projectItemAdd struct {
 	client    *clients.Github
 	graphql   *githubv4.Client
 	projectID string
+	issueType *string
 }
 
 type Params struct {
@@ -23,6 +26,7 @@ type Params struct {
 	NodeID         string
 	ID             int64
 	URL            string
+	IssueType      *string
 }
 
 func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
@@ -36,6 +40,7 @@ func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHand
 		client:    client,
 		graphql:   client.GetGraphQLClient(),
 		projectID: typedConfig.ProjectID,
+		issueType: typedConfig.IssuesTypeFilter,
 	}, nil
 }
 
@@ -49,6 +54,12 @@ func (r *projectItemAdd) Handle(ctx context.Context, log *slog.Logger, p *Params
 }
 
 func (r *projectItemAdd) addToProject(ctx context.Context, log *slog.Logger, p *Params) error {
+	if r.issueType != nil {
+		if *r.issueType != pointer.SafeDeref(p.IssueType) {
+			return handlerrors.Skip("skip adding item to project, not of issue type %s (but %s)", *r.issueType, pointer.SafeDeref(p.IssueType))
+		}
+	}
+
 	var m struct {
 		AddProjectV2ItemById struct {
 			Item struct {
