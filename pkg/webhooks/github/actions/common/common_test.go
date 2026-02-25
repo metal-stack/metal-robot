@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/v79/github"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
 )
 
 func Test_searchForCommandInBody(t *testing.T) {
@@ -82,21 +81,21 @@ func Test_sortComments(t *testing.T) {
 			name: "newest comment should appear first in the list",
 			comments: []*github.IssueComment{
 				{
-					ID:        pointer.Pointer(int64(1)),
+					ID:        new(int64(1)),
 					CreatedAt: &github.Timestamp{Time: now.Add(-3 * time.Minute)},
 				},
 				{
-					ID:        pointer.Pointer(int64(2)),
+					ID:        new(int64(2)),
 					CreatedAt: &github.Timestamp{Time: now.Add(2 * time.Minute)},
 				},
 			},
 			want: []*github.IssueComment{
 				{
-					ID:        pointer.Pointer(int64(2)),
+					ID:        new(int64(2)),
 					CreatedAt: &github.Timestamp{Time: now.Add(2 * time.Minute)},
 				},
 				{
-					ID:        pointer.Pointer(int64(1)),
+					ID:        new(int64(1)),
 					CreatedAt: &github.Timestamp{Time: now.Add(-3 * time.Minute)},
 				},
 			},

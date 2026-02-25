@@ -140,7 +140,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 			log.Info("not adding to release vector because release is currently frozen")
 
 			_, _, err = r.client.GetV3Client().Issues.CreateComment(ctx, r.client.Organization(), r.repoName, *openPR.Number, &github.IssueComment{
-				Body: github.Ptr(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
+				Body: new(fmt.Sprintf(":warning: Release `%v` in repository %s (issued by @%s) was rejected because release is currently frozen. Please re-issue the release hook once this branch was merged or unfrozen.",
 					p.TagName,
 					p.RepositoryURL,
 					p.Sender,
@@ -205,11 +205,11 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 	}
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &github.NewPullRequest{
-		Title:               github.Ptr("Next release"),
-		Head:                github.Ptr(r.branch),
-		Base:                github.Ptr(r.branchBase),
-		Body:                github.Ptr(r.pullRequestTitle),
-		MaintainerCanModify: github.Ptr(true),
+		Title:               new("Next release"),
+		Head:                new(r.branch),
+		Base:                new(r.branchBase),
+		Body:                new(r.pullRequestTitle),
+		MaintainerCanModify: new(true),
 	})
 	if err != nil {
 		if !strings.Contains(err.Error(), "A pull request already exists") {

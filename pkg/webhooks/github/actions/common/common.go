@@ -72,7 +72,7 @@ func FindOpenReleasePR(ctx context.Context, client *github.Client, owner, repo, 
 
 func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, owner, repo string) (bool, error) {
 	options := &github.IssueListCommentsOptions{
-		Direction:   github.Ptr("desc"),
+		Direction:   new("desc"),
 		ListOptions: github.ListOptions{PerPage: 100},
 	}
 
