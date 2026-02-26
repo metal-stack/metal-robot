@@ -31,7 +31,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 
 		switch t := spec.Type; t {
 		case config.ActionAggregateReleases:
-			h, err := aggregate_releases.New(client, spec.Args)
+			h, _, err := aggregate_releases.New(client, spec.Args)
 			if err != nil {
 				return err
 			}

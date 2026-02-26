@@ -10,9 +10,11 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v79/github"
+	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/clients"
 	"github.com/metal-stack/metal-robot/pkg/config"
 	"github.com/metal-stack/metal-robot/pkg/git"
+	aggregate_releases "github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/aggregate-releases"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/github/actions/common"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 	handlerrors "github.com/metal-stack/metal-robot/pkg/webhooks/handlers/errors"
@@ -21,6 +23,8 @@ import (
 
 type IssueCommentsAction struct {
 	client *clients.Github
+
+	aggregateReleaseHandlers map[string][]handlers.WebhookHandler[*aggregate_releases.Params]
 }
 
 type Params struct {
@@ -32,7 +36,7 @@ type Params struct {
 	User              string
 }
 
-func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any, aggregateReleaseHandlers map[string][]handlers.WebhookHandler[*aggregate_releases.Params]) (handlers.WebhookHandler[*Params], error) {
 	var typedConfig config.IssueCommentsHandlerConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
@@ -40,7 +44,8 @@ func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHand
 	}
 
 	return &IssueCommentsAction{
-		client: client,
+		client:                   client,
+		aggregateReleaseHandlers: aggregateReleaseHandlers,
 	}, nil
 }
 
@@ -75,6 +80,12 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 				cmd: common.CommentCommandTag,
 				fn: func(args []string) error {
 					return r.tag(ctx, log, p, args)
+				},
+			},
+			{
+				cmd: common.CommentCommandBumpRelease,
+				fn: func(args []string) error {
+					return r.bumpRelease(ctx, log, p, args)
 				},
 			},
 		}
@@ -186,4 +197,54 @@ func (r *IssueCommentsAction) tag(ctx context.Context, log *slog.Logger, p *Para
 	log.Info("pushed tag to repo", "branch", headRef, "tag", tag)
 
 	return nil
+}
+
+func (r *IssueCommentsAction) bumpRelease(ctx context.Context, log *slog.Logger, p *Params, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("no repo name given, skipping")
+	}
+
+	handlers, ok := r.aggregateReleaseHandlers[p.RepositoryName]
+	if !ok || len(handlers) == 0 {
+		return fmt.Errorf("no aggregate release handlers configured for %s, skipping issue comment action", p.RepositoryName)
+	}
+
+	var (
+		repoName = args[0]
+		version  string
+		errs     []error
+	)
+
+	repo, _, err := r.client.GetV3AppClient().Repositories.Get(ctx, r.client.Organization(), repoName)
+	if err != nil {
+		return fmt.Errorf("unable to find given repository %s: %w", repoName, err)
+	}
+
+	if len(args) > 1 {
+		version = args[1]
+	} else {
+		release, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), repoName)
+		if err != nil {
+			return fmt.Errorf("unable to figure out latest release version in repository %s: %w", repoName, err)
+		}
+
+		version = pointer.SafeDeref(release.TagName)
+	}
+
+	for _, handler := range handlers {
+		log.Info("calling aggregate releases handler through issue comment action", "aggregation-repo", p.RepositoryName, "repo", repoName, "version", version)
+
+		err := handler.Handle(ctx, log, &aggregate_releases.Params{
+			RepositoryName: repoName,
+			RepositoryURL:  pointer.SafeDeref(repo.HTMLURL),
+			TagName:        version,
+			Sender:         p.User,
+		})
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+	}
+
+	return errors.Join(errs...)
 }
