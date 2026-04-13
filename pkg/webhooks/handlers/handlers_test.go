@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v79/github"
-	"github.com/metal-stack/metal-lib/pkg/pointer"
 	"github.com/metal-stack/metal-robot/pkg/webhooks/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +25,7 @@ func TestRun(t *testing.T) {
 			name: "no events",
 			testFn: func(t *testing.T) {
 				handlers.Run(log, servePath, &github.ReleaseEvent{
-					Action: pointer.Pointer("open"),
+					Action: new("open"),
 				})
 			},
 		},
@@ -80,7 +79,7 @@ func TestRun(t *testing.T) {
 				})
 
 				handlers.Run(log, servePath, &github.ReleaseEvent{
-					Action: pointer.Pointer("open"),
+					Action: new("open"),
 				})
 
 				wg.Wait()

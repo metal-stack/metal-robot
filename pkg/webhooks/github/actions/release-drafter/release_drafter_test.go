@@ -5,7 +5,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/v79/github"
 
 	_ "embed"
 )
@@ -32,7 +31,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody: github.Ptr(`- Adding new feature
+			componentBody: new(`- Adding new feature
 - Fixed a bug`),
 			priorBody: "",
 			want: `# General
@@ -59,7 +58,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody:    github.Ptr(""),
+			componentBody:    new(""),
 			priorBody:        "",
 			want: `# General
 ## Component Releases
@@ -71,7 +70,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody: github.Ptr(`- Adding new feature
+			componentBody: new(`- Adding new feature
 - Fixed a bug`),
 			priorBody: `# General
 ## Component Releases
@@ -91,7 +90,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    github.Ptr(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
+			componentBody:    new(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -114,7 +113,7 @@ func TestReleaseDrafter_updateReleaseBody(t *testing.T) {
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    github.Ptr(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
+			componentBody:    new(`## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n`),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -138,7 +137,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    github.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			componentBody:    new("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			priorBody: `# General
 ## Component Releases
 ### metal-test v0.1.0
@@ -164,7 +163,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    github.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			componentBody:    new("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			releaseURL:       "https://some-url",
 			want: `# General
 ## Required Actions
@@ -179,7 +178,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.5"),
-			componentBody:    github.Ptr("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			componentBody:    new("## General Changes\r\n\r\n* Fix (#123) @Gerrit91\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
 			releaseURL:       "https://some-url",
 			want: `# General
 ## Breaking Changes
@@ -196,7 +195,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-robot",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody:    github.Ptr(prTemplate),
+			componentBody:    new(prTemplate),
 			priorBody:        "",
 			want: `# General
 ## Component Releases
@@ -208,7 +207,7 @@ Some description
 			org:              "metal-stack",
 			component:        "metal-api",
 			componentVersion: semver.MustParse("0.2.4"),
-			componentBody:    github.Ptr(`- Something`),
+			componentBody:    new(`- Something`),
 			priorBody: `# General
 ## Component Releases
 ### metal-apiserver v0.11.7
@@ -325,7 +324,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    github.Ptr("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
+			prBody:    new("This is a new feature\r\n```ACTIONS_REQUIRED\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Required Actions
 * API has changed (metal-stack/metal-robot#11)
@@ -340,7 +339,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    github.Ptr("This is a new feature\r\n```ACTIONS_REQUIRED\r\n\r\n```"),
+			prBody:    new("This is a new feature\r\n```ACTIONS_REQUIRED\r\n\r\n```"),
 			want: `# Merged Pull Requests
 * Some new feature (metal-stack/metal-robot#11) @metal-robot`,
 		},
@@ -352,7 +351,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    github.Ptr("This is a new feature\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
+			prBody:    new("This is a new feature\r\n```BREAKING_CHANGE\r\nAPI has changed\r\n```"),
 			want: `# General
 ## Breaking Changes
 * API has changed (metal-stack/metal-robot#11)
@@ -379,7 +378,7 @@ Some description
 			number:    11,
 			author:    "metal-robot",
 			priorBody: "",
-			prBody:    github.Ptr("This is a new feature\r\n```NOTEWORTHY\r\nThis is important\r\n```"),
+			prBody:    new("This is a new feature\r\n```NOTEWORTHY\r\nThis is important\r\n```"),
 			want: `# General
 ## Noteworthy
 * This is important (metal-stack/metal-robot#11)
