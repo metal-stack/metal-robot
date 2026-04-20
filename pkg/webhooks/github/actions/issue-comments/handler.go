@@ -24,7 +24,7 @@ type IssueCommentsAction struct {
 }
 
 type Params struct {
-	PullRequestNumber int
+	PullRequestNumber *int
 	RepositoryName    string
 	RepositoryURL     string
 	Comment           string
@@ -102,7 +102,12 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 }
 
 func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger, p *Params) error {
-	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
+	if p.PullRequestNumber == nil {
+		log.Info("skipping build-fork-pr comment action because comment not created in a pull request")
+		return nil
+	}
+
+	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, *p.PullRequestNumber)
 	if err != nil {
 		return fmt.Errorf("error finding issue related pull request: %w", err)
 	}
@@ -155,13 +160,18 @@ func (r *IssueCommentsAction) buildForkPR(ctx context.Context, log *slog.Logger,
 }
 
 func (r *IssueCommentsAction) tag(ctx context.Context, log *slog.Logger, p *Params, args []string) error {
+	if p.PullRequestNumber == nil {
+		log.Info("skipping tag comment action because comment not created in a pull request")
+		return nil
+	}
+
 	if len(args) == 0 {
 		return fmt.Errorf("no tag name given, skipping")
 	}
 
 	tag := args[0]
 
-	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, p.PullRequestNumber)
+	pullRequest, _, err := r.client.GetV3Client().PullRequests.Get(ctx, r.client.Organization(), p.RepositoryName, *p.PullRequestNumber)
 	if err != nil {
 		return fmt.Errorf("error finding issue related pull request: %w", err)
 	}
