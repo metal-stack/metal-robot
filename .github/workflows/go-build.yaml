@@ -1,0 +1,25 @@
+---
+name: Go Build
+on:
+  pull_request:
+    branches:
+      - master
+  release:
+    types:
+      - published
+  push:
+    branches:
+      - master
+
+jobs:
+  go-build:
+    uses: metal-stack/actions-common/.github/workflows/go-build.yaml@v1
+    secrets: inherit
+    with:
+      lint: true
+      build: true
+      test: true
+      registry: ghcr.io
+      registry-username: ${{ github.actor }}
+      image-name: ${{ github.repository }}
+      artifact-files: ""
