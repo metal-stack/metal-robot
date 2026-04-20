@@ -23,3 +23,5 @@ jobs:
       registry-username: ${{ github.actor }}
       image-name: ${{ github.repository }}
       artifact-files: ""
+      build-command: make build
+      test-command: make test

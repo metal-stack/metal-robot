@@ -17,6 +17,15 @@ start: all
 	  --bind-addr 0.0.0.0 \
 	  --log-level debug \
 
+.PHONY: build
+build:
+	go build -o bin/$(BINARY) $(MAINMODULE)
+	strip bin/$(BINARY)
+
+.PHONY: test
+test:
+	go test ./... -coverprofile=coverage.out -covermode=atomic && go tool cover -func=coverage.out
+
 .PHONY: swap
 swap:
 	docker build -f Dockerfile.telepresence -t telepresence-container .
