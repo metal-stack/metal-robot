@@ -52,7 +52,7 @@ func (r *IssueCommentsAction) Handle(ctx context.Context, log *slog.Logger, p *P
 	}
 
 	switch perm := *level.Permission; perm {
-	case "admin", "maintain", "write":
+	case "admin", "write":
 		// in this case we can continue
 	default:
 		return handlerrors.Skip("skip handling issues comment action, author %q does not have admin permissions on this repo (but only %q)", p.User, perm)
