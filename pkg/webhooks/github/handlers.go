@@ -451,19 +451,25 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					commentID    = pointer.SafeDeref(comment.ID)
 					commentlogin = pointer.SafeDeref(user.Login)
 
-					pullRequestLinks = pointer.SafeDeref(issue.PullRequestLinks)
-					pullRequestURL   = pointer.SafeDeref(pullRequestLinks.URL)
+					pullRequestNumber *int
 				)
 
 				if action != githubActionCreated {
 					return nil, handlerrors.SkipOnlyActions(githubActionCreated)
 				}
 
-				parts := strings.Split(pullRequestURL, "/")
-				pullRequestNumberString := parts[len(parts)-1]
-				pullRequestNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
-				if err != nil {
-					return nil, fmt.Errorf("unable to parse pull request number: %w", err)
+				if issue.PullRequestLinks != nil && issue.PullRequestLinks.URL != nil {
+					var (
+						parts                   = strings.Split(*issue.PullRequestLinks.URL, "/")
+						pullRequestNumberString = parts[len(parts)-1]
+					)
+
+					parsedNumber, err := strconv.ParseInt(pullRequestNumberString, 10, 64)
+					if err != nil {
+						return nil, fmt.Errorf("unable to parse pull request number: %w", err)
+					}
+
+					pullRequestNumber = new(int(parsedNumber))
 				}
 
 				return &issue_comments.Params{
@@ -472,7 +478,7 @@ func initHandlers(logger *slog.Logger, cs clients.ClientMap, path string, cfg co
 					Comment:           commentBody,
 					CommentID:         commentID,
 					User:              commentlogin,
-					PullRequestNumber: int(pullRequestNumber),
+					PullRequestNumber: pullRequestNumber,
 				}, nil
 			})
 		default:
