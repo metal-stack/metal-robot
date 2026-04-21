@@ -458,7 +458,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, log *slog.Lo
 			Draft:   new(true),
 		}
 
-		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), r.repoName, newDraft)
+		_, _, err := r.client.GetV3Client().Repositories.CreateRelease(ctx, r.client.Organization(), repoName, newDraft)
 		if err != nil {
 			return fmt.Errorf("unable to create release draft: %w", err)
 		}
