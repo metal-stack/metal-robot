@@ -2,8 +2,10 @@ package release_drafter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"regexp"
 	"strings"
 
@@ -385,6 +387,10 @@ func (r *releaseDrafter) releaseInfos(ctx context.Context, log *slog.Logger, rep
 func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context, log *slog.Logger, repoName string) (string, error) {
 	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), repoName)
 	if err != nil {
+		if rerr, ok := errors.AsType[*github.ErrorResponse](err); ok && rerr.Response.StatusCode == http.StatusNotFound {
+			return "v0.0.1", nil
+		}
+
 		return "", fmt.Errorf("unable to find latest release: %w", err)
 	}
 
