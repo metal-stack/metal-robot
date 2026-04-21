@@ -1,5 +1,5 @@
 ---
-name: Go Build
+name: Build
 on:
   pull_request:
     branches:
@@ -16,12 +16,8 @@ jobs:
     uses: metal-stack/actions-common/.github/workflows/go-build.yaml@v1
     secrets: inherit
     with:
-      lint: true
-      build: true
-      test: true
-      registry: ghcr.io
-      registry-username: ${{ github.actor }}
-      image-name: ${{ github.repository }}
-      artifact-files: ""
       build-command: make build
       test-command: make test
+
+  draft:
+    uses: metal-stack/actions-common/.github/workflows/release-drafter.yaml@v1
