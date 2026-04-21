@@ -35,7 +35,9 @@ func NewAppendMergedPRs(logger *slog.Logger, client *clients.Github, rawConfig m
 	}, nil
 }
 
-// Handle appends a merged pull request to the release draft of the repo in which the PR was merged
+// Handle appends a merged pull request to the release draft:
+// - carry over code blocks into the release of the repo in which the pr was merged
+// - add to merged prs section in global release draft
 func (r *appendMergedPR) Handle(ctx context.Context, log *slog.Logger, p *AppendMergedPrParams) error {
 	var g errgroup.Group
 
