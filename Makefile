@@ -16,7 +16,12 @@ start: all
 
 .PHONY: build
 build:
-	go build -o bin/$(BINARY) $(MAINMODULE)
+	go build \
+		-ldflags "$(LINKMODE) -X 'github.com/metal-stack/v.Version=$(VERSION)' \
+					   -X 'github.com/metal-stack/v.Revision=$(GITVERSION)' \
+					   -X 'github.com/metal-stack/v.GitSHA1=$(SHA)' \
+					   -X 'github.com/metal-stack/v.BuildDate=$(BUILDDATE)'" \
+		-o bin/$(BINARY) $(MAINMODULE)
 	strip bin/$(BINARY)
 
 .PHONY: test
