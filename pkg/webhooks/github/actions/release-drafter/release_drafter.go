@@ -127,13 +127,14 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 
 	_, ok := r.repoMap[p.RepositoryName]
 	if !ok {
-		// if there is an ACTIONS_REQUIRED block, we want to add it (even when it's not a release vector repository)
+		// we add release notes from all repositories in the org, not only from release vector repos
+		// this way we do not miss anything important
 
 		if p.ComponentReleaseInfo == nil {
 			return handlerrors.Skip("skip adding release draft because not a release vector repo and no special sections")
 		}
 
-		infos, err := r.releaseInfos(ctx, log)
+		infos, err := r.releaseInfos(ctx, log, r.repoName)
 		if err != nil {
 			return err
 		}
@@ -145,21 +146,22 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 			tmp := fmt.Sprintf("([release notes](%s))", p.ReleaseURL)
 			releaseSuffix = &tmp
 		}
-		err = r.prependCodeBlocks(m, *p.ComponentReleaseInfo, releaseSuffix)
+
+		err = prependCodeBlocks(m, *p.ComponentReleaseInfo, r.draftHeadline, releaseSuffix)
 		if err != nil {
 			return handlerrors.Skip("skip adding release draft: %w", err)
 		}
 
-		body := m.String()
-
-		return r.createOrUpdateRelease(ctx, log, infos, body, p)
+		return r.createOrUpdateRelease(ctx, log, r.repoName, infos, m.String())
 	}
 
 	componentTag := p.TagName
 	if !strings.HasPrefix(componentTag, "v") {
 		return handlerrors.Skip("skip adding release draft because tag not starting with v")
 	}
+
 	trimmedVersion := strings.TrimPrefix(componentTag, "v")
+
 	componentSemver, err := semver.NewVersion(trimmedVersion)
 	if err != nil {
 		return handlerrors.Skip("skip adding release draft because tag is not semver compatible: %w", err)
@@ -181,14 +183,14 @@ func (r *releaseDrafter) Handle(ctx context.Context, log *slog.Logger, p *Params
 		}
 	}
 
-	infos, err := r.releaseInfos(ctx, log)
+	infos, err := r.releaseInfos(ctx, log, r.repoName)
 	if err != nil {
 		return err
 	}
 
 	body := r.updateReleaseBody(r.client.Organization(), infos.body, p.RepositoryName, componentSemver, p.ComponentReleaseInfo, p.ReleaseURL)
 
-	return r.createOrUpdateRelease(ctx, log, infos, body, p)
+	return r.createOrUpdateRelease(ctx, log, r.repoName, infos, body)
 }
 
 func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, component string, componentVersion *semver.Version, componentBody *string, releaseURL string) string {
@@ -232,7 +234,7 @@ func (r *releaseDrafter) updateReleaseBody(org string, priorBody string, compone
 			tmp := fmt.Sprintf("([release notes](%s))", releaseURL)
 			releaseSuffix = &tmp
 		}
-		_ = r.prependCodeBlocks(m, strippedBody, releaseSuffix)
+		_ = prependCodeBlocks(m, strippedBody, r.draftHeadline, releaseSuffix)
 	}
 
 	heading := fmt.Sprintf("%s v%s", component, componentVersion.String())
@@ -280,7 +282,7 @@ func stripHtmlComments(s string) string {
 	return res
 }
 
-func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, issueSuffix *string) error {
+func prependCodeBlocks(m *markdown.Markdown, body string, headline string, issueSuffix *string) error {
 	changed := false
 	body = stripHtmlComments(body)
 
@@ -304,7 +306,7 @@ func (r *releaseDrafter) prependCodeBlocks(m *markdown.Markdown, body string, is
 
 		var (
 			actionBody     = markdown.ToListItem(actionBlock)
-			releaseSection = ensureReleaseSection(m, r.draftHeadline)
+			releaseSection = ensureReleaseSection(m, headline)
 			section        = releaseSection.FindSectionByHeading(2, b.sectionHeadline)
 		)
 
@@ -352,8 +354,8 @@ type releaseInfos struct {
 	body       string
 }
 
-func (r *releaseDrafter) releaseInfos(ctx context.Context, log *slog.Logger) (*releaseInfos, error) {
-	existingDraft, err := findExistingReleaseDraft(ctx, r.client, r.repoName)
+func (r *releaseDrafter) releaseInfos(ctx context.Context, log *slog.Logger, repoName string) (*releaseInfos, error) {
+	existingDraft, err := findExistingReleaseDraft(ctx, r.client, repoName)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +364,7 @@ func (r *releaseDrafter) releaseInfos(ctx context.Context, log *slog.Logger) (*r
 	if existingDraft != nil && existingDraft.TagName != nil {
 		releaseTag = *existingDraft.TagName
 	} else {
-		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx, log)
+		releaseTag, err = r.guessNextVersionFromLatestRelease(ctx, log, repoName)
 		if err != nil {
 			return nil, err
 		}
@@ -380,16 +382,20 @@ func (r *releaseDrafter) releaseInfos(ctx context.Context, log *slog.Logger) (*r
 	}, nil
 }
 
-func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context, log *slog.Logger) (string, error) {
-	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), r.repoName)
+func (r *releaseDrafter) guessNextVersionFromLatestRelease(ctx context.Context, log *slog.Logger, repoName string) (string, error) {
+	latest, _, err := r.client.GetV3Client().Repositories.GetLatestRelease(ctx, r.client.Organization(), repoName)
 	if err != nil {
 		return "", fmt.Errorf("unable to find latest release: %w", err)
 	}
 
 	if latest != nil && latest.TagName != nil {
-		groups := utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
-		t := groups["full_match"]
+		var (
+			groups = utils.RegexCapture(utils.SemanticVersionMatcher, *latest.TagName)
+			t      = groups["full_match"]
+		)
+
 		t = strings.TrimPrefix(t, "v")
+
 		latestTag, err := semver.NewVersion(t)
 		if err != nil {
 			log.Warn("latest release of repository was not a semver tag", "latest-tag", *latest.TagName)
@@ -421,22 +427,23 @@ func findExistingReleaseDraft(ctx context.Context, client *clients.Github, repoN
 		if resp.NextPage == 0 {
 			break
 		}
+
 		opt.Page = resp.NextPage
 	}
 
 	return nil, nil
 }
 
-func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, log *slog.Logger, infos *releaseInfos, body string, p *Params) error {
+func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, log *slog.Logger, repoName string, infos *releaseInfos, body string) error {
 	if infos.existing != nil {
 		infos.existing.Body = &body
 
-		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), r.repoName, infos.existing.GetID(), infos.existing)
+		_, _, err := r.client.GetV3Client().Repositories.EditRelease(ctx, r.client.Organization(), repoName, infos.existing.GetID(), infos.existing)
 		if err != nil {
 			return fmt.Errorf("unable to update release draft: %w", err)
 		}
 
-		log.Info("release draft updated", "version", p.TagName)
+		log.Info("release draft updated", "tag", infos.releaseTag)
 	} else {
 		newDraft := &github.RepositoryRelease{
 			TagName: new(infos.releaseTag),
@@ -450,7 +457,7 @@ func (r *releaseDrafter) createOrUpdateRelease(ctx context.Context, log *slog.Lo
 			return fmt.Errorf("unable to create release draft: %w", err)
 		}
 
-		log.Info("new release draft created", "version", p.TagName)
+		log.Info("new release draft created", "tag", infos.releaseTag)
 	}
 
 	return nil
