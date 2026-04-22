@@ -2,6 +2,11 @@ BINARY := metal-robot
 MAINMODULE := github.com/metal-stack/metal-robot/cmd/metal-robot
 KUBECONFIG := $(or ${KUBECONFIG},.kubeconfig)
 
+SHA := $(shell git rev-parse --short=8 HEAD)
+GITVERSION := $(shell git describe --long --all)
+BUILDDATE := $(shell date -Iseconds)
+VERSION := $(or ${VERSION},$(shell git describe --tags --exact-match 2> /dev/null || git symbolic-ref -q --short HEAD || git rev-parse --short HEAD))
+
 .PHONY: all
 all::
 	go mod tidy
