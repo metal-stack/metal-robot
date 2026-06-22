@@ -2,6 +2,9 @@ BINARY := metal-robot
 MAINMODULE := github.com/metal-stack/metal-robot/cmd/metal-robot
 KUBECONFIG := $(or ${KUBECONFIG},.kubeconfig)
 
+CGO_ENABLED := 1
+LINKMODE := -extldflags '-static -s -w'
+
 SHA := $(shell git rev-parse --short=8 HEAD)
 GITVERSION := $(shell git describe --long --all)
 BUILDDATE := $(shell date -Iseconds)
@@ -21,7 +24,7 @@ start: all
 
 .PHONY: build
 build:
-	go build \
+	go build -tags netgo,osusergo \
 		-ldflags "$(LINKMODE) -X 'github.com/metal-stack/v.Version=$(VERSION)' \
 					   -X 'github.com/metal-stack/v.Revision=$(GITVERSION)' \
 					   -X 'github.com/metal-stack/v.GitSHA1=$(SHA)' \

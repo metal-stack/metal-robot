@@ -1,4 +1,3 @@
-FROM alpine:3.23
-RUN apk add --no-cache ca-certificates
+FROM gcr.io/distroless/static-debian13:nonroot
 COPY bin/metal-robot /metal-robot
 CMD ["/metal-robot"]
