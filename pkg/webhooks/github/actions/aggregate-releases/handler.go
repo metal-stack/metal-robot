@@ -131,6 +131,8 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 	}
 
 	if openPR != nil {
+		log.Info("there is an open PR, checking for freeze")
+
 		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
 			return fmt.Errorf("unable to find out if release is frozen: %w", err)
