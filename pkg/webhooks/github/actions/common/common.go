@@ -105,7 +105,21 @@ func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, own
 
 	for _, comment := range comments {
 		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseFreeze); ok {
-			return true, nil
+			if comment.User == nil || comment.User.Login == nil {
+				continue
+			}
+
+			level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, *comment.User.Login)
+			if err != nil {
+				return false, fmt.Errorf("error determining collaborator status: %w", err)
+			}
+
+			switch perm := *level.Permission; perm {
+			case "admin", "write":
+				return true, nil
+			default:
+				continue
+			}
 		}
 
 		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseUnfreeze); ok {
