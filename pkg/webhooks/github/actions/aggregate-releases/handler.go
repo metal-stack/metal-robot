@@ -131,7 +131,7 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 	}
 
 	if openPR != nil {
-		log.Info("there is an open PR, checking for freeze")
+		log.Debug("there is an open PR, checking for freeze")
 
 		frozen, err := common.IsReleaseFreeze(ctx, r.client.GetV3Client(), *openPR.Number, r.client.Organization(), r.repoName)
 		if err != nil {
@@ -204,6 +204,10 @@ func (r *aggregateReleases) Handle(ctx context.Context, log *slog.Logger, p *Par
 		log.Info("pushed to aggregate target repo", "branch", r.branch, "hash", hash)
 
 		once.Do(func() { r.lock.Unlock() })
+	}
+
+	if openPR != nil {
+		return nil
 	}
 
 	pr, _, err := r.client.GetV3Client().PullRequests.Create(ctx, r.client.Organization(), r.repoName, &github.NewPullRequest{
