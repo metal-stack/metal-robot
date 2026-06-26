@@ -54,20 +54,26 @@ func SearchForCommentCommand(data string, want CommentCommand) ([]string, bool) 
 }
 
 func FindOpenReleasePR(ctx context.Context, client *github.Client, owner, repo, branch, base string) (*github.PullRequest, error) {
+	head := fmt.Sprintf("%s:%s", owner, branch)
+
 	prs, _, err := client.PullRequests.List(ctx, owner, repo, &github.PullRequestListOptions{
 		State: "open",
-		Head:  branch,
-		Base:  base,
+		// without proper format this filter gets ignored, see: https://github.com/orgs/community/discussions/75691
+		Head: head,
+		Base: base,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to list pull requests: %w", err)
 	}
 
-	if len(prs) == 1 {
+	switch len(prs) {
+	case 0:
+		return nil, nil
+	case 1:
 		return prs[0], nil
+	default:
+		return nil, fmt.Errorf("found multiple PRs from head %q to base %q, unable to decide which one to take", head, base)
 	}
-
-	return nil, nil
 }
 
 func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, owner, repo string) (bool, error) {
@@ -99,7 +105,21 @@ func IsReleaseFreeze(ctx context.Context, client *github.Client, number int, own
 
 	for _, comment := range comments {
 		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseFreeze); ok {
-			return true, nil
+			if comment.User == nil || comment.User.Login == nil {
+				continue
+			}
+
+			level, _, err := client.Repositories.GetPermissionLevel(ctx, owner, repo, *comment.User.Login)
+			if err != nil {
+				return false, fmt.Errorf("error determining collaborator status: %w", err)
+			}
+
+			switch perm := *level.Permission; perm {
+			case "admin", "write":
+				return true, nil
+			default:
+				continue
+			}
 		}
 
 		if _, ok := SearchForCommentCommand(pointer.SafeDeref(comment.Body), CommentCommandReleaseUnfreeze); ok {
