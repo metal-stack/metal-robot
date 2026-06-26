@@ -18,6 +18,9 @@ const (
 	CommentCommandReleaseFreeze   CommentCommand = CommentCommandPrefix + "freeze"
 	CommentCommandReleaseUnfreeze CommentCommand = CommentCommandPrefix + "unfreeze"
 	CommentCommandTag             CommentCommand = CommentCommandPrefix + "tag"
+	// CommentCommandBumpRelease runs aggragte releases handlers on the repository for a given repository name.
+	// This only works on Github, Gitlab-hosted releases components cannot be bumped.
+	CommentCommandBumpRelease CommentCommand = CommentCommandPrefix + "bump-release"
 )
 
 var (
@@ -26,6 +29,7 @@ var (
 		CommentCommandReleaseFreeze:   true,
 		CommentCommandReleaseUnfreeze: true,
 		CommentCommandTag:             true,
+		CommentCommandBumpRelease:     true,
 	}
 )
 
