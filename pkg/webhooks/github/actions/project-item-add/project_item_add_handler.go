@@ -15,10 +15,11 @@ import (
 )
 
 type projectItemAdd struct {
-	client    *clients.Github
-	graphql   *githubv4.Client
-	projectID string
-	issueType *string
+	client      *clients.Github
+	graphql     *githubv4.Client
+	projectID   string
+	issueType   *string
+	targetRepos map[string]bool
 }
 
 type Params struct {
@@ -31,16 +32,28 @@ type Params struct {
 
 func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
 	var typedConfig config.ProjectItemAddHandlerConfig
+
 	err := mapstructure.Decode(rawConfig, &typedConfig)
 	if err != nil {
 		return nil, err
 	}
 
+	var targetRepos map[string]bool
+
+	if len(typedConfig.TargetRepos) > 0 {
+		targetRepos = map[string]bool{}
+
+		for _, repo := range typedConfig.TargetRepos {
+			targetRepos[repo.RepositoryName] = true
+		}
+	}
+
 	return &projectItemAdd{
-		client:    client,
-		graphql:   client.GetGraphQLClient(),
-		projectID: typedConfig.ProjectID,
-		issueType: typedConfig.IssuesTypeFilter,
+		client:      client,
+		graphql:     client.GetGraphQLClient(),
+		projectID:   typedConfig.ProjectID,
+		issueType:   typedConfig.IssuesTypeFilter,
+		targetRepos: targetRepos,
 	}, nil
 }
 
@@ -54,6 +67,12 @@ func (r *projectItemAdd) Handle(ctx context.Context, log *slog.Logger, p *Params
 }
 
 func (r *projectItemAdd) addToProject(ctx context.Context, log *slog.Logger, p *Params) error {
+	if r.targetRepos != nil {
+		if _, ok := r.targetRepos[p.RepositoryName]; !ok {
+			return handlerrors.Skip("skip adding item to project, not a target repo")
+		}
+	}
+
 	if r.issueType != nil {
 		if *r.issueType != pointer.SafeDeref(p.IssueType) {
 			return handlerrors.Skip("skip adding item to project, not of issue type %s (but %s)", *r.issueType, pointer.SafeDeref(p.IssueType))

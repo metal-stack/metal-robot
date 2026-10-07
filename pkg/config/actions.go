@@ -46,8 +46,9 @@ type LabelsOnCreation struct {
 }
 
 type ProjectItemAddHandlerConfig struct {
-	ProjectID        string  `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
-	IssuesTypeFilter *string `mapstructure:"issue-type" description:"type of the issue to add"`
+	ProjectID        string       `mapstructure:"project-id" description:"the project in which to move newly created issues and pull requests"`
+	IssuesTypeFilter *string      `mapstructure:"issue-type" description:"type of the issue to add"`
+	TargetRepos      []TargetRepo `mapstructure:"repos" description:"only act on the given target repos, if not provided the handler applies for all repos of the org"`
 }
 
 type ProjectV2ItemHandlerConfig struct {
