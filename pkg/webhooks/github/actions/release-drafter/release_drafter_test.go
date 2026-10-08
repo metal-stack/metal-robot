@@ -397,12 +397,26 @@ Some description
 				if tt.description != "" {
 					r.prDescription = &tt.description
 				}
-				res := r.appendPullRequest(tt.org, tt.priorBody, tt.repo, tt.title, tt.number, tt.author, tt.prBody)
+
+				params := &AppendMergedPrParams{
+					Params: Params{
+						RepositoryName:       tt.repo,
+						TagName:              "",
+						ComponentReleaseInfo: tt.prBody,
+						ReleaseURL:           "",
+					},
+					Title:  tt.title,
+					Number: tt.number,
+					Author: tt.author,
+				}
+
+				res := r.appendPullRequest(tt.org, tt.priorBody, params)
 				if diff := cmp.Diff(tt.want, res); diff != "" {
 					t.Errorf("ReleaseDrafter.appendPullRequest(), diff: %v", diff)
 					t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)
 				}
-				idempotent := r.appendPullRequest(tt.org, tt.priorBody, tt.repo, tt.title, tt.number, tt.author, tt.prBody)
+
+				idempotent := r.appendPullRequest(tt.org, tt.priorBody, params)
 				if diff := cmp.Diff(tt.want, idempotent); diff != "" {
 					t.Errorf("not idempotent: %v", diff)
 					t.Logf("want\n=====\n%s\n\ngot\n=====\n%s", tt.want, res)
