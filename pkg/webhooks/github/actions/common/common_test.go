@@ -55,6 +55,15 @@ func Test_searchForCommandInBody(t *testing.T) {
 			want:     true,
 			wantArgs: []string{"v0.1.17-rc.0"},
 		},
+		{
+			name: "find bump release command",
+			body: `I am gonna bump this manually.
+			/bump-release metal-robot v0.1.0
+			`,
+			search:   CommentCommandBumpRelease,
+			want:     true,
+			wantArgs: []string{"metal-robot", "v0.1.0"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -43,7 +43,7 @@ type Params struct {
 	Sender         string
 }
 
-func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], error) {
+func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHandler[*Params], string, error) {
 	var (
 		branch                = "develop"
 		branchBase            = "master"
@@ -54,14 +54,14 @@ func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHand
 	var typedConfig config.AggregateReleasesConfig
 	err := mapstructure.Decode(rawConfig, &typedConfig) // nolint:musttag
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	if typedConfig.TargetRepositoryName == "" {
-		return nil, fmt.Errorf("target repository name must be specified")
+		return nil, "", fmt.Errorf("target repository name must be specified")
 	}
 	if typedConfig.TargetRepositoryURL == "" {
-		return nil, fmt.Errorf("target repository-url must be specified")
+		return nil, "", fmt.Errorf("target repository-url must be specified")
 	}
 	if typedConfig.Branch != nil {
 		branch = *typedConfig.Branch
@@ -81,7 +81,7 @@ func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHand
 		for _, m := range actions.Modifiers {
 			patcher, err := filepatchers.InitPatcher(m)
 			if err != nil {
-				return nil, err
+				return nil, "", err
 			}
 
 			patches, ok := patchMap[n]
@@ -103,7 +103,7 @@ func New(client *clients.Github, rawConfig map[string]any) (handlers.WebhookHand
 		repoName:              typedConfig.TargetRepositoryName,
 		pullRequestTitle:      pullRequestTitle,
 		lock:                  multilock.New(typedConfig.TargetRepositoryName),
-	}, nil
+	}, typedConfig.TargetRepositoryName, nil
 }
 
 // Handle adds a repository release to a release vector repository.
